@@ -1,0 +1,80 @@
+// shim/v1 defines the internal protocol between the daemon
+// and the jack-ketch-shim. This is an internal, versioned
+// protocol not part of the public API.
+syntax = "proto3";
+
+package jackketch.shim.v1;
+option go_package = "jack-ketch/gen/jackketch/shim/v1;shimv1";
+
+import "google/protobuf/timestamp.proto";
+
+service ShimControl {
+  rpc Hello(HelloRequest) returns (HelloResponse);
+  rpc Subscribe(SubscribeRequest) returns (stream FramedRecord);
+  rpc Signal(SignalRequest) returns (SignalResponse);
+  rpc Stdin(StdinRequest) returns (StdinResponse);
+  rpc Resize(ResizeRequest) returns (ResizeResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+}
+
+message HelloRequest {
+  int32 protocol_version = 1;
+}
+message HelloResponse {
+  int32 protocol_version = 1;
+  int32 pid = 2;
+  int32 pgid = 3;
+  string status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  int64 last_seq = 6;
+  // Present when the child already exited (e.g. while the daemon was
+  // down): the shim holds the exit until Release.
+  Exited exit = 7;
+}
+
+message SubscribeRequest {
+  int64 from_seq = 1;
+}
+message FramedRecord {
+  uint64 seq = 1;
+  int64 ts_unix_ns = 2;
+  uint32 stream = 3;
+  bool partial = 4;
+  bytes payload = 5;
+}
+message Exited {
+  int32 code = 1;
+  string signal = 2;
+  bool oom_killed = 3;
+  int64 exited_unix_ns = 4;
+}
+
+message SignalRequest {
+  string signal = 1;
+  bool group = 2;
+}
+message SignalResponse {}
+
+message StdinRequest {
+  bytes data = 1;
+}
+message StdinResponse {}
+
+message ResizeRequest {
+  int32 rows = 1;
+  int32 cols = 2;
+}
+message ResizeResponse {}
+
+message StopRequest {
+  int32 grace_ms = 1;
+}
+message StopResponse {}
+
+message ReleaseRequest {}
+message ReleaseResponse {}
+
+message Error {
+  string message = 1;
+}

@@ -1,0 +1,7 @@
+{
+  "name": "jack-ketch",
+  "owner": { "name": "jack-ketch contributors" },
+  "plugins": [
+    { "name": "jack-ketch", "source": "./packaging/claude-plugin", "description": "Supervised dev servers, logs and readiness checks for Claude Code via jack-ketch" }
+  ]
+}

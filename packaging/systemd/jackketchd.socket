@@ -1,0 +1,12 @@
+[Unit]
+Description=jack-ketch daemon (per-user background platform)
+Documentation=https://github.com/anshiq/jack-ketch
+After=default.target
+
+[Socket]
+ListenStream=%t/jack-ketch/jackketchd.sock
+SocketMode=0600
+DirectoryMode=0700
+
+[Install]
+WantedBy=sockets.target

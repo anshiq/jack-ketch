@@ -1,0 +1,71 @@
+{
+  "harnesses": [
+    {
+      "id": "claude-code",
+      "displayName": "Claude Code",
+      "tier": 1,
+      "docsUrl": "https://docs.anthropic.com/en/docs/claude-code/mcp",
+      "detected": true,
+      "version": "1.2.3",
+      "evidence": ["/home/dev/.claude", "claude on PATH"],
+      "connected": 2,
+      "skillsSupported": true,
+      "manualSteps": "",
+      "restartHint": "restart Claude Code",
+      "maxWaitMs": 120000,
+      "scopes": [
+        {
+          "scope": "user",
+          "status": "installed",
+          "portable": false,
+          "entries": [
+            {
+              "path": "/home/dev/.claude.json",
+              "fileExists": true,
+              "installed": true,
+              "command": "jack-ketch",
+              "args": ["serve"],
+              "commandFound": true,
+              "upToDate": true
+            }
+          ]
+        },
+        {
+          "scope": "project",
+          "status": "outdated",
+          "portable": true,
+          "note": "shared with the team",
+          "entries": [
+            {
+              "path": "/home/dev/app/.mcp.json",
+              "fileExists": true,
+              "installed": true,
+              "command": "jack-ketch",
+              "args": ["serve", "--project", "."],
+              "commandFound": true,
+              "upToDate": false,
+              "problems": ["command outdated"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vscode-copilot",
+      "displayName": "VS Code (GitHub Copilot)",
+      "tier": 2,
+      "docsUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers",
+      "detection": { "detected": false },
+      "scopes": [
+        {
+          "scope": "user",
+          "status": "absent",
+          "portable": false,
+          "entries": []
+        }
+      ],
+      "manualSteps": "Run the MCP: Add Server command and paste the config.",
+      "maxWaitMs": 0
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+version: 2
+
+project_name: jack-ketch
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: jack-ketch
+    main: ./cmd/jack-ketch
+    binary: jack-ketch
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X jack-ketch/internal/mcp.Version={{ .Version }}
+  - id: jackketchd
+    main: ./cmd/jackketchd
+    binary: jackketchd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+  - id: jack-ketch-shim
+    main: ./cmd/jack-ketch-shim
+    binary: jack-ketch-shim
+    env:
+      # Static, minimal deps: the shim must stay tiny (target RSS <= 4 MB)
+      # and never change under running instances on jackketchd upgrade.
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: jack-ketch
+    builds:
+      - jack-ketch
+      - jackketchd
+      - jack-ketch-shim
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE*
+      - README.md
+      - packaging/systemd/jackketchd.socket
+      - packaging/systemd/jackketchd.service
+
+nfpms:
+  - id: jack-ketch
+    package_name: jack-ketch
+    file_name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    builds:
+      - jack-ketch
+      - jackketchd
+      - jack-ketch-shim
+    maintainer: jack-ketch contributors
+    description: Local async process supervisor for AI coding agents (v3 daemon + CLI + shim)
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: packaging/systemd/jackketchd.socket
+        dst: /usr/lib/systemd/user/jackketchd.socket
+      - src: packaging/systemd/jackketchd.service
+        dst: /usr/lib/systemd/user/jackketchd.service
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-SNAPSHOT"
+
+changelog:
+  use: git
+  sort: asc
+  groups:
+    - title: Features
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: Bug fixes
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: Others
+      order: 999

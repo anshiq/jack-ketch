@@ -1,0 +1,10 @@
+{
+  "name": "jack-ketch",
+  "displayName": "jack-ketch",
+  "version": "0.2.0",
+  "description": "Run and watch dev servers through jack-ketch: start_process, wait_for_log, get_logs and more.",
+  "author": { "name": "jack-ketch contributors" },
+  "homepage": "https://github.com/anshiq/jack-ketch",
+  "license": "MIT",
+  "keywords": ["mcp", "dev-server", "logs", "process-supervisor"]
+}

@@ -1,0 +1,1 @@
+{"mcpServers": {"jack-ketch": {"command": "jack-ketch", "args": ["serve", "--harness", "claude-code"]}}}

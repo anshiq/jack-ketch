@@ -1,0 +1,279 @@
+---
+name: jack-ketch-project-config
+description: Project config reference declaring how runnable apps are started, supervised, and env-configured (apps, runtime env layers, health checks, restart, security).
+metadata:
+  version: "4"
+---
+
+# project config reference
+
+The project config declares how runnable apps are started, supervised, and env-configured. It is stored in the daemon database (state.db), edited via the web Config page, `apply_config` or `jack-ketch config edit` — never via files in the repository. Use `jack-ketch config export` to print the current YAML. The `runtime:` section — env layers, `stop_grace`, buffer sizes, security, TTLs — is honoured in daemon mode exactly as below.
+
+## Scope (what apps belong here)
+
+Declare long-lived development processes only: dev servers, watchers, backends, workers, plus app-tied build/test/migration commands. Each app gets readiness detection, log buffering with FTS search, health checks, and restart supervision.
+
+What to avoid: never declare `docker`, `docker compose`, `podman`, `kubectl`, core-utils (`ls`, `cat`, `grep`, `find`, `echo`, `ps`), host package managers, or VCS/file ops as apps. They have no readiness line or health endpoint, and supervising them wastes buffers and pollutes `search_logs`. Run those in your own shell instead. In `restricted` mode, keep them out of `allowed_commands` — allowlist project toolchains (`go`, `npm`, `python`, wrappers) rather than container or system CLIs.
+
+## Full annotated template
+
+```yaml
+runtime:
+  # Base env layer: "login" (default) captures the login-shell env once via
+  # $SHELL -lic 'env -0' (~3s timeout, silent fallback to os.Environ()).
+  # This is what makes nvm/pyenv/uv shims and their PATH entries reach managed
+  # processes. Use "none" to inherit the parent env instead — pin "none" in
+  # test configs where determinism matters.
+  shell_env: login
+
+  # Global env layer applied to EVERY app/process. Lower precedence than
+  # env_file, app env, and request env.
+  # env:
+  #   - "NODE_ENV=development"
+
+  # Log ring buffer size per stream (stdout/stderr). get_logs reads from here.
+  log_buffer_lines: 10000
+
+  # Grace period before SIGKILL after SIGTERM on stop_process (default 5s).
+  stop_grace: 5s
+
+  # How long to wait for graceful shutdown of everything on runtime exit.
+  shutdown_timeout: 5s
+
+  # Optional durable SQLite log archive (server-side persistence). The app
+  # itself never writes log files.
+  # log_store: sqlite
+
+apps:
+  # Each app is a name -> spec map. start_process(app="<name>") launches it.
+  api:
+    # Profile name — gives readiness detection + optional default command.
+    type: node
+
+    # Relative to the workspace root, then resolved through
+    # filepath.EvalSymlinks (predictable uv/poetry walk-ups). Must exist — a
+    # missing workdir fails the start BEFORE anything is exec'd.
+    workdir: ./services/api
+
+    # Explicit argv. Omit to use the profile's default command
+    # (nextjs/node: detected package manager run dev; django:
+    # python manage.py runserver; spring-boot: ./mvnw spring-boot:run /
+    # ./gradlew bootRun; go: go run .; python: none).
+    command: ["node", "server.js"]
+
+    # Dotenv file, relative to the config file. Never logged. Higher
+    # precedence than runtime.env, lower than this app's env block.
+    # env_file: .env
+
+    # Per-app env overrides, KEY=VALUE. Higher precedence than env_file.
+    # env:
+    #   - "LOG_LEVEL=info"
+    #   - "PYTHONUNBUFFERED=1"
+```
+
+## Env precedence
+
+Every process runs with a **complete merged environment** — the env the
+runtime reports for a process is the final result, never a delta. Layers,
+lowest to highest precedence:
+
+1. **Base env** — captured login-shell environment (`shell_env: login`, the
+   default) or the parent process env (`shell_env: none`).
+2. **`runtime.env`** — a runtime-wide layer applied to every app/process.
+3. **`env_file`** — the app's (or the request's) dotenv file.
+4. **app `env`** — the app's `env:` block in the project config.
+5. **request `env`** — the `env` array passed to `start_process`.
+
+Later layers override earlier ones for the same key. `get_process_env`
+(spec mode) shows the merged result with per-key `source` provenance.
+
+Example — `PORT` set in every layer:
+
+```yaml
+runtime:
+  env: ["PORT=3000"]          # layer 2
+apps:
+  web:
+    type: node
+    env_file: .env            # .env contains PORT=3001 → layer 3 wins
+    env: ["PORT=3002"]        # layer 4 wins over env_file
+```
+
+`start_process(app="web", env=["PORT=3003"])` → layer 5 wins → the process
+sees `PORT=3003`.
+
+## Monorepo
+
+One config file, several independent services, each with its own workdir and
+its own `.env` — same key, different values, no leakage:
+
+```yaml
+runtime:
+  env: ["NODE_ENV=development"]   # shared default for every service
+  log_buffer_lines: 10000
+
+apps:
+  api:
+    type: node
+    workdir: ./services/api
+    env_file: ./services/api/.env     # PORT=3000, DATABASE_URL=...
+    command: ["node", "server.js"]
+  worker:
+    type: python
+    workdir: ./services/worker
+    env_file: ./services/worker/.env  # PORT=4000, DATABASE_URL=... (same key, different value)
+    command: ["python3", "-u", "worker.py"]
+```
+
+- Paths (`workdir`, `env_file`) resolve **relative to the workspace root**,
+  then through `filepath.EvalSymlinks`.
+- Each app's merged env is independent — `get_process_env(process_id)` per
+  process shows exactly what that process got.
+- A missing `workdir` fails the start during resolution, **before anything is
+  exec'd or registered** — a typo fails loudly and fast, not silently.
+
+## Profiles
+
+| Profile | Detected by | Readiness patterns | Default command |
+|---|---|---|---|
+| `nextjs` | `package.json` contains `"next"` | `(?i)ready in`, `(?i)started server`, `(?i)local:\s*https?://`, `(?i)compiled successfully`, `(?i)ready` | detected package manager `run dev` (npm/pnpm/yarn/bun by lockfile) |
+| `spring-boot` | `pom.xml` / `build.gradle` / `build.gradle.kts` | `Started \S+ in \d+(\.\d+)?s?`, `Tomcat started on port`, `Netty started on port`, `Jetty started on port`, `(UnderTow\|Undertow) started on port` | `./mvnw spring-boot:run` or `./gradlew bootRun` (by wrapper lockfile) |
+| `django` | `manage.py` | `Starting development server at`, `Quit the server with`, `Uvicorn running on http` | `python manage.py runserver` |
+| `node` | `package.json` | `(?i)listening on`, `(?i)server started`, `(?i)started server`, `(?i)ready` | detected package manager `run dev` |
+| `python` | `requirements.txt` / `pyproject.toml` | `(?i)running on http`, `(?i)listening on`, `(?i)server started` | none |
+| `go` | `go.mod` | `(?i)listening on`, `(?i)server started` | `go run .` |
+| `generic` | fallback | none | none |
+
+`wait_for_log(process_id, ready=true)` matches the app's profile readiness
+patterns against captured log lines, one line at a time.
+
+## Supervision (v2)
+
+Supervision is **declarative and per-app**: jack-ketch notices crashes and
+health failures on its own, without the agent polling. All fields are optional
+(v1 files load unchanged). An app with none of these behaves exactly as in v1.
+
+```yaml
+apps:
+  api:
+    command: ["go", "run", "./cmd/api"]
+
+    # Override the profile-detected readiness regexes for this app. A process
+    # is "ready" once a captured log line matches. Omit to use the profile's.
+    readiness:
+      - 'listening on :8080'
+
+    # Continuous health probe, run once the process is ready. After
+    # failure_threshold consecutive failed probes the process is reported
+    # unhealthy and, if the restart policy permits, restarted.
+    health_check:
+      http: "http://localhost:8080/healthz"   # or tcp: "localhost:8080" (set one)
+      interval: 10s      # probe interval (default 10s)
+      timeout: 3s        # per-probe timeout (default 3s, must be < interval)
+      failure_threshold: 3  # consecutive failures that mark unhealthy (default 3)
+
+    # Declarative auto-restart with exponential backoff.
+    restart:
+      policy: on-failure      # never (default) | on-failure | always
+      backoff: [1s, 2s, 5s, 15s, 60s]   # capped-exponential steps (default)
+      max_restarts: 10        # per rolling 10-minute window (default 10; 0 = no budget)
+```
+
+Rules:
+- `on-failure` restarts only on non-zero exit; `always` restarts regardless of
+  exit code.
+- **A manual `stop_process` or shutdown never triggers a restart**, regardless
+  of policy.
+- Exhausting the restart budget marks the process `crashed` (process_status
+  shows `status="crashed"`). Manual `restart_process` resets the budget.
+- A process stable for a full 10-minute window has its budget reset.
+- `set_restart_policy(process_id, policy)` opts an ad-hoc process (started
+  without an app entry) into auto-restart.
+- `process_status` reports `health` (unknown/healthy/unhealthy),
+  `consecutive_failures`, `backoff_state`, and `restart_policy`.
+
+## Security (v2)
+
+Default `runtime.security.mode: trusted` — arbitrary exec, as today. Set
+`restricted` for CI/shared machines:
+
+```yaml
+runtime:
+  security:
+    mode: restricted
+    allowed_commands: ["go", "npm", "pnpm", "./mvnw", "python"]  # basename match
+    allowed_workdirs: ["${project}", "${project}/../shared"]     # confinement
+    allow_pid_attach: false   # disables open_shell(pid=)
+    allow_stdin: true
+    reveal_secrets: false     # hard-disables get_process_env(reveal=true)
+```
+
+In restricted mode, `start_process` with a non-allowlisted command or an
+out-of-tree workdir fails with a structured `policy_denied` error and an audit
+entry. Mutating tool calls and policy denials are recorded in the daemon's
+audit history (kept 90 days, secrets redacted); `get_audit_log` reads it. In
+restricted mode `reveal=true` is a policy error, not a silent ignore.
+
+## Observability (v2)
+
+- `runtime.metrics: ":9341"` — optional Prometheus scrape endpoint.
+- `runtime.log_forward: { stdout: true, otlp: "http://localhost:4318/v1/logs" }`
+  — best-effort, drop-on-backpressure log forwarding.
+- `get_logs(..., level="error")` — filter structured logs by level
+  (`level=...` / `"level":...` prefixes).
+- `runtime_stats` — process counts by status and log-pipeline drop counters.
+
+## Daemon
+
+One per-user `jackketchd` hosts every project and is started on demand by the
+first `jack-ketch serve`. `jack-ketch daemon start|status|stop|restart`
+manage it. Managed processes outlive agent sessions but stop when the daemon
+stops. There is no `runtime.daemon` key.
+
+## HTTP transport
+
+`jack-ketch serve --http 127.0.0.1:7341` serves the same MCP server over
+streamable HTTP (a bare `:7341` binds loopback; other interfaces require
+`--allow-remote`). The bearer token comes from `--token`, `--token-file`,
+`JACK_KETCH_HTTP_TOKEN`, or the web UI token file. Select a project per
+request with the `X-Jack-Ketch-Workspace` header or `?workspace=`. Tool
+calls are rate-limited.
+
+## Resource limits (v2)
+
+Per-app `limits` bound machine impact (Linux-first via cgroup v2; degrades to
+unlimited when unsupported):
+
+```yaml
+apps:
+  api:
+    command: ["go", "run", "./cmd/api"]
+    limits:
+      cpu: "1.0"       # cores, or "500m" (milli-cores)
+      memory: "512M"   # 512M, 1G, 256MiB, ...
+```
+
+Each process gets its own cgroup v2 slice; `process_status` reports live
+`memory_bytes`/`cpu_usage_nanos`; an OOM-kill surfaces to subscribers as
+`process.crashed` with `reason: "oom"`.
+
+## CLI equivalence
+
+`jack-ketch run` mirrors the request-level env layer from the shell:
+
+```bash
+jack-ketch run --app api --env PORT=3003 --env-file ./services/api/.env
+```
+
+maps to `start_process(app="api", env=["PORT=3003"], env_file="./services/api/.env")`:
+the `--env-file` becomes layer 3, `--env` becomes layer 5 (above the app's
+`env:` block, above `runtime.env`). In `run` mode the process lifetime is tied
+to the invocation; in MCP `serve` mode it outlives the call.
+
+## Auto-generated apps
+
+On project load and every start the daemon scans run-defining files (package.json scripts, go.mod, manage.py, pyproject, pom.xml, Procfile, Makefile, docker-compose) plus depth-1 subdirs and generates missing apps automatically. Generated apps are marked auto in the Apps page and revisions have source auto. Raw starts that are still running after 10 seconds are learned as auto apps (source learned) while the daemon setting `learn_raw_starts` is on (default; toggle it on the web Settings page).
+
+## Ownership and proposals
+
+Ownership is per app without a YAML flag: an app is auto-owned while its block hash matches the last generated hash. Any edit converts it to yours. When detection differs for your apps the daemon leaves them untouched and records a pending proposal with the full proposed YAML and a per-app summary. Approve via the Config page banner, `resolve_config_proposal` or CLI; dismiss stores the current signature so it is not re-proposed until files change. Never approve on the user behalf, always surface proposals first.

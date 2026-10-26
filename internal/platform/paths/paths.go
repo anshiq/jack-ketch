@@ -1,0 +1,143 @@
+// Package paths provides XDG-based path resolution for jack-ketch.
+//
+// All path constants are derived from the standard XDG Base Directory
+// specification with platform-appropriate fallbacks. Nothing else in the
+// codebase should call os.UserHomeDir() directly; resolve through here.
+package paths
+
+import (
+	"os"
+	"path/filepath"
+	"strconv"
+)
+
+// Paths holds all the directory paths used by jack-ketch for a
+// single OS user.
+type Paths struct {
+	// Runtime is the directory for runtime files (sockets, PID, locks).
+	Runtime string
+	// Data is the directory for durable data (state.db, projects, logs).
+	Data string
+	// Config is the directory for daemon-wide config.
+	Config string
+	// State is the directory for state/log files.
+	State string
+	// Cache is the directory for caches (profile detection, git probes).
+	Cache string
+}
+
+// getenv reads one environment variable (testing seam lives in the
+// per-OS userPaths implementations).
+func getenv(key string) string { return os.Getenv(key) }
+
+// User returns the Paths for the current user. The roots are
+// platform-specific (paths_linux/darwin/windows.go); XDG variables are
+// honoured on all platforms when set.
+func User() *Paths {
+	return userPaths(getenv)
+}
+
+// SocketPath returns the daemon's Unix socket path.
+func (p *Paths) SocketPath() string {
+	return filepath.Join(p.Runtime, "jackketchd.sock")
+}
+
+// PIDPath returns the daemon's PID file path.
+func (p *Paths) PIDPath() string {
+	return filepath.Join(p.Runtime, "jackketchd.pid")
+}
+
+// LockPath returns the daemon's lock file path.
+func (p *Paths) LockPath() string {
+	return filepath.Join(p.Runtime, "jackketchd.lock")
+}
+
+// LogPath returns the daemon's own log file path.
+func (p *Paths) LogPath() string {
+	return filepath.Join(p.State, "jackketchd.log")
+}
+
+// StateDBPath returns the central state database path.
+func (p *Paths) StateDBPath() string {
+	return filepath.Join(p.Data, "state.db")
+}
+
+// JackKetchdConfigPath returns the daemon-wide settings file path.
+func (p *Paths) JackKetchdConfigPath() string {
+	return filepath.Join(p.Config, "jackketchd.yaml")
+}
+
+// TokenPath returns the bearer-token file for the TCP listener.
+func (p *Paths) TokenPath() string {
+	return filepath.Join(p.Config, "token")
+}
+
+// TCPAddrPath returns the file recording the running TCP listener address.
+func (p *Paths) TCPAddrPath() string {
+	return filepath.Join(p.Runtime, "tcp.addr")
+}
+
+// WorkspaceDir returns the directory for a specific workspace's logs.
+func (p *Paths) WorkspaceDir(workspaceID string) string {
+	return filepath.Join(p.Data, "logs", workspaceID)
+}
+
+// IndexDBPath returns the FTS5 log index for a workspace.
+func (p *Paths) IndexDBPath(workspaceID string) string {
+	return filepath.Join(p.WorkspaceDir(workspaceID), "index.db")
+}
+
+// SegmentDir returns the directory for an instance's log segments.
+func (p *Paths) SegmentDir(workspaceID, instanceID string) string {
+	return filepath.Join(p.WorkspaceDir(workspaceID), "segments", instanceID)
+}
+
+// ShimDir returns the runtime directory for a shim instance.
+func (p *Paths) ShimDir(instanceID string) string {
+	return filepath.Join(p.Runtime, "shims", instanceID)
+}
+
+// ShimSocket returns the control socket for a shim instance.
+func (p *Paths) ShimSocket(instanceID string) string {
+	return filepath.Join(p.ShimDir(instanceID), "shim.sock")
+}
+
+// TrashDir returns the directory for forgotten projects.
+func (p *Paths) TrashDir() string {
+	return filepath.Join(p.Data, "trash")
+}
+
+// BackupsDir returns the directory for DB backups.
+func (p *Paths) BackupsDir() string {
+	return filepath.Join(p.Data, "backups")
+}
+
+// EnsureDirs creates all the necessary directories with 0700 permissions.
+// Existing directories are chmodded to 0700 to repair permissive modes
+// (doctor also checks this).
+func (p *Paths) EnsureDirs() error {
+	dirs := []string{
+		p.Runtime,
+		p.Data,
+		p.Config,
+		p.State,
+		p.Cache,
+		p.TrashDir(),
+		p.BackupsDir(),
+	}
+	for _, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+		// MkdirAll does not chmod existing dirs; enforce 0700.
+		_ = os.Chmod(dir, 0o700)
+	}
+	return nil
+}
+
+func currentUID() string {
+	return strconv.Itoa(os.Getuid())
+}

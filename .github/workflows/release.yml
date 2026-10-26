@@ -1,0 +1,112 @@
+name: release
+
+# Manual tags (git tag vX.Y.Z && git push origin vX.Y.Z) run the full test
+# suite first; goreleaser publishes only when everything passes.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  test-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Race
+        run: go test -race ./internal/store/... ./internal/session/... ./internal/config/... ./internal/core/... ./internal/server/... ./internal/mcp/... ./internal/integrate/... ./internal/daemon/... ./pkg/...
+      - name: Tests
+        run: go test ./...
+
+  test-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install
+        run: npm --prefix ui install --no-audit --no-fund
+      - name: Check
+        run: npm --prefix ui run check
+      - name: Unit
+        run: npm --prefix ui test
+      - name: Build
+        run: npm --prefix ui run build
+      - name: Embed
+        run: make ui-web-embed
+      - name: Dist freshness
+        run: |
+          git add -A -- internal/webui/dist
+          if ! git diff --cached --quiet -- internal/webui/dist; then
+            echo "internal/webui/dist is stale: run 'make ui-web' and commit the result"
+            git diff --cached --stat -- internal/webui/dist
+            exit 1
+          fi
+
+  cross:
+    # §10: Linux is implemented now; darwin/windows stay compiling.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build ./...
+
+  release:
+    needs: [test-go, test-ui, cross]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Remove previous releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          current="${GITHUB_REF_NAME}"
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | while read -r tag; do
+            if [ "$tag" != "$current" ]; then
+              gh release delete "$tag" --yes --cleanup-tag
+            fi
+          done
+          for tag in $(git tag -l 'v*'); do
+            if [ "$tag" != "$current" ]; then
+              git push origin ":refs/tags/$tag" || true
+            fi
+          done
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
