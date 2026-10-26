@@ -15,7 +15,7 @@ import (
 // var so release builds can stamp the git tag via -ldflags
 // (-X jack-ketch/internal/mcp.Version={{.Version}}); local builds keep the
 // default.
-var Version = "0.2.0"
+var Version = "0.2.1"
 
 const Instructions = `jack-ketch runs and supervises this project's development processes: dev servers, watchers, workers, and app-tied builds, tests and migrations. Start them through jack-ketch instead of your own shell; a process started elsewhere has no captured logs, readiness detection, health checks or restart supervision.
 

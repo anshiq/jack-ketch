@@ -1,6 +1,6 @@
 {
   "name": "jack-ketch-ui",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Web UI for jack-ketch. Talks only to the Connect-compatible daemon API at /api.",
   "type": "module",
   "scripts": {

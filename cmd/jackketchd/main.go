@@ -7,7 +7,7 @@ import (
 	"jack-ketch/internal/jackketchd"
 )
 
-var version = "v0.2.0"
+var version = "v0.2.1"
 
 func main() {
 	if err := jackketchd.Main(os.Args[1:], version); err != nil {

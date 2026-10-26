@@ -13,7 +13,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        version = "0.2.0";
+        version = "0.2.1";
       in {
         packages = {
           jack-ketch = pkgs.buildGoModule {
