@@ -78,19 +78,19 @@ func (s *Server) sysStats(w http.ResponseWriter, r *http.Request) (any, error) {
 
 func sysSettingDefs() map[string]any {
 	return map[string]any{
-		"log_level":        "info",
-		"idle_exit":        "never",
-		"retention":        "30d",
-		"learn_raw_starts": true,
+		"log_level":           "info",
+		"idle_exit":           "never",
+		"retention":           "30d",
+		"suggest_saving_runs": true,
 	}
 }
 
 func sysSettingSchema() map[string]any {
 	return map[string]any{
-		"log_level":        map[string]any{"type": "string", "enum": []string{"debug", "info", "warn", "error"}, "description": "Daemon log verbosity"},
-		"idle_exit":        map[string]any{"type": "string", "description": "Stop the daemon after this long with no sessions and no running processes (never, 30m, 2h, 1d)"},
-		"retention":        map[string]any{"type": "string", "description": "Event history retention (7d, 30d, 90d). Audit history is kept 90 days."},
-		"learn_raw_starts": map[string]any{"type": "boolean", "description": "Add raw start_process commands that are still running after 10 seconds to the project config as auto apps"},
+		"log_level":           map[string]any{"type": "string", "enum": []string{"debug", "info", "warn", "error"}, "description": "Daemon log verbosity"},
+		"idle_exit":           map[string]any{"type": "string", "description": "Stop the daemon after this long with no sessions and no running processes (never, 30m, 2h, 1d)"},
+		"retention":           map[string]any{"type": "string", "description": "Event history retention (7d, 30d, 90d). Audit history is kept 90 days."},
+		"suggest_saving_runs": map[string]any{"type": "boolean", "description": "After a run started with a raw command succeeds, suggest saving it as an app mode (the agent asks you first; nothing is saved without your OK)"},
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *Server) sysGetSettings(w http.ResponseWriter, r *http.Request) (any, er
 	for k, dv := range defs {
 		if v, ok, _ := s.engine.Store().GetSetting(k); ok {
 			val := settingJSONValue(v, dv)
-			if k == "learn_raw_starts" {
+			if k == "suggest_saving_runs" {
 				if str, ok := val.(string); ok {
 					val = str == "true"
 				}
@@ -169,9 +169,9 @@ func validateSetting(key string, v any) error {
 		if err != nil || d < time.Hour {
 			return fmt.Errorf("invalid_argument: retention must be a duration of at least 1h such as 7d or 30d")
 		}
-	case "learn_raw_starts":
+	case "suggest_saving_runs":
 		if _, ok := v.(bool); !ok {
-			return fmt.Errorf("invalid_argument: learn_raw_starts must be true or false")
+			return fmt.Errorf("invalid_argument: suggest_saving_runs must be true or false")
 		}
 	}
 	return nil

@@ -11,12 +11,8 @@
   import Dialog from '../lib/ui/Dialog.svelte';
   import Spinner from '../lib/ui/Spinner.svelte';
   import Switch from '../lib/ui/Switch.svelte';
+  import { modeView, sourceLabel, toConfigApps, type ConfigApp } from '../lib/config/apps';
 
-  interface AppDef {
-    name: string;
-    command: string[];
-    workdir: string;
-  }
   interface EnvRow {
     id: number;
     key: string;
@@ -29,10 +25,6 @@
     onStarted
   }: { workspaceId: string; onClose: () => void; onStarted: (processId: string) => void } = $props();
 
-  function asStrings(v: unknown): string[] {
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-  }
-
   const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   let rowId = 0;
 
@@ -41,9 +33,11 @@
 
   let ws = $state('');
   let mode = $state<'app' | 'command'>('command');
-  let apps = $state<AppDef[]>([]);
+  let apps = $state<ConfigApp[]>([]);
   let appsLoading = $state(false);
   let selectedApp = $state('');
+  let runMode = $state('');
+  let envFile = $state('');
   let commandLine = $state('');
   let workdir = $state('');
   let envRows = $state<EnvRow[]>([{ id: ++rowId, key: '', value: '' }]);
@@ -56,6 +50,12 @@
   let appSeq = 0;
 
   const app = $derived(apps.find((a) => a.name === selectedApp));
+  const view = $derived(app ? modeView(app, runMode) : null);
+
+  $effect(() => {
+    const a = app;
+    runMode = a ? a.defaultMode : '';
+  });
   const parts = $derived(splitCommand(commandLine));
   const wsError = $derived(!ws ? 'Choose a workspace' : '');
   const commandError = $derived(mode === 'command' && parts.length === 0 ? 'Enter a command to run' : '');
@@ -96,12 +96,7 @@
     void ConfigService.get(id)
       .then((cfg) => {
         if (my !== appSeq) return;
-        const raw = (cfg.apps as Record<string, Record<string, unknown>>) ?? {};
-        apps = Object.entries(raw).map(([name, a]) => ({
-          name,
-          command: asStrings(a['command'] ?? a['Command']),
-          workdir: typeof (a['workdir'] ?? a['WorkDir']) === 'string' ? String(a['workdir'] ?? a['WorkDir']) : ''
-        }));
+        apps = toConfigApps(cfg.apps);
         if (apps.length > 0) {
           selectedApp = apps[0]?.name ?? '';
           mode = 'app';
@@ -153,8 +148,10 @@
     try {
       const env = envRows.filter((r) => r.key.trim()).map((r) => `${r.key.trim()}=${r.value}`);
       const req: Record<string, unknown> = { workspaceId: ws, lifetime, pty, env };
+      if (envFile.trim()) req.envFile = envFile.trim();
       if (mode === 'app') {
         req.app = selectedApp;
+        if (runMode) req.mode = runMode;
       } else {
         req.command = parts;
         if (workdir.trim()) req.workdir = workdir.trim();
@@ -169,7 +166,7 @@
   }
 </script>
 
-<Dialog title="Start process" width={540} {onClose}>
+<Dialog title="Start process" width={560} {onClose}>
   {#snippet children()}
     <form
       class="fields"
@@ -220,9 +217,21 @@
               <option value={a.name}>{a.name}</option>
             {/each}
           </select>
-          {#if app}
-            <pre class="preview mono">{app.command.join(' ') || '—'}</pre>
+          {#if app && app.modes.length > 0}
+            <div class="runmodes" role="radiogroup" aria-label="Mode">
+              {#each app.modes as m (m.name)}
+                <button type="button" role="radio" aria-checked={runMode === m.name} class:active={runMode === m.name} title={m.description || m.name} onclick={() => (runMode = m.name)}>{m.name}{#if m.isDefault}<span class="def">default</span>{/if}</button>
+              {/each}
+              {#if app.command.length > 0}
+                <button type="button" role="radio" aria-checked={runMode === ''} class:active={runMode === ''} onclick={() => (runMode = '')}>base</button>
+              {/if}
+            </div>
+          {/if}
+          {#if app && view}
+            {#if view.description}<span class="hint">{view.description}</span>{/if}
+            <pre class="preview mono">{view.command.join(' ') || 'profile default command'}</pre>
             {#if app.workdir}<span class="hint">Runs in <span class="mono">{app.workdir}</span></span>{/if}
+            {#if view.envSources.length > 0}<span class="hint">Env (later wins): <span class="mono">{view.envSources.map(sourceLabel).join(' › ')}</span></span>{/if}
           {/if}
         </div>
       {:else}
@@ -289,6 +298,12 @@
         <span class="hint">Paste a block of <span class="mono">KEY=value</span> lines into a name field to add several at once. Supports <span class="mono">{'${port:name}'}</span> templates.</span>
       </div>
 
+      <div class="form-field">
+        <label for="sp-envfile">Env file <span class="opt">optional</span></label>
+        <input id="sp-envfile" class="mono" bind:value={envFile} placeholder=".env.local" autocomplete="off" spellcheck="false" />
+        <span class="hint">Loaded {mode === 'app' ? "after the app's env sources" : 'below the variables above'}; the variables above win over it. Path is relative to the workspace root.</span>
+      </div>
+
       <div class="opts">
         <div class="opt-block">
           <span class="field-label">Lifetime</span>
@@ -346,6 +361,37 @@
   .scope-path {
     font-size: var(--fs-xs);
     min-width: 0;
+  }
+  .runmodes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .runmodes button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+  }
+  .runmodes button.active {
+    border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-2));
+    color: var(--text-0);
+  }
+  .runmodes .def {
+    font-family: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
   }
   .modes {
     align-self: stretch;

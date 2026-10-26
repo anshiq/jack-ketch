@@ -36,6 +36,9 @@ type Facade interface {
 	UnsubscribeEvents(client, subscriptionID string) (*api.UnsubscribeEventsResult, error)
 	RuntimeStats() (*api.RuntimeStats, error)
 	GetAuditLog(lines int, contains string) (*api.AuditLogResult, error)
+	Diagnose(id string) (*api.Diagnosis, error)
+	Probe(ctx context.Context, req api.ProbeRequest) (*api.ProbeResult, error)
+	RunChecks(ctx context.Context, req api.RunChecksRequest) (*api.RunChecksResult, error)
 }
 
 // compile-time check that *Runtime satisfies Facade.

@@ -11,7 +11,7 @@
   import { getPlatform } from '../../lib/platform';
   import { displayName } from '../../components/processView';
 
-  const TABS: DetailTab[] = ['logs', 'info', 'env', 'resources', 'terminal'];
+  const TABS: DetailTab[] = ['logs', 'info', 'env', 'diagnose', 'probe', 'resources', 'terminal'];
 
   function tabFromParams(v: string | undefined): DetailTab {
     return (TABS as string[]).includes(v ?? '') ? (v as DetailTab) : 'logs';

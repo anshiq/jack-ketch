@@ -10,6 +10,7 @@ package api
 // workdir, env_file) and may be combined with overrides.
 type StartRequest struct {
 	App      string   `json:"app,omitempty"`
+	Mode     string   `json:"mode,omitempty"`
 	Command  string   `json:"command,omitempty"`
 	Args     []string `json:"args,omitempty"`
 	WorkDir  string   `json:"workdir,omitempty"`
@@ -23,14 +24,18 @@ type StartResult struct {
 	ProcessID  string   `json:"process_id"`
 	InstanceID string   `json:"instance_id"`
 	Status     string   `json:"status"`
+	App        string   `json:"app,omitempty"`
+	Mode       string   `json:"mode,omitempty"`
 	Profile    string   `json:"profile,omitempty"`
 	Command    string   `json:"command"`
 	Args       []string `json:"args,omitempty"`
 	WorkDir    string   `json:"workdir"`
 	// Readiness lists the armed readiness regex patterns for this process
 	// (empty when the process has no readiness gating).
-	Readiness []string   `json:"readiness,omitempty"`
-	Wait      *StartWait `json:"wait,omitempty"`
+	Readiness      []string        `json:"readiness,omitempty"`
+	Wait           *StartWait      `json:"wait,omitempty"`
+	SaveSuggestion *SaveSuggestion `json:"save_suggestion,omitempty"`
+	Diagnosis      *Diagnosis      `json:"diagnosis,omitempty"`
 }
 
 type StartWait struct {
@@ -51,6 +56,8 @@ type StatusResult struct {
 	InstanceID  string   `json:"instance_id,omitempty"`
 	Status      string   `json:"status"`
 	PID         int      `json:"pid,omitempty"`
+	App         string   `json:"app,omitempty"`
+	Mode        string   `json:"mode,omitempty"`
 	Command     string   `json:"command"`
 	Args        []string `json:"args,omitempty"`
 	WorkDir     string   `json:"workdir"`
@@ -74,6 +81,9 @@ type StatusResult struct {
 	// process's cgroup v2 slice (Phase 7), when one is configured.
 	MemoryBytes   int64 `json:"memory_bytes,omitempty"`
 	CPUUsageNanos int64 `json:"cpu_usage_nanos,omitempty"`
+
+	Diagnosis      *Diagnosis      `json:"diagnosis,omitempty"`
+	SaveSuggestion *SaveSuggestion `json:"save_suggestion,omitempty"`
 }
 
 // SetRestartPolicyRequest is the input to set_restart_policy.
@@ -96,6 +106,7 @@ type ProcessSummary struct {
 	Command     string `json:"command"`
 	Profile     string `json:"profile,omitempty"`
 	App         string `json:"app,omitempty"`
+	Mode        string `json:"mode,omitempty"`
 	PID         int    `json:"pid,omitempty"`
 	Health      string `json:"health,omitempty"`
 	ExitCode    *int   `json:"exit_code,omitempty"`
@@ -176,14 +187,16 @@ type WaitForLogRequest struct {
 
 // WaitForLogResult is the response of wait_for_log.
 type WaitForLogResult struct {
-	Matched      bool      `json:"matched"`
-	Timeout      bool      `json:"timeout,omitempty"`
-	Exited       bool      `json:"exited,omitempty"`
-	Entry        *LogEntry `json:"entry,omitempty"`
-	WaitedMS     int       `json:"waited_ms,omitempty"`
-	Clamped      bool      `json:"clamped,omitempty"`
-	StillRunning bool      `json:"still_running,omitempty"`
-	Hint         string    `json:"hint,omitempty"`
+	Matched        bool            `json:"matched"`
+	Timeout        bool            `json:"timeout,omitempty"`
+	Exited         bool            `json:"exited,omitempty"`
+	Entry          *LogEntry       `json:"entry,omitempty"`
+	WaitedMS       int             `json:"waited_ms,omitempty"`
+	Clamped        bool            `json:"clamped,omitempty"`
+	StillRunning   bool            `json:"still_running,omitempty"`
+	Hint           string          `json:"hint,omitempty"`
+	SaveSuggestion *SaveSuggestion `json:"save_suggestion,omitempty"`
+	Diagnosis      *Diagnosis      `json:"diagnosis,omitempty"`
 }
 
 // WaitForExitRequest is the input to wait_for_exit.
@@ -194,13 +207,15 @@ type WaitForExitParams struct {
 
 // WaitForExitResult is the response of wait_for_exit.
 type WaitForExitResult struct {
-	Exited       bool   `json:"exited"`
-	Timeout      bool   `json:"timeout,omitempty"`
-	ExitCode     *int   `json:"exit_code,omitempty"`
-	WaitedMS     int    `json:"waited_ms,omitempty"`
-	Clamped      bool   `json:"clamped,omitempty"`
-	StillRunning bool   `json:"still_running,omitempty"`
-	Hint         string `json:"hint,omitempty"`
+	Exited         bool            `json:"exited"`
+	Timeout        bool            `json:"timeout,omitempty"`
+	ExitCode       *int            `json:"exit_code,omitempty"`
+	WaitedMS       int             `json:"waited_ms,omitempty"`
+	Clamped        bool            `json:"clamped,omitempty"`
+	StillRunning   bool            `json:"still_running,omitempty"`
+	Hint           string          `json:"hint,omitempty"`
+	SaveSuggestion *SaveSuggestion `json:"save_suggestion,omitempty"`
+	Diagnosis      *Diagnosis      `json:"diagnosis,omitempty"`
 }
 
 // AppInfo describes a configured app for list_apps.
@@ -215,6 +230,12 @@ type AppInfo struct {
 	Autostart  bool     `json:"autostart,omitempty"`
 	Lifetime   string   `json:"lifetime,omitempty"`
 	DependsOn  []string `json:"depends_on,omitempty"`
+
+	Description string     `json:"description,omitempty"`
+	EnvSources  []string   `json:"env_sources,omitempty"`
+	Checks      []string   `json:"checks,omitempty"`
+	DefaultMode string     `json:"default_mode,omitempty"`
+	Modes       []ModeInfo `json:"modes,omitempty"`
 }
 
 // ListAppsResult is the response of list_apps.

@@ -60,13 +60,13 @@ func TestSettingsBooleanRoundTrip(t *testing.T) {
 	defer cancel()
 
 	var out map[string]any
-	if err := cl.Call(ctx, "SystemService", "UpdateSettings", map[string]any{"learnRawStarts": false}, &out); err != nil {
+	if err := cl.Call(ctx, "SystemService", "UpdateSettings", map[string]any{"suggestSavingRuns": false}, &out); err != nil {
 		t.Fatal(err)
 	}
 	settings, _ := out["settings"].(map[string]any)
-	v, ok := settings["learn_raw_starts"].(bool)
+	v, ok := settings["suggest_saving_runs"].(bool)
 	if !ok || v {
-		t.Fatalf("learn_raw_starts = %#v, want false bool", settings["learn_raw_starts"])
+		t.Fatalf("suggest_saving_runs = %#v, want false bool", settings["suggest_saving_runs"])
 	}
 
 	var got map[string]any
@@ -74,9 +74,9 @@ func TestSettingsBooleanRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings, _ = got["settings"].(map[string]any)
-	v, ok = settings["learn_raw_starts"].(bool)
+	v, ok = settings["suggest_saving_runs"].(bool)
 	if !ok || v {
-		t.Fatalf("read-back learn_raw_starts = %#v, want false bool", settings["learn_raw_starts"])
+		t.Fatalf("read-back suggest_saving_runs = %#v, want false bool", settings["suggest_saving_runs"])
 	}
 }
 

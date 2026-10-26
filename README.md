@@ -107,6 +107,32 @@ waiting. Clients that support MCP progress notifications get periodic
 progress while a wait is pending. `get_project_info` shows the cap for the
 current client.
 
+## Modes, saved runs and runtime help
+
+- **Modes.** An app can run several ways (`dev`, `prod`, `headless`, `test`,
+  `staging`...). Each mode overrides only what differs; agents start one with
+  `start_process(app="api", mode="prod")`.
+- **Ordered env.** `env_sources` mixes dotenv files and inline vars in one
+  ordered list. Later entries win, and `get_process_env` and the web Env tab
+  show which source set each key.
+- **Save what worked, after asking.** When a hand-built run succeeds, results
+  carry `save_suggestion`. The agent asks you, then `save_run_config` stores
+  the command, workdir and env as a mode. If you say no, it is not suggested
+  again. The web UI offers the same through "Save as mode".
+- **Failures explained.** `diagnosis` (and `diagnose_process`) says what broke
+  and who has to act:
+  - **you:** missing env keys, with hints from `.env.example` and the file to
+    add them to;
+  - **the agent, after your approval:** installs, containers, migrations,
+    with the exact commands;
+  - **the agent directly:** code errors.
+- **See it working.** `probe` sends a request to a running process and returns
+  the response plus the log lines that request produced. Useful probes can be
+  saved as `checks` and re-run with `run_checks`.
+- **Git hygiene.** jack-ketch lists the files it uses that git would track:
+  its `.jack-ketch/` dir, env files that saved apps load, and integration
+  files. It offers to add them to `.gitignore` (`update_gitignore`).
+
 ## Projects and workspaces
 
 Tools act on the session's project. The daemon binds it automatically from

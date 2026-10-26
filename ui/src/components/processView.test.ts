@@ -40,6 +40,8 @@ function proc(over: Partial<Process> = {}): Process {
     loaded: true,
     lifetime: 'persistent',
     sessionId: '',
+    mode: '',
+    saveable: false,
     ...over
   };
 }
