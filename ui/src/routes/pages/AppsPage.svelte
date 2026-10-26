@@ -22,18 +22,24 @@
   import Link2 from '@lucide/svelte/icons/link-2';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
+  import Layers from '@lucide/svelte/icons/layers';
+  import KeyRound from '@lucide/svelte/icons/key-round';
+  import ListChecks from '@lucide/svelte/icons/list-checks';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CircleX from '@lucide/svelte/icons/circle-x';
+  import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Spinner from '../../lib/ui/Spinner.svelte';
   import WorkspacePicker from '../../components/WorkspacePicker.svelte';
-  import { ConfigService, ProcessService } from '../../lib/api';
+  import { AssistService, ConfigService, ProcessService } from '../../lib/api';
   import { realtime } from '../../lib/realtime/index.svelte';
-  import type { Process } from '../../lib/api/types';
+  import type { ChecksResult, Process } from '../../lib/api/types';
   import { router } from '../../lib/router.svelte';
   import { scopeState } from '../../lib/state/scope.svelte';
   import { processes } from '../../lib/state/processes.svelte';
   import { clock } from '../../lib/state/clock.svelte';
   import { toasts, toastError } from '../../lib/toasts.svelte';
   import { duration } from '../../lib/format';
-  import { commandLine, isLive, matchProcesses, primaryProcess, toConfigApps, type ConfigApp } from '../../lib/config/apps';
+  import { commandLine, isLive, matchProcesses, modeView, primaryProcess, sourceLabel, toConfigApps, type ConfigApp } from '../../lib/config/apps';
   import { ROUTE_CONTEXT, type RouteView } from '../../lib/routes';
 
   interface Row {
@@ -68,6 +74,9 @@
   let busy = $state(new Set<string>());
   let stack = $state<StackResult | null>(null);
   let starting = $state(false);
+  let modeSel = $state<Record<string, string>>({});
+  let checkRes = $state<Record<string, ChecksResult>>({});
+  let checking = $state(new Set<string>());
   const now = $derived(clock.now);
   let watcher: { close(): void } | null = null;
   let loadToken = 0;
@@ -98,6 +107,8 @@
       return (
         r.app.name.toLowerCase().includes(q) ||
         commandLine(r.app.command).toLowerCase().includes(q) ||
+        r.app.description.toLowerCase().includes(q) ||
+        r.app.modes.some((m) => m.name.toLowerCase().includes(q) || commandLine(m.command).toLowerCase().includes(q)) ||
         r.app.type.toLowerCase().includes(q) ||
         r.app.ports.some((p) => String(p.port).includes(q) || p.name.toLowerCase().includes(q))
       );
@@ -203,7 +214,64 @@
     }
   }
 
-  const start = (r: Row) => act(r.app.name, () => ProcessService.start({ workspaceId: wsId, app: r.app.name }), `Started ${r.app.name}`);
+  function selectedMode(r: Row): string {
+    const chosen = modeSel[r.app.name];
+    if (chosen !== undefined) return chosen;
+    if (r.live && r.primary?.mode) return r.primary.mode;
+    return r.app.defaultMode;
+  }
+
+  function pickMode(r: Row, mode: string) {
+    modeSel = { ...modeSel, [r.app.name]: mode };
+  }
+
+  function label(name: string, mode: string): string {
+    return mode ? `${name} · ${mode}` : name;
+  }
+
+  const start = (r: Row) => {
+    const mode = selectedMode(r);
+    return act(r.app.name, () => ProcessService.start({ workspaceId: wsId, app: r.app.name, mode: mode || undefined }), `Started ${label(r.app.name, mode)}`);
+  };
+
+  const switchMode = (r: Row) => {
+    const mode = selectedMode(r);
+    const current = r.primary;
+    return act(
+      r.app.name,
+      async () => {
+        if (current) await ProcessService.stop(current.id);
+        await ProcessService.start({ workspaceId: wsId, app: r.app.name, mode: mode || undefined });
+      },
+      `Switched ${r.app.name} to ${mode || 'its base command'}`
+    );
+  };
+
+  async function runChecks(r: Row) {
+    if (!r.primary) return;
+    const name = r.app.name;
+    const next = new Set(checking);
+    next.add(name);
+    checking = next;
+    try {
+      const res = await AssistService.runChecks({ processId: r.primary.id });
+      checkRes = { ...checkRes, [name]: res };
+      if (res.failed > 0) toasts.err(`${res.failed} of ${res.passed + res.failed} checks failed for ${name}`);
+      else toasts.ok(`All ${res.passed} checks passed for ${name}`);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      const done = new Set(checking);
+      done.delete(name);
+      checking = done;
+    }
+  }
+
+  function clearChecks(name: string) {
+    const next = { ...checkRes };
+    delete next[name];
+    checkRes = next;
+  }
   const stop = (r: Row) => (r.primary ? act(r.app.name, () => ProcessService.stop(r.primary!.id), `Stopped ${r.app.name}`) : Promise.resolve());
   const restart = (r: Row) => (r.primary ? act(r.app.name, () => ProcessService.restart(r.primary!.id), `Restarted ${r.app.name}`) : Promise.resolve());
 
@@ -426,6 +494,9 @@
           {#each visible as r (r.app.name)}
             {@const st = statusOf(r)}
             {@const isBusy = busy.has(r.app.name)}
+            {@const mode = selectedMode(r)}
+            {@const view = modeView(r.app, mode)}
+            {@const res = checkRes[r.app.name]}
             <article class="app" class:selected={selected.has(r.app.name)} class:live={r.live} aria-label={`App ${r.app.name}`} animate:flip={{ duration: 150 }}>
               <header>
                 <input type="checkbox" checked={selected.has(r.app.name)} onchange={() => toggle(r.app.name)} aria-label={`Select ${r.app.name}`} />
@@ -435,9 +506,46 @@
                 <span class="status {st.tone}"><span class="dot {st.dot}"></span>{st.label}</span>
               </header>
 
-              <code class="cmd mono" title={commandLine(r.app.command)}>
-                <span class="prompt">$</span><span class="truncate">{r.app.command.length > 0 ? commandLine(r.app.command) : 'no command'}</span>
+              {#if view.description}<p class="desc">{view.description}</p>{/if}
+
+              {#if r.app.modes.length > 0}
+                <div class="modes" role="radiogroup" aria-label={`Modes of ${r.app.name}`}>
+                  <Layers size={13} />
+                  {#each r.app.modes as m (m.name)}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === m.name}
+                      class="mode"
+                      class:on={mode === m.name}
+                      class:running={r.live && r.primary?.mode === m.name}
+                      title={m.description || `Run ${r.app.name} in ${m.name} mode`}
+                      onclick={() => pickMode(r, m.name)}
+                    >
+                      {#if r.live && r.primary?.mode === m.name}<span class="dot ok"></span>{/if}
+                      {m.name}
+                      {#if m.isDefault}<span class="def">default</span>{/if}
+                    </button>
+                  {/each}
+                  {#if r.app.command.length > 0}
+                    <button type="button" role="radio" aria-checked={mode === ''} class="mode" class:on={mode === ''} title="The app's own command, without a mode" onclick={() => pickMode(r, '')}>base</button>
+                  {/if}
+                </div>
+              {/if}
+
+              <code class="cmd mono" title={commandLine(view.command)}>
+                <span class="prompt">$</span><span class="truncate">{view.command.length > 0 ? commandLine(view.command) : 'no command (profile default)'}</span>
               </code>
+
+              {#if view.envSources.length > 0}
+                <div class="envchain" title="Env sources in priority order: later entries override earlier ones">
+                  <KeyRound size={12} />
+                  {#each view.envSources as src, i (i)}
+                    {#if i > 0}<span class="sep">›</span>{/if}
+                    <span class="src mono" class:file={!!src.file} title={src.file ? (src.optional ? `${src.file} (optional)` : src.file) : (src.vars ?? []).join('\n')}>{sourceLabel(src)}</span>
+                  {/each}
+                </div>
+              {/if}
 
               <div class="tags">
                 {#if r.app.type}<span class="badge">{r.app.type}</span>{/if}
@@ -457,7 +565,31 @@
                 {#if r.app.autostart}<span class="badge accent"><Zap size={12} />autostart</span>{/if}
                 {#if r.app.lifetime === 'session'}<span class="badge"><Timer size={12} />session</span>{/if}
                 {#if r.primary?.stale}<span class="badge warn" title="Config changed since this process started">restart needed</span>{/if}
+                {#if view.checks.length > 0}<span class="badge" title={view.checks.map((c) => c.name).join(', ')}><ListChecks size={12} />{view.checks.length} check{view.checks.length === 1 ? '' : 's'}</span>{/if}
               </div>
+
+              {#if res}
+                <section class="checks" class:bad={res.failed > 0} aria-label={`Check results for ${r.app.name}`}>
+                  <header>
+                    {#if res.failed > 0}<CircleX size={14} />{:else}<CircleCheck size={14} />{/if}
+                    <strong>{res.passed}/{res.passed + res.failed} checks passed</strong>
+                    {#if res.mode}<span class="muted">mode {res.mode}</span>{/if}
+                    <span class="grow"></span>
+                    <button class="btn icon ghost sm" aria-label="Dismiss check results" onclick={() => clearChecks(r.app.name)}><X size={12} /></button>
+                  </header>
+                  <ul>
+                    {#each res.results as c (c.name)}
+                      <li class:fail={!c.ok}>
+                        {#if c.ok}<CircleCheck size={12} />{:else}<CircleX size={12} />{/if}
+                        <span class="mono cname">{c.name}</span>
+                        <span class="muted mono">{c.tcp ? c.tcp : `${c.method || 'GET'} ${c.status || '—'}`}</span>
+                        <span class="muted">{c.durationMs}ms</span>
+                        {#if !c.ok}<span class="why" title={[...c.failures, c.error].filter(Boolean).join('\n')}>{c.failures[0] ?? c.error}</span>{/if}
+                      </li>
+                    {/each}
+                  </ul>
+                </section>
+              {/if}
 
               {#if r.app.dependsOn.length > 0}
                 <div class="deps">
@@ -480,14 +612,22 @@
                   {/if}
                 </div>
                 <div class="acts">
+                  {#if r.live && view.checks.length > 0}
+                    <button class="btn sm" title="Run the saved checks against the running process" aria-label={`Run checks for ${r.app.name}`} disabled={checking.has(r.app.name)} onclick={() => runChecks(r)}>
+                      {#if checking.has(r.app.name)}<Spinner size={12} />{:else}<ListChecks size={14} />{/if}Checks
+                    </button>
+                  {/if}
+                  {#if r.live && r.app.modes.length > 0 && (r.primary?.mode ?? '') !== mode}
+                    <button class="btn sm" title={`Stop the running ${r.primary?.mode || 'base'} run and start ${mode || 'base'}`} aria-label={`Switch ${r.app.name} to ${mode || 'base'}`} disabled={isBusy} onclick={() => switchMode(r)}><ArrowLeftRight size={14} />Switch</button>
+                  {/if}
                   {#if r.live}
                     <button class="btn sm icon" title="Restart" aria-label={`Restart ${r.app.name}`} disabled={isBusy} onclick={() => restart(r)}><RotateCw size={14} /></button>
                     <button class="btn sm danger" title="Stop" aria-label={`Stop ${r.app.name}`} disabled={isBusy} onclick={() => stop(r)}>
                       {#if isBusy}<Spinner size={12} />{:else}<Square size={12} />{/if}Stop
                     </button>
                   {:else}
-                    <button class="btn sm primary" title="Start" aria-label={`Start ${r.app.name}`} disabled={isBusy} onclick={() => start(r)}>
-                      {#if isBusy}<Spinner size={12} />{:else}<Play size={12} />{/if}Start
+                    <button class="btn sm primary" title={mode ? `Start in ${mode} mode` : 'Start'} aria-label={`Start ${r.app.name}`} disabled={isBusy} onclick={() => start(r)}>
+                      {#if isBusy}<Spinner size={12} />{:else}<Play size={12} />{/if}Start{#if mode}<span class="modetag">{mode}</span>{/if}
                     </button>
                   {/if}
                   {#if r.primary}
@@ -616,6 +756,149 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+  .desc {
+    margin: calc(var(--space-2) * -1) 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+  }
+  .modes {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--text-2);
+  }
+  .mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-1);
+    font-size: var(--fs-xs);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+  .mode:hover {
+    border-color: var(--border-strong);
+    color: var(--text-0);
+  }
+  .mode.on {
+    border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-2));
+    color: var(--text-0);
+  }
+  .mode.running:not(.on) {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  }
+  .mode:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .def {
+    font-family: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+  }
+  .envchain {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+    min-width: 0;
+  }
+  .envchain .src {
+    padding: 0 7px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    color: var(--text-1);
+    line-height: 1.7;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .envchain .src.file {
+    background: color-mix(in srgb, var(--info) 12%, var(--bg-3));
+  }
+  .envchain .sep {
+    color: var(--text-2);
+  }
+  .modetag {
+    margin-left: 4px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-fg) 22%, transparent);
+    font-size: 10px;
+    font-family: var(--font-mono);
+  }
+  .checks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+    background: color-mix(in srgb, var(--ok) 6%, var(--bg-1));
+    font-size: var(--fs-xs);
+  }
+  .checks.bad {
+    border-color: color-mix(in srgb, var(--err) 40%, var(--border));
+    background: color-mix(in srgb, var(--err) 6%, var(--bg-1));
+  }
+  .checks > header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--ok);
+  }
+  .checks.bad > header {
+    color: var(--err);
+  }
+  .checks > header strong {
+    color: var(--text-0);
+    font-size: var(--fs-sm);
+  }
+  .checks ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .checks li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--ok);
+    min-width: 0;
+  }
+  .checks li.fail {
+    color: var(--err);
+  }
+  .checks .cname {
+    color: var(--text-0);
+  }
+  .checks .why {
+    color: var(--err);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
   }
   .tags:empty {
     display: none;

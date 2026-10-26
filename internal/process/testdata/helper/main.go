@@ -122,7 +122,14 @@ func main() {
 		}
 		fmt.Printf("LISTENING http://%s\n", ln.Addr())
 		srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Printf("request handled method=%s path=%s\n", r.Method, r.URL.Path)
+			if r.URL.Path == "/boom" {
+				fmt.Fprintf(os.Stderr, "Error: boom handler failed path=%s\n", r.URL.Path)
+				w.WriteHeader(500)
+				return
+			}
 			w.WriteHeader(code)
+			fmt.Fprintf(w, "ok %s", r.URL.Path)
 		})}
 		_ = srv.Serve(ln)
 	case "oom":

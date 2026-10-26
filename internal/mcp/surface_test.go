@@ -54,7 +54,7 @@ var readOnlyTools = map[string]bool{
 	"wait_for_exit": true, "list_apps": true, "get_process_env": true, "subscribe_events": true,
 	"get_events": true, "unsubscribe_events": true, "runtime_stats": true, "get_audit_log": true,
 	"get_project_info": true, "validate_config": true, "plan_config": true, "search_logs": true,
-	"list_sessions": true, "set_workspace": true, "list_projects": true,
+	"list_sessions": true, "set_workspace": true, "list_projects": true, "diagnose_process": true,
 }
 
 func assertNoTypeArray(t *testing.T, tool string, v any) {
@@ -83,8 +83,8 @@ func TestToolSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 30 {
-		t.Fatalf("expected 30 tools, got %d", len(res.Tools))
+	if len(res.Tools) != 35 {
+		t.Fatalf("expected 35 tools, got %d", len(res.Tools))
 	}
 	for _, tool := range res.Tools {
 		if tool.Title == "" {
@@ -166,7 +166,7 @@ func TestCoreToolset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 14 {
+	if len(res.Tools) != 17 {
 		names := make([]string, 0, len(res.Tools))
 		for _, tool := range res.Tools {
 			names = append(names, tool.Name)
@@ -188,7 +188,7 @@ func TestPromptsAndResources(t *testing.T) {
 	for _, p := range prompts.Prompts {
 		got[p.Name] = true
 	}
-	for _, want := range []string{"start_app", "diagnose", "status"} {
+	for _, want := range []string{"start_app", "diagnose", "status", "verify"} {
 		if !got[want] {
 			t.Fatalf("prompt %q missing: %v", want, got)
 		}

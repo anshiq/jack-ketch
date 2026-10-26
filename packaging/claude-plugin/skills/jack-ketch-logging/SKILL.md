@@ -2,7 +2,7 @@
 name: jack-ketch-logging
 description: Structured logging that makes an app's stdout/stderr filterable and correlatable by the jack-ketch MCP (get_logs, wait_for_log, search_logs).
 metadata:
-  version: "7"
+  version: "8"
 ---
 
 # jack-ketch-logging
@@ -100,8 +100,8 @@ Existing code, in order: unbuffer output, split streams and strip banners and AN
 
 1. `start_process(app="<name>")`.
 2. `wait_for_log(process_id, ready=true)`.
-3. Curl `/health`.
-4. `wait_for_log(process_id, contains="request_id=")`.
+3. `probe(process_id, url="/health")`: its `logs` are exactly the lines this request produced.
+4. Check those lines carry `request_id=` and the other keys; `wait_for_log(process_id, contains="request_id=")` also works.
 5. `get_logs(process_id, contains="status=200")`.
 6. `signal_process(process_id, "SIGINT")`, then `process_status` shows exit 0.
 

@@ -38,6 +38,22 @@ func registerPrompts(s *mcp.Server, h *handlers) {
 		return promptResult("Diagnose a process", "Diagnose "+target+" with jack-ketch: call process_status, then get_logs(stream=\"stderr\", lines=100), then search_logs for error or exception across the project. Summarize the root cause with the exact log lines, propose a fix, and do not restart anything until the user agrees."), nil
 	})
 	s.AddPrompt(&mcp.Prompt{
+		Name: "verify", Title: "Verify a change at runtime",
+		Description: "Run the app and exercise a just-implemented fix or feature live, showing responses and the logs they produced.",
+		Arguments:   []*mcp.PromptArgument{{Name: "change", Title: "Change", Description: "What was changed, e.g. \"POST /api/orders validates quantity\""}, {Name: "app", Title: "App", Description: "App to run; empty means pick from list_apps"}},
+	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+		change := strings.TrimSpace(req.Params.Arguments["change"])
+		if change == "" {
+			change = "the change you just made"
+		}
+		app := strings.TrimSpace(req.Params.Arguments["app"])
+		target := "the app that serves it (list_apps; reuse a running process from list_processes)"
+		if app != "" {
+			target = "the app \"" + app + "\" (reuse a running process from list_processes)"
+		}
+		return promptResult("Verify at runtime", "Show "+change+" working at runtime with jack-ketch. Start or restart_process "+target+" and wait_for_log(ready=true). Plan 2-5 concrete interactions that prove the change, including one edge case. For HTTP use probe (path, method, body, expect_status); the result includes the logs the request produced. Ask the user before any non-GET request or a non-local target, and never against production data. For CLIs or scripts use start_process(command=..., timeout_ms=...) and check exit code and output; for workers trigger the job and wait_for_log for its outcome. Report each interaction as expected vs actual with the key log lines. If something fails, call diagnose_process. Finally offer to save the useful probes as checks with save_run_config(checks=[...]) so run_checks can repeat them."), nil
+	})
+	s.AddPrompt(&mcp.Prompt{
 		Name: "status", Title: "Project process status",
 		Description: "Summarize every process jack-ketch supervises for this project.",
 	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
