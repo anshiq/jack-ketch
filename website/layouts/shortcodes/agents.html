@@ -1,0 +1,10 @@
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Agent</th><th>Connect</th><th>Scopes</th><th>Max wait</th></tr></thead>
+  <tbody>
+  {{ range hugo.Data.agents }}
+    <tr><td>{{ .name }}</td><td><code>jack-ketch integrate install {{ .id }}</code></td><td>{{ .scopes }}</td><td>{{ .wait }} s</td></tr>
+  {{ end }}
+  </tbody>
+</table>
+</div>

@@ -1,0 +1,24 @@
+{{ define "bodyclass" }}docs{{ end }}
+{{ define "main" }}
+<div class="doc-shell">
+  {{ partial "sidebar.html" . }}
+  <main id="content" class="doc">
+    {{ partial "crumbs.html" . }}
+    <article class="prose">
+      <h1>{{ .Title }}</h1>
+      {{ with .Description }}<p class="lede">{{ . }}</p>{{ end }}
+      {{ .Content }}
+    </article>
+    <div class="doc-foot">{{ partial "doc-meta.html" . }}</div>
+    {{ partial "pager.html" . }}
+  </main>
+  <aside class="toc-col" aria-label="On this page">
+    {{ if gt (len .Fragments.Headings) 0 }}
+    <div class="toc">
+      <h4>On this page</h4>
+      {{ .TableOfContents }}
+    </div>
+    {{ end }}
+  </aside>
+</div>
+{{ end }}

@@ -1,0 +1,12 @@
+{{ range hugo.Data.tools }}
+<h2 id="{{ .group | anchorize }}">{{ .group }}<a class="anchor" href="#{{ .group | anchorize }}" aria-label="Link to this section">#</a></h2>
+<div class="tool-list">
+  {{ range .tools }}
+  <div class="tool">
+    <code class="tool-name">{{ .name }}</code>
+    <span class="tag {{ .kind }}">{{ if eq .kind "read" }}read-only{{ else }}changes state{{ end }}</span>
+    <p>{{ .desc }}</p>
+  </div>
+  {{ end }}
+</div>
+{{ end }}

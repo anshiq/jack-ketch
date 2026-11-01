@@ -1,0 +1,33 @@
+<footer class="foot">
+  <div class="foot-in">
+    <div class="foot-brand">
+      <a class="brand" href="{{ "/" | relURL }}">{{ partial "logo.html" . }}<span>jack-ketch</span></a>
+      <p>A local async process supervisor for AI coding agents.</p>
+    </div>
+    <div class="foot-col">
+      <h4>Docs</h4>
+      <a href="{{ "/docs/getting-started/installation/" | relURL }}">Install</a>
+      <a href="{{ "/docs/getting-started/quick-start/" | relURL }}">Quick start</a>
+      <a href="{{ "/docs/guides/" | relURL }}">Guides</a>
+      <a href="{{ "/docs/reference/" | relURL }}">Reference</a>
+    </div>
+    <div class="foot-col">
+      <h4>Project</h4>
+      <a href="{{ site.Params.repo }}" rel="noopener">GitHub</a>
+      <a href="{{ printf "%s/releases" site.Params.repo }}" rel="noopener">Releases</a>
+      <a href="{{ printf "%s/issues" site.Params.repo }}" rel="noopener">Issues</a>
+      <a href="{{ printf "%s/blob/%s/LICENSE" site.Params.repo site.Params.editBranch }}" rel="noopener">MIT license</a>
+    </div>
+    <div class="foot-col">
+      <h4>Resources</h4>
+      <a href="{{ "/docs/integrations/" | relURL }}">Supported agents</a>
+      <a href="{{ "/docs/reference/mcp-tools/" | relURL }}">MCP tools</a>
+      <a href="{{ "/schema.json" | relURL }}">Config JSON schema</a>
+      <a href="{{ "/docs/reference/troubleshooting/" | relURL }}">Troubleshooting</a>
+    </div>
+  </div>
+  <div class="foot-base">
+    <span>MIT licensed. Built with <a href="https://gohugo.io/" rel="noopener">Hugo</a>.</span>
+    <span>jack-ketch runs on your machine. Nothing leaves it.</span>
+  </div>
+</footer>

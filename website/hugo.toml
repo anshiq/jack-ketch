@@ -1,0 +1,55 @@
+baseURL = "https://jack-ketch.anshik.in/"
+locale = "en-US"
+title = "jack-ketch"
+enableRobotsTXT = true
+summaryLength = 28
+disableKinds = ["taxonomy", "term"]
+
+[params]
+description = "A local async process supervisor for AI coding agents. Start dev servers, read logs, probe endpoints and fix failures over MCP, without blocking the session."
+repo = "https://github.com/anshiq/jack-ketch"
+editBranch = "master"
+editPath = "docs"
+installCommand = "curl -fsSL https://raw.githubusercontent.com/anshiq/jack-ketch/master/scripts/install.sh | bash"
+
+[[menus.main]]
+name = "Docs"
+pageRef = "/docs"
+weight = 1
+
+[[menus.main]]
+name = "Agents"
+pageRef = "/docs/integrations"
+weight = 2
+
+[[menus.main]]
+name = "MCP tools"
+pageRef = "/docs/reference/mcp-tools"
+weight = 3
+
+[[menus.main]]
+name = "Security"
+pageRef = "/docs/reference/security"
+weight = 4
+
+[markup]
+[markup.highlight]
+noClasses = false
+lineNos = false
+guessSyntax = true
+[markup.goldmark.renderer]
+unsafe = true
+[markup.tableOfContents]
+startLevel = 2
+endLevel = 3
+
+[outputs]
+home = ["HTML", "RSS", "JSON"]
+
+[outputFormats.JSON]
+mediaType = "application/json"
+baseName = "index"
+isPlainText = true
+
+[minify]
+minifyOutput = true

@@ -1,0 +1,5 @@
+{{- $out := slice -}}
+{{- range where site.RegularPages "Section" "docs" -}}
+  {{- $out = $out | append (dict "title" .Title "url" .RelPermalink "section" (or (and .Parent .Parent.Title) "Docs") "desc" (.Description | default "") "text" (.Plain | htmlUnescape | truncate 6000)) -}}
+{{- end -}}
+{{- $out | jsonify -}}

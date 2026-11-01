@@ -1,0 +1,123 @@
+- group: "Run & supervise"
+  tools:
+    - name: list_processes
+      kind: read
+      desc: "Managed processes, including recently exited ones. Call first to re-attach instead of starting a duplicate."
+    - name: list_apps
+      kind: read
+      desc: "Apps and modes declared in the project config."
+    - name: start_process
+      kind: write
+      desc: "Start an app or raw command under supervision. Returns a process_id immediately; timeout_ms waits for readiness."
+    - name: stop_process
+      kind: write
+      desc: "SIGTERM to the whole process group, then SIGKILL after the grace period."
+    - name: restart_process
+      kind: write
+      desc: "Restart with the same spec after a change. Keeps the process_id and log history."
+    - name: signal_process
+      kind: write
+      desc: "Send SIGINT, SIGTERM, SIGHUP, SIGQUIT, SIGUSR1, SIGUSR2 or SIGKILL to the process group."
+    - name: process_status
+      kind: read
+      desc: "Status, pid, exit code, restarts, health and restart policy for one process."
+    - name: set_restart_policy
+      kind: write
+      desc: "Auto-restart: never, on-failure or always."
+    - name: remove_process
+      kind: write
+      desc: "Forget a terminated process and free its log buffers."
+    - name: send_stdin
+      kind: write
+      desc: "Write raw text to a running process's stdin."
+    - name: open_shell
+      kind: write
+      desc: "Interactive shell inside a process's environment and working directory."
+- group: "Wait & watch"
+  tools:
+    - name: wait_for_log
+      kind: read
+      desc: "Block until a line matches, the readiness line appears, or the process exits. Capped per client; repeat when clamped."
+    - name: wait_for_exit
+      kind: read
+      desc: "Block until a process exits and return its exit code."
+    - name: subscribe_events
+      kind: read
+      desc: "Pull subscription to lifecycle events such as process.started, process.crashed, process.unhealthy."
+    - name: get_events
+      kind: read
+      desc: "Drain buffered events from a subscription without blocking."
+    - name: unsubscribe_events
+      kind: read
+      desc: "Close an event subscription."
+- group: "Logs"
+  tools:
+    - name: get_logs
+      kind: read
+      desc: "Bounded stdout/stderr tail with stream, substring, regex and level filters."
+    - name: search_logs
+      kind: read
+      desc: "Full-text and regex search across every process in the project, history and live."
+    - name: clear_logs
+      kind: write
+      desc: "Clear a process's captured log buffers."
+- group: "Diagnose & verify"
+  tools:
+    - name: diagnose_process
+      kind: read
+      desc: "Why a process failed: category, evidence, who must act (you, the agent, or the agent after approval) and exact fix commands."
+    - name: probe
+      kind: write
+      desc: "Send an HTTP request or TCP connect to a running process and get the response plus the log lines it produced."
+    - name: run_checks
+      kind: write
+      desc: "Re-run saved runtime checks and report pass or fail with the logs each request produced."
+    - name: get_process_env
+      kind: read
+      desc: "The environment a process runs with, with the source of each key. Secrets masked."
+    - name: runtime_stats
+      kind: read
+      desc: "Process counts by status, log pipeline drops, uptime."
+- group: "Credentials"
+  tools:
+    - name: list_credentials
+      kind: read
+      desc: "Credential profiles the user configured in the web UI. Secret values are never returned."
+    - name: credential_proxy
+      kind: write
+      desc: "Short-lived local proxy that attaches a profile to every request for curl, Playwright or e2e runs."
+- group: "Config & project"
+  tools:
+    - name: get_project_info
+      kind: read
+      desc: "Project ids, path, config revision, pending proposals and this client's wait cap."
+    - name: validate_config
+      kind: read
+      desc: "Validate project YAML with line and column errors."
+    - name: plan_config
+      kind: read
+      desc: "Terraform-style diff of proposed YAML against the active revision."
+    - name: apply_config
+      kind: write
+      desc: "Apply YAML as a new revision with hot reload and optimistic concurrency."
+    - name: resolve_config_proposal
+      kind: write
+      desc: "Approve or dismiss an auto-detected config proposal, on the user's decision."
+    - name: save_run_config
+      kind: write
+      desc: "Save a working run as a named mode, after the user agrees."
+    - name: update_gitignore
+      kind: write
+      desc: "Add jack-ketch's files to .gitignore, after the user agrees."
+    - name: list_projects
+      kind: read
+      desc: "Projects and workspace paths jack-ketch knows about."
+    - name: list_sessions
+      kind: read
+      desc: "Agents and UIs currently attached to this project."
+    - name: set_workspace
+      kind: read
+      desc: "Bind the session to a project folder, for clients without a working directory."
+    - name: get_audit_log
+      kind: read
+      desc: "Recent mutating calls with secrets redacted."
