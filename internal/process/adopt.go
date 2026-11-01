@@ -49,13 +49,14 @@ func (m *Manager) Adopt(records []AdoptRecord) (adopted, skipped int) {
 		}
 		proc := &ManagedProcess{
 			ID:          rec.ProcessID,
-			Spec:        StartSpec{Command: rec.Command, WorkDir: rec.WorkDir},
 			Profile:     rec.Profile,
 			supervision: Supervision{}.CompileReadiness(),
 			grace:       m.opts.DefaultGrace,
 			wakeup:      newBroadcaster(),
 			logger:      m.opts.Logger,
 		}
+		adoptedSpec := StartSpec{Command: rec.Command, WorkDir: rec.WorkDir}
+		proc.spec.Store(&adoptedSpec)
 		proc.Logs = m.logs.Get(rec.ProcessID, proc.wakeup.ping)
 
 		inst := &instance{

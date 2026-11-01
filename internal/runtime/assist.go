@@ -35,6 +35,9 @@ const (
 type processOrigin struct {
 	app      string
 	mode     string
+	reqMode  string
+	env      []string
+	envFile  string
 	envFiles []string
 }
 
@@ -57,8 +60,8 @@ func (r *Runtime) origin(id string) processOrigin {
 }
 
 func (r *Runtime) readinessMatcher(proc *process.ManagedProcess) func(string) bool {
-	if len(proc.Spec.Readiness) > 0 {
-		return proc.Spec.Supervision.CompileReadiness().Ready
+	if len(proc.Spec().Readiness) > 0 {
+		return proc.Spec().Supervision.CompileReadiness().Ready
 	}
 	if prof := r.profiles.Lookup(proc.Profile); prof != nil && len(prof.Readiness) > 0 {
 		return prof.Ready
@@ -153,7 +156,7 @@ func (r *Runtime) Diagnose(id string) (*api.Diagnosis, error) {
 	o := r.origin(id)
 	app := o.app
 	if app == "" {
-		app = proc.Spec.App
+		app = proc.Spec().App
 	}
 	r.portOwnerMu.RLock()
 	owner := r.portOwner
@@ -165,7 +168,7 @@ func (r *Runtime) Diagnose(id string) (*api.Diagnosis, error) {
 	in := diagnose.Input{
 		ProcessID: id, Status: string(info.Status), ExitCode: info.ExitCode, Health: string(proc.Health().State),
 		Command: info.Command, Args: info.Args, WorkDir: info.WorkDir, ProjectDir: r.getCfg().ProjectDir,
-		Profile: info.Profile, App: app, Mode: o.mode, Lines: lines, Env: proc.Spec.Env, EnvFiles: o.envFiles,
+		Profile: info.Profile, App: app, Mode: o.mode, Lines: lines, Env: proc.Spec().Env, EnvFiles: o.envFiles,
 		PortOwner: func(port int) string {
 			desc := owner(port)
 			if desc != "" && selfPID > 0 && strings.Contains(desc, id) {
@@ -186,7 +189,7 @@ func (r *Runtime) localPortOwner(port int) string {
 		}
 		for _, lp := range process.ListeningPortsForPID(info.PID) {
 			if lp == port {
-				return describeProcess(info.ID, p.Spec.App, p.Spec.Mode, info.Command)
+				return describeProcess(info.ID, p.Spec().App, p.Spec().Mode, info.Command)
 			}
 		}
 	}
@@ -298,14 +301,14 @@ func (r *Runtime) probeBase(proc *process.ManagedProcess, port int) (string, []i
 	if port > 0 {
 		return fmt.Sprintf("http://127.0.0.1:%d", port), ports, nil
 	}
-	if p := envLookup(proc.Spec.Env, "PORT"); p != "" {
+	if p := envLookup(proc.Spec().Env, "PORT"); p != "" {
 		if n, err := strconv.Atoi(p); err == nil && n > 0 {
 			if len(ports) == 0 || containsInt(ports, n) {
 				return fmt.Sprintf("http://127.0.0.1:%d", n), ports, nil
 			}
 		}
 	}
-	if hc := proc.Spec.Supervision.Health.HTTP; hc != "" {
+	if hc := proc.Spec().Supervision.Health.HTTP; hc != "" {
 		if u, err := url.Parse(hc); err == nil && u.Host != "" {
 			return u.Scheme + "://" + u.Host, ports, nil
 		}
@@ -361,7 +364,7 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 	if maxBody <= 0 || maxBody > 256*1024 {
 		maxBody = maxProbeBody
 	}
-	env := proc.Spec.Env
+	env := proc.Spec().Env
 
 	var target *url.URL
 	if req.TCP != "" {
@@ -562,8 +565,8 @@ func pickHeaders(h http.Header) map[string]string {
 
 func (r *Runtime) checksFor(proc *process.ManagedProcess, app, mode string) ([]config.Check, string, string, error) {
 	if app == "" {
-		app = proc.Spec.App
-		mode = proc.Spec.Mode
+		app = proc.Spec().App
+		mode = proc.Spec().Mode
 	}
 	if app == "" {
 		return nil, "", "", errors.New("this process was not started from a configured app, so it has no saved checks; save it first (save_run_config) or use probe")
@@ -582,7 +585,7 @@ func (r *Runtime) checksFor(proc *process.ManagedProcess, app, mode string) ([]c
 func (r *Runtime) findRunning(app, mode string) *process.ManagedProcess {
 	var best *process.ManagedProcess
 	for _, p := range r.manager.List() {
-		if p.Spec.App != app || (mode != "" && p.Spec.Mode != mode) {
+		if p.Spec().App != app || (mode != "" && p.Spec().Mode != mode) {
 			continue
 		}
 		st := p.Info().Status

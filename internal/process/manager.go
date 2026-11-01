@@ -86,13 +86,13 @@ func (m *Manager) Start(ctx context.Context, spec StartSpec, profile string, gra
 	}
 	proc := &ManagedProcess{
 		ID:          id,
-		Spec:        spec,
 		Profile:     profile,
 		supervision: spec.Supervision.CompileReadiness(),
 		grace:       grace,
 		wakeup:      newBroadcaster(),
 		logger:      m.opts.Logger,
 	}
+	proc.spec.Store(&spec)
 	// The wakeup callback is wired in at construction, before the process is
 	// visible to readers, so it can never be mutated concurrently with Appends.
 	proc.Logs = m.logs.Get(id, proc.wakeup.ping)
@@ -212,6 +212,19 @@ func (m *Manager) Signal(ctx context.Context, id string, sig syscall.Signal) err
 // restarts reset the restart budget (backoff) and clear any crashed state, so a
 // human can always recover a crashed process.
 func (m *Manager) Restart(ctx context.Context, id string) error {
+	return m.RestartWithSpec(ctx, id, nil, 0)
+}
+
+// RestartWithSpec is Restart with a freshly resolved specification: when spec
+// is non-nil it replaces the process's start spec and supervision before the
+// new instance launches, so config edits take effect. A positive grace also
+// replaces the stop grace.
+func (m *Manager) RestartWithSpec(ctx context.Context, id string, spec *StartSpec, grace time.Duration) error {
+	if spec != nil {
+		if err := m.validateSpec(*spec); err != nil {
+			return err
+		}
+	}
 	proc, _ := m.Get(id)
 	if proc == nil {
 		return ErrNotFound
@@ -219,12 +232,19 @@ func (m *Manager) Restart(ctx context.Context, id string) error {
 	proc.startMu.Lock()
 	defer proc.startMu.Unlock()
 
-	grace := m.opts.DefaultGrace
+	stopGrace := m.opts.DefaultGrace
+	startGrace := stopGrace
+	if grace > 0 {
+		startGrace = grace
+	}
 	if info := proc.Info(); info.Status == StatusRunning || info.Status == StatusStarting {
 		if inst := m.currentInstance(proc); inst != nil && inst.grace > 0 {
-			grace = inst.grace
+			stopGrace = inst.grace
+			if grace <= 0 {
+				startGrace = inst.grace
+			}
 		}
-		stopCtx, cancel := context.WithTimeout(context.Background(), grace+3*time.Second)
+		stopCtx, cancel := context.WithTimeout(context.Background(), stopGrace+3*time.Second)
 		err := m.stopInstance(proc, stopCtx)
 		cancel()
 		if err != nil {
@@ -235,8 +255,13 @@ func (m *Manager) Restart(ctx context.Context, id string) error {
 	proc.restarts++
 	proc.backoff = backoffState{} // manual restart resets the budget
 	proc.crashed.Store(false)
+	if spec != nil {
+		fresh := *spec
+		proc.spec.Store(&fresh)
+		proc.supervision = fresh.Supervision.CompileReadiness()
+	}
 	proc.mu.Unlock()
-	return m.startInstance(proc, grace)
+	return m.startInstance(proc, startGrace)
 }
 
 // SetRestartPolicy changes the restart policy of an existing process. It is the
