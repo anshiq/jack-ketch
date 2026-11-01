@@ -78,6 +78,7 @@ func NewWithOptions(engine *core.Engine, socketPath, version string, onShutdown 
 	s.routeSystem(mux)
 	s.routeProject(mux)
 	s.routeProcess(mux)
+	s.routeAssist(mux)
 	s.routeStack(mux)
 	s.routeLog(mux)
 	s.routeEvent(mux)

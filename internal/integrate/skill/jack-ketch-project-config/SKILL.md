@@ -1,8 +1,8 @@
 ---
 name: jack-ketch-project-config
-description: Project config reference declaring how runnable apps are started, supervised, and env-configured (apps, runtime env layers, health checks, restart, security).
+description: Project config reference declaring how runnable apps are started, supervised, and env-configured (apps, modes such as dev/prod/headless/test, ordered env_sources of env files and inline vars, saved runtime checks, runtime env layers, health checks, restart, security).
 metadata:
-  version: "4"
+  version: "5"
 ---
 
 # project config reference
@@ -69,23 +69,88 @@ apps:
     # env:
     #   - "LOG_LEVEL=info"
     #   - "PYTHONUNBUFFERED=1"
+
+    # Ordered env layers, later wins (see "Env sources and precedence").
+    # env_sources:
+    #   - file: .env
+    #   - file: .env.local
+    #     optional: true
+    #   - vars: {LOG_LEVEL: info}
+
+    # Named ways to run this app (see "Modes").
+    # default_mode: dev
+    # modes:
+    #   dev:
+    #     command: [npm, run, dev]
+    #   prod:
+    #     command: [npm, start]
+    #     env_sources:
+    #       - vars: {NODE_ENV: production}
 ```
 
-## Env precedence
+## Modes: one app, many ways to run it
 
-Every process runs with a **complete merged environment** — the env the
-runtime reports for a process is the final result, never a delta. Layers,
-lowest to highest precedence:
+An app's shared settings (workdir, type, env, checks) live on the app; each way of running it is a mode that overrides only what differs. `start_process(app="api", mode="prod")` picks a mode; omitting `mode` uses `default_mode` (or the only mode, or the app's own command).
 
-1. **Base env** — captured login-shell environment (`shell_env: login`, the
-   default) or the parent process env (`shell_env: none`).
+```yaml
+apps:
+  api:
+    workdir: ./services/api
+    type: node
+    default_mode: dev
+    env_sources:
+      - file: .env
+    checks:
+      - name: health
+        url: /health
+    modes:
+      dev:
+        description: local dev server with reload
+        command: [npm, run, dev]
+      headless:
+        command: [npm, run, dev, --, --headless]
+      prod:
+        command: [npm, start]
+        env_sources:
+          - file: .env.production
+          - vars: {NODE_ENV: production}
+        checks:
+          - name: health
+            url: /healthz
+            expect_status: 204
+      test:
+        command: [npm, test]
+```
+
+Mode fields: `description`, `command`, `workdir`, `type`, `env_sources`, `env_file`, `env`, `readiness`, `health_check`, `restart`, `checks`. A mode's env sources are layered after the app's; its checks replace app checks of the same name. Mode names use letters, digits, `.`, `_`, `-`.
+
+Do not hand-write modes for a run that already worked: `save_run_config(process_id, app, mode)` records its exact command, workdir and env (after the user agrees to the `save_suggestion`). A workspace overlay (`scope="workspace"`) can add modes or change `default_mode` for one checkout only.
+
+## Env sources and precedence
+
+`env_sources` is an ordered list; later entries win, so the order is the priority. Each entry is either a dotenv file or inline vars:
+
+```yaml
+env_sources:
+  - file: .env                 # lowest of the app's sources
+  - file: .env.local
+    optional: true             # skipped when missing (a missing non-optional file fails the start)
+  - vars:                      # KEY: value mapping, or a list of KEY=VALUE
+      PORT: 3000
+      DATABASE_URL: postgres://localhost:5432/app
+  - file: .env.override        # beats the vars above
+    optional: true
+```
+
+Every process runs with a **complete merged environment**. Layers, lowest to highest precedence:
+
+1. **Base env** — captured login-shell environment (`shell_env: login`, the default) or the parent process env (`shell_env: none`).
 2. **`runtime.env`** — a runtime-wide layer applied to every app/process.
-3. **`env_file`** — the app's (or the request's) dotenv file.
-4. **app `env`** — the app's `env:` block in the project config.
-5. **request `env`** — the `env` array passed to `start_process`.
+3. **App sources** — legacy `env_file`, then legacy `env`, then the app's `env_sources` in order.
+4. **Mode sources** — the selected mode's `env_file`, `env`, then `env_sources` in order.
+5. **Request `env_file`**, then **request `env`** passed to `start_process`.
 
-Later layers override earlier ones for the same key. `get_process_env`
-(spec mode) shows the merged result with per-key `source` provenance.
+Paths in `file:` resolve relative to the workspace root. `${port:name}` templates work in any vars value. `get_process_env` shows the merged result with per-key `source` provenance (`file:.env`, `vars`, `mode:prod/file:.env.production`, `request.env`).
 
 Example — `PORT` set in every layer:
 
@@ -95,12 +160,30 @@ runtime:
 apps:
   web:
     type: node
-    env_file: .env            # .env contains PORT=3001 → layer 3 wins
-    env: ["PORT=3002"]        # layer 4 wins over env_file
+    env_sources:
+      - file: .env            # .env contains PORT=3001
+      - vars: {PORT: 3002}    # later source wins over .env
 ```
 
-`start_process(app="web", env=["PORT=3003"])` → layer 5 wins → the process
-sees `PORT=3003`.
+`start_process(app="web", env=["PORT=3003"])` → the request layer wins → the process sees `PORT=3003`.
+
+## Checks
+
+`checks` are saved runtime probes that `run_checks(app, mode)` executes against the running process, returning pass/fail plus the logs each request produced.
+
+```yaml
+checks:
+  - name: create-order
+    method: POST                      # default GET
+    url: /api/orders                  # path → the process's listening port (or PORT); or a full URL
+    headers: {Authorization: "Bearer ${API_TOKEN}"}   # ${VAR} expands from the process env
+    body: '{"sku": "A1", "qty": 2}'
+    expect_status: 201                # default: any 2xx/3xx
+    expect_contains: '"id"'
+    timeout: 5s
+  - name: db-port
+    tcp: localhost:5432
+```
 
 ## Monorepo
 
@@ -116,16 +199,18 @@ apps:
   api:
     type: node
     workdir: ./services/api
-    env_file: ./services/api/.env     # PORT=3000, DATABASE_URL=...
+    env_sources:
+      - file: ./services/api/.env     # PORT=3000, DATABASE_URL=...
     command: ["node", "server.js"]
   worker:
     type: python
     workdir: ./services/worker
-    env_file: ./services/worker/.env  # PORT=4000, DATABASE_URL=... (same key, different value)
+    env_sources:
+      - file: ./services/worker/.env  # PORT=4000, DATABASE_URL=... (same key, different value)
     command: ["python3", "-u", "worker.py"]
 ```
 
-- Paths (`workdir`, `env_file`) resolve **relative to the workspace root**,
+- Paths (`workdir`, `env_file`, `env_sources[].file`) resolve **relative to the workspace root**,
   then through `filepath.EvalSymlinks`.
 - Each app's merged env is independent — `get_process_env(process_id)` per
   process shows exactly what that process got.
@@ -272,7 +357,13 @@ to the invocation; in MCP `serve` mode it outlives the call.
 
 ## Auto-generated apps
 
-On project load and every start the daemon scans run-defining files (package.json scripts, go.mod, manage.py, pyproject, pom.xml, Procfile, Makefile, docker-compose) plus depth-1 subdirs and generates missing apps automatically. Generated apps are marked auto in the Apps page and revisions have source auto. Raw starts that are still running after 10 seconds are learned as auto apps (source learned) while the daemon setting `learn_raw_starts` is on (default; toggle it on the web Settings page).
+On project load and every start the daemon scans run-defining files (package.json scripts, go.mod, manage.py, pyproject, pom.xml, Procfile, Makefile, docker-compose) plus depth-1 subdirs and generates missing apps automatically. Generated apps are marked auto in the Apps page and revisions have source auto.
+
+Raw starts are never saved silently. When one succeeds, tool results carry `save_suggestion`; the agent asks the user and only then calls `save_run_config` (revisions have source `saved`). The daemon setting `suggest_saving_runs` (web Settings page) turns the suggestions off.
+
+## Keep jack-ketch files out of git
+
+Config lives in the daemon database, not in the repository. The files jack-ketch may leave in a repo are its `.jack-ketch/` state dir, env files that saved apps load, and project-scope integration files. `get_project_info` lists the ones git would track under `gitignore.missing`; ask the user, then `update_gitignore` (or `action="dismiss"`). The web Config page shows the same with a one-click button.
 
 ## Ownership and proposals
 

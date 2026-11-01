@@ -166,6 +166,12 @@ type AppConfig struct {
 	// (e.g. "1.0", "500m") and memory (e.g. "512M", "1G"). Linux-first via
 	// cgroup v2; degrades gracefully to unlimited when unsupported.
 	Limits Limits `yaml:"limits"`
+
+	Description string          `yaml:"description"`
+	EnvSources  []EnvSource     `yaml:"env_sources"`
+	Checks      []Check         `yaml:"checks"`
+	DefaultMode string          `yaml:"default_mode"`
+	Modes       map[string]Mode `yaml:"modes"`
 }
 
 // Limits declares optional per-app resource caps. Both fields are optional;
@@ -310,6 +316,14 @@ func (a *AppConfig) defaults() {
 	if a.HealthCheck.FailureThreshold == 0 {
 		a.HealthCheck.FailureThreshold = 3
 	}
+	if len(a.Modes) > 0 {
+		modes := make(map[string]Mode, len(a.Modes))
+		for name, m := range a.Modes {
+			m.defaults()
+			modes[name] = m
+		}
+		a.Modes = modes
+	}
 }
 
 // validate compiles readiness regexes and checks policy strings at load time.
@@ -344,6 +358,9 @@ func (a *AppConfig) validate() error {
 		if _, err := ParseMemorySize(a.Limits.Memory); err != nil {
 			return err
 		}
+	}
+	if errs := a.validateExtensions(); len(errs) > 0 {
+		return fmt.Errorf("%s", errs[0])
 	}
 	return nil
 }

@@ -113,6 +113,13 @@ func registerV3Tools(server *mcp.Server, h *handlers) {
 			for k, v := range res {
 				base[k] = v
 			}
+			if b.Bound() {
+				if gi, err := b.GitignoreStatus(ctx); err == nil {
+					if missing, _ := gi["missing"].([]any); len(missing) > 0 {
+						base["gitignore"] = gi
+					}
+				}
+			}
 			return nil, base, nil
 		})
 

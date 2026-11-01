@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -62,6 +63,7 @@ func (h *handlers) waitAfterStart(ctx context.Context, req *mcp.CallToolRequest,
 
 type startIn struct {
 	App       string   `json:"app,omitempty" jsonschema:"Name of an app from list_apps. Mutually exclusive with command."`
+	Mode      string   `json:"mode,omitempty" jsonschema:"Mode of the app (dev, prod, headless, test...) from list_apps; omit for the app's default_mode."`
 	Command   string   `json:"command,omitempty" jsonschema:"Executable to launch (npm, go, python, ./mvnw, ...). Mutually exclusive with app."`
 	Args      []string `json:"args,omitempty" jsonschema:"Arguments for command."`
 	WorkDir   string   `json:"workdir,omitempty" jsonschema:"Working directory, absolute or relative to the project root."`
@@ -174,15 +176,19 @@ func registerTools(server *mcp.Server, h *handlers) {
 			if err != nil {
 				return nil, nil, err
 			}
+			if in.Mode != "" && in.App == "" {
+				return nil, nil, errors.New("mode needs app")
+			}
 			res, err := rt.Start(ctx, api.StartRequest{
-				App: in.App, Command: in.Command, Args: in.Args, WorkDir: in.WorkDir, Env: in.Env,
+				App: in.App, Mode: in.Mode, Command: in.Command, Args: in.Args, WorkDir: in.WorkDir, Env: in.Env,
 				EnvFile: in.EnvFile, Lifetime: in.Lifetime,
 			})
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, startErrorHint(err, in)
 			}
 			if in.TimeoutMS != nil {
 				h.waitAfterStart(ctx, req, rt, res, *in.TimeoutMS)
+				h.annotateStart(ctx, rt, res)
 			}
 			return nil, res, nil
 		})
@@ -230,6 +236,11 @@ func registerTools(server *mcp.Server, h *handlers) {
 			res, err := rt.Status(in.ProcessID)
 			if err != nil {
 				return nil, nil, err
+			}
+			if failedStatus(res) {
+				res.Diagnosis = h.diagnosis(rt, in.ProcessID)
+			} else {
+				res.SaveSuggestion = h.suggestion(ctx, rt, in.ProcessID)
 			}
 			return nil, res, nil
 		})
@@ -310,6 +321,16 @@ func registerTools(server *mcp.Server, h *handlers) {
 				res.Clamped = true
 				res.Hint = fmt.Sprintf(clampHint, eff, "wait_for_log")
 			}
+			switch {
+			case res.Exited && !res.Matched:
+				if st, err := rt.Status(in.ProcessID); err == nil && failedStatus(st) {
+					res.Diagnosis = h.diagnosis(rt, in.ProcessID)
+				} else {
+					res.SaveSuggestion = h.suggestion(ctx, rt, in.ProcessID)
+				}
+			case res.Matched && in.Ready:
+				res.SaveSuggestion = h.suggestion(ctx, rt, in.ProcessID)
+			}
 			return nil, res, nil
 		})
 
@@ -333,6 +354,13 @@ func registerTools(server *mcp.Server, h *handlers) {
 			if res.Timeout && clamped {
 				res.Clamped = true
 				res.Hint = fmt.Sprintf(clampHint, eff, "wait_for_exit")
+			}
+			if res.Exited {
+				if res.ExitCode != nil && *res.ExitCode == 0 {
+					res.SaveSuggestion = h.suggestion(ctx, rt, in.ProcessID)
+				} else {
+					res.Diagnosis = h.diagnosis(rt, in.ProcessID)
+				}
 			}
 			return nil, res, nil
 		})

@@ -67,6 +67,10 @@ type Runtime struct {
 	// (provenance for get_process_env spec mode).
 	envSrcMu sync.RWMutex
 	envSrc   map[string]map[string]string
+	origins  map[string]processOrigin
+
+	portOwnerMu sync.RWMutex
+	portOwner   func(port int) string
 
 	rootCtx context.Context
 	cancel  context.CancelFunc
@@ -116,6 +120,7 @@ func New(loaded *config.Loaded, logger *slog.Logger) *Runtime {
 		baseEnv:     baseEnv,
 		baseEnvName: baseEnvName,
 		envSrc:      make(map[string]map[string]string),
+		origins:     make(map[string]processOrigin),
 		rootCtx:     rootCtx,
 		cancel:      cancel,
 	}
@@ -294,7 +299,7 @@ func (r *Runtime) Config() *config.Loaded { return r.cfg.Load() }
 // Start launches a process and returns immediately. The process continues
 // running independently of the calling MCP request.
 func (r *Runtime) Start(ctx context.Context, req api.StartRequest) (*api.StartResult, error) {
-	spec, prof, source, err := r.resolveStart(req)
+	spec, prof, source, envFiles, err := r.resolveStart(req)
 	if err != nil {
 		return nil, err
 	}
@@ -324,10 +329,13 @@ func (r *Runtime) Start(ctx context.Context, req api.StartRequest) (*api.StartRe
 	r.envSrcMu.Lock()
 	r.envSrc[info.ID] = source
 	r.envSrcMu.Unlock()
+	r.recordOrigin(info.ID, processOrigin{app: spec.App, mode: spec.Mode, envFiles: envFiles})
 	return &api.StartResult{
 		ProcessID:  info.ID,
 		InstanceID: info.InstanceID,
 		Status:     string(info.Status),
+		App:        spec.App,
+		Mode:       spec.Mode,
 		Profile:    info.Profile,
 		Command:    info.Command,
 		Args:       info.Args,
@@ -438,7 +446,7 @@ func (r *Runtime) OpenShell(ctx context.Context, req api.OpenShellRequest) (*api
 			return nil, fmt.Errorf("open_shell workdir %q: %w", workDir, err)
 		}
 	case req.App != "":
-		spec, p, _, err := r.resolveStart(api.StartRequest{App: req.App})
+		spec, p, _, _, err := r.resolveStart(api.StartRequest{App: req.App})
 		if err != nil {
 			return nil, err
 		}
@@ -528,6 +536,8 @@ func (r *Runtime) Status(id string) (*api.StatusResult, error) {
 		InstanceID:    info.InstanceID,
 		Status:        string(info.Status),
 		PID:           info.PID,
+		App:           proc.Spec.App,
+		Mode:          proc.Spec.Mode,
 		PGID:          info.PID, // Setpgid on Unix means pgid == pid
 		Command:       info.Command,
 		Args:          info.Args,
@@ -573,6 +583,7 @@ func (r *Runtime) List() (*api.ListResult, error) {
 			Command:    info.Command,
 			Profile:    info.Profile,
 			App:        p.Spec.App,
+			Mode:       p.Spec.Mode,
 			PID:        info.PID,
 			Health:     string(p.Health().State),
 			ExitCode:   info.ExitCode,
@@ -921,6 +932,7 @@ func (r *Runtime) Apps() (*api.ListAppsResult, error) {
 		if prof != nil {
 			info.Type = prof.Name
 		}
+		DescribeApp(app, &info)
 		if len(app.Command) > 0 {
 			info.Command = app.Command[0]
 			info.Args = app.Command[1:]
@@ -955,20 +967,29 @@ func (r *Runtime) Shutdown() error {
 
 // resolveStart converts a StartRequest into a concrete StartSpec, profile and
 // env provenance map (key -> winning layer name).
-func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profile.Profile, map[string]string, error) {
+func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profile.Profile, map[string]string, []string, error) {
 	var spec process.StartSpec
 	var prof *profile.Profile
 	var source map[string]string
+	var envFiles []string
+	fail := func(err error) (process.StartSpec, *profile.Profile, map[string]string, []string, error) {
+		return spec, nil, nil, nil, err
+	}
 
 	switch {
 	case req.App != "":
-		app, ok := r.getCfg().Config.Apps[req.App]
+		base, ok := r.getCfg().Config.Apps[req.App]
 		if !ok {
-			return spec, nil, nil, fmt.Errorf("unknown app %q (configured apps: %s)", req.App, strings.Join(r.getCfg().Names(), ", "))
+			return fail(fmt.Errorf("unknown app %q (configured apps: %s)", req.App, strings.Join(r.getCfg().Names(), ", ")))
 		}
+		resolved, err := base.ResolveMode(req.Mode)
+		if err != nil {
+			return fail(fmt.Errorf("app %q %w", req.App, err))
+		}
+		app := resolved.AppConfig
 		workDir, err := r.resolveWorkDir(app.WorkDir)
 		if err != nil {
-			return spec, nil, nil, err
+			return fail(err)
 		}
 		prof = r.profiles.Lookup(app.Type)
 		if prof == nil {
@@ -979,27 +1000,35 @@ func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profil
 			cmd = prof.Command(workDir)
 		}
 		if len(cmd) == 0 {
-			return spec, nil, nil, fmt.Errorf("app %q has no start command; set one in the Config page or via apply_config", req.App)
+			if resolved.Mode == "" && len(base.Modes) > 0 {
+				return fail(fmt.Errorf("app %q has no base command; pick a mode (%s) or set default_mode", req.App, strings.Join(base.ModeNames(), ", ")))
+			}
+			return fail(fmt.Errorf("app %q has no start command; set one in the Config page or via apply_config", req.App))
 		}
 		layers := []config.EnvLayer{{Name: r.baseEnvName, Vars: r.baseEnv}}
 		if len(r.getCfg().Config.Runtime.Env) > 0 {
 			layers = append(layers, config.EnvLayer{Name: "runtime.env", Vars: r.getCfg().Config.Runtime.Env})
 		}
-		if app.EnvFile != "" {
-			fileEnv, err := config.ParseEnvFile(r.abs(app.EnvFile))
-			if err != nil {
-				return spec, nil, nil, fmt.Errorf("app %q env_file: %w", req.App, err)
-			}
-			layers = append(layers, config.EnvLayer{Name: "env_file", Vars: fileEnv})
+		chainLayers, files, err := r.envChainLayers(resolved.EnvChain)
+		if err != nil {
+			return fail(fmt.Errorf("app %q: %w", req.App, err))
 		}
-		layers = append(layers,
-			config.EnvLayer{Name: "app.env", Vars: app.Env},
-			config.EnvLayer{Name: "request.env", Vars: req.Env},
-		)
+		layers = append(layers, chainLayers...)
+		envFiles = files
+		if req.EnvFile != "" {
+			fileEnv, err := config.ParseEnvFile(r.abs(req.EnvFile))
+			if err != nil {
+				return fail(fmt.Errorf("env_file: %w", err))
+			}
+			layers = append(layers, config.EnvLayer{Name: "request.env_file", Vars: fileEnv})
+			envFiles = append(envFiles, req.EnvFile)
+		}
+		layers = append(layers, config.EnvLayer{Name: "request.env", Vars: req.Env})
 		merged, src := config.MergeEnv(layers...)
 		source = src
 		spec = process.StartSpec{Command: cmd[0], Args: cmd[1:], WorkDir: workDir, Env: merged}
 		spec.App = req.App
+		spec.Mode = resolved.Mode
 		// Supervision: app-declared readiness overrides the profile's; the
 		// health/restart policy comes from the app's config.
 		readiness := app.Readiness
@@ -1013,7 +1042,7 @@ func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profil
 	case req.Command != "":
 		workDir, err := r.resolveWorkDir(req.WorkDir)
 		if err != nil {
-			return spec, nil, nil, err
+			return fail(err)
 		}
 		prof = r.profiles.Detect(workDir)
 		layers := []config.EnvLayer{{Name: r.baseEnvName, Vars: r.baseEnv}}
@@ -1023,9 +1052,10 @@ func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profil
 		if req.EnvFile != "" {
 			fileEnv, err := config.ParseEnvFile(r.abs(req.EnvFile))
 			if err != nil {
-				return spec, nil, nil, fmt.Errorf("env_file: %w", err)
+				return fail(fmt.Errorf("env_file: %w", err))
 			}
 			layers = append(layers, config.EnvLayer{Name: "env_file", Vars: fileEnv})
+			envFiles = append(envFiles, req.EnvFile)
 		}
 		layers = append(layers, config.EnvLayer{Name: "request.env", Vars: req.Env})
 		merged, src := config.MergeEnv(layers...)
@@ -1033,9 +1063,34 @@ func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profil
 		spec = process.StartSpec{Command: req.Command, Args: req.Args, WorkDir: workDir, Env: merged}
 
 	default:
-		return spec, nil, nil, errors.New("start_process requires either app or command")
+		return fail(errors.New("start_process requires either app or command"))
 	}
-	return spec, prof, source, nil
+	return spec, prof, source, envFiles, nil
+}
+
+func (r *Runtime) envChainLayers(chain []config.LabeledEnvSource) ([]config.EnvLayer, []string, error) {
+	out := make([]config.EnvLayer, 0, len(chain))
+	var files []string
+	for _, src := range chain {
+		if src.File == "" {
+			out = append(out, config.EnvLayer{Name: src.Label, Vars: src.Vars})
+			continue
+		}
+		path := r.abs(src.File)
+		fileEnv, err := config.ParseEnvFile(path)
+		if err != nil {
+			if src.Optional && errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, nil, fmt.Errorf("env file %s not found (%s); create it, or mark the source optional: true", src.File, path)
+			}
+			return nil, nil, fmt.Errorf("env file %s: %w", src.File, err)
+		}
+		out = append(out, config.EnvLayer{Name: src.Label, Vars: fileEnv})
+		files = append(files, src.File)
+	}
+	return out, files, nil
 }
 
 // resolveWorkDir resolves a declared workdir against the project root and

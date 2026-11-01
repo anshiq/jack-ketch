@@ -69,7 +69,9 @@ export function toProcess(raw: Record<string, unknown>): Process {
     stale: raw['stale'] === true,
     loaded: raw['loaded'] !== false,
     lifetime: str(raw['lifetime'], 'persistent'),
-    sessionId: str(raw['sessionId'] ?? raw['session_id'] ?? raw['startedBy'])
+    sessionId: str(raw['sessionId'] ?? raw['session_id'] ?? raw['startedBy']),
+    mode: str(raw['mode']),
+    saveable: raw['saveable'] === true
   };
 }
 

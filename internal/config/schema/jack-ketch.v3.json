@@ -5,6 +5,47 @@
   "description": "Project config for jack-ketch v3. Served by ConfigService.GetSchema and used by editors via yaml-language-server.",
   "type": "object",
   "additionalProperties": false,
+  "definitions": {
+    "envSources": {
+      "type": "array",
+      "description": "Ordered env layers; later entries win. Each entry is a dotenv file or inline vars.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "file": { "type": "string", "description": "Dotenv file, relative to the workspace root." },
+          "optional": { "type": "boolean", "default": false, "description": "Skip silently when the file does not exist." },
+          "vars": {
+            "description": "Inline variables as KEY: value (or a list of KEY=VALUE). Supports ${port:name} templates.",
+            "oneOf": [
+              { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "description": "Saved runtime checks run by run_checks against a running process.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "description": "Check name." },
+          "method": { "type": "string", "enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], "default": "GET" },
+          "url": { "type": "string", "description": "Path (/health, resolved against the process port) or absolute URL; ${VAR} expands from the process env." },
+          "tcp": { "type": "string", "description": "host:port to connect to instead of an HTTP request." },
+          "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+          "body": { "type": "string", "description": "Request body." },
+          "expect_status": { "type": "integer", "description": "Expected HTTP status; default accepts 2xx and 3xx." },
+          "expect_contains": { "type": "string", "description": "Substring the response body must contain." },
+          "timeout": { "type": ["string", "integer"], "description": "Request timeout, default 10s." }
+        }
+      }
+    }
+  },
   "properties": {
     "version": { "type": "integer", "enum": [1, 2, 3], "default": 3, "description": "Config file version." },
     "project": {
@@ -87,6 +128,32 @@
               "type": "object",
               "description": "One named port declaration.",
               "properties": { "default": { "type": "integer", "description": "Preferred port number." } }
+            }
+          },
+          "description": { "type": "string", "description": "What this app is, shown in list_apps and the Apps page." },
+          "env_sources": { "$ref": "#/definitions/envSources" },
+          "checks": { "$ref": "#/definitions/checks" },
+          "default_mode": { "type": "string", "description": "Mode used when start_process omits mode." },
+          "modes": {
+            "type": "object",
+            "description": "Named ways to run this app (dev, prod, headless, test, staging...). Each mode overrides only what differs from the app; its env_sources are layered after the app's.",
+            "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$" },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "description": { "type": "string", "description": "What this mode is for." },
+                "type": { "type": "string", "description": "Profile override for this mode." },
+                "workdir": { "type": "string", "description": "Working directory override, relative to the workspace root." },
+                "command": { "type": "array", "items": { "type": "string" }, "description": "Command and arguments for this mode." },
+                "env_file": { "type": "string", "description": "Dotenv file layered after the app's env sources." },
+                "env": { "type": "array", "items": { "type": "string" }, "description": "KEY=VALUE entries layered after the app's env sources." },
+                "env_sources": { "$ref": "#/definitions/envSources" },
+                "readiness": { "type": "array", "items": { "type": "string" }, "description": "Readiness regex override for this mode." },
+                "health_check": { "type": "object", "description": "Health probe override for this mode." },
+                "restart": { "type": "object", "description": "Restart policy override for this mode." },
+                "checks": { "$ref": "#/definitions/checks" }
+              }
             }
           }
         }

@@ -170,12 +170,21 @@ func Validate(data []byte) []*ValidationError {
 					Message: fmt.Sprintf("depends on unknown app %q", p)})
 			}
 		}
-		for _, e := range app.Env {
-			for _, m := range portTemplate.FindAllStringSubmatch(e, -1) {
-				if len(m) < 2 || m[1] == "" {
-					errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name + ".env", Message: "invalid port template " + e})
+		for _, list := range app.AllEnvLists() {
+			for _, e := range list {
+				for _, m := range portTemplate.FindAllStringSubmatch(e, -1) {
+					if len(m) < 2 || m[1] == "" {
+						errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name + ".env", Message: "invalid port template " + e})
+					}
 				}
 			}
+		}
+		if !ValidAppName(name) {
+			errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name,
+				Message: "app names use letters, digits, '.', '_' or '-' and start with a letter or digit"})
+		}
+		for _, msg := range app.validateExtensions() {
+			errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name, Message: msg})
 		}
 	}
 	seenPorts := map[int]string{}
@@ -285,6 +294,9 @@ func checkRegexp(pat string) error {
 	if pat == "" {
 		return fmt.Errorf("empty readiness pattern")
 	}
+	if _, err := regexp.Compile(pat); err != nil {
+		return fmt.Errorf("readiness pattern %q: %w", pat, err)
+	}
 	return nil
 }
 
@@ -379,7 +391,7 @@ func Plan(oldApps, newApps map[string]V3App, runningByApp map[string][]string) [
 
 func restartField(f string) bool {
 	switch f {
-	case "command", "workdir", "env", "env_file", "limits", "type", "ports":
+	case "command", "workdir", "env", "env_file", "env_sources", "modes", "limits", "type", "ports":
 		return true
 	}
 	return false
@@ -404,8 +416,22 @@ func diffApp(a, b V3App) []string {
 	add("lifetime", a.Lifetime == b.Lifetime)
 	add("reload", a.Reload == b.Reload)
 	add("pty", a.Pty == b.Pty)
+	add("description", a.Description == b.Description)
+	add("default_mode", a.DefaultMode == b.DefaultMode)
+	add("env_sources", sameYAML(a.EnvSources, b.EnvSources))
+	add("checks", sameYAML(a.Checks, b.Checks))
+	add("modes", sameYAML(a.Modes, b.Modes))
 	sort.Strings(fields)
 	return fields
+}
+
+func sameYAML(a, b any) bool {
+	ab, aerr := yaml.Marshal(a)
+	bb, berr := yaml.Marshal(b)
+	if aerr != nil || berr != nil {
+		return false
+	}
+	return string(ab) == string(bb)
 }
 
 // ParseV3 parses YAML into a V3Config with defaults applied.
@@ -639,6 +665,28 @@ func mergeApp(dst *V3App, src V3App, base, workspacePath string) {
 	}
 	if src.Ports != nil {
 		dst.Ports = src.Ports
+	}
+	if src.Description != "" {
+		dst.Description = src.Description
+	}
+	if src.EnvSources != nil {
+		dst.EnvSources = src.EnvSources
+	}
+	if src.Checks != nil {
+		dst.Checks = src.Checks
+	}
+	if src.DefaultMode != "" {
+		dst.DefaultMode = src.DefaultMode
+	}
+	if len(src.Modes) > 0 {
+		modes := make(map[string]Mode, len(dst.Modes)+len(src.Modes))
+		for k, v := range dst.Modes {
+			modes[k] = v
+		}
+		for k, v := range src.Modes {
+			modes[k] = v
+		}
+		dst.Modes = modes
 	}
 	_ = base
 	_ = workspacePath

@@ -295,6 +295,7 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	var req struct {
 		WorkspaceID string          `json:"workspaceId"`
 		App         string          `json:"app"`
+		Mode        string          `json:"mode"`
 		Command     []string        `json:"command"`
 		Workdir     string          `json:"workdir"`
 		Env         json.RawMessage `json:"env"`
@@ -324,6 +325,7 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	noteScope(r, req.WorkspaceID, pr.ProjectID())
 	core.EnsureConfig(pr)
 	env := parseEnvField(req.Env)
+	rawEnv := append([]string(nil), env...)
 	// Request-time ${port:name} templates allocate without a default
 	// (app-layer templates were already expanded at config load).
 	if expanded, err := config.ExpandPortTemplates(env, func(name string) (int, error) {
@@ -331,7 +333,13 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	}); err == nil {
 		env = expanded
 	}
-	startReq := api.StartRequest{App: req.App, WorkDir: req.Workdir, Env: env, EnvFile: req.EnvFile}
+	if req.App != "" && len(req.Command) > 0 {
+		return nil, fmt.Errorf("invalid_argument: pass either app or command, not both")
+	}
+	if req.Mode != "" && req.App == "" {
+		return nil, fmt.Errorf("invalid_argument: mode needs app")
+	}
+	startReq := api.StartRequest{App: req.App, Mode: req.Mode, WorkDir: req.Workdir, Env: env, EnvFile: req.EnvFile}
 	if len(req.Command) > 0 {
 		startReq.Command = req.Command[0]
 		startReq.Args = req.Command[1:]
@@ -342,23 +350,13 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	if req.Lifetime == "session" && req.SessionID == "" {
 		return nil, fmt.Errorf("invalid_argument: lifetime session requires a session")
 	}
-	noteArgs(r, map[string]any{"app": req.App, "command": req.Command, "workdir": req.Workdir, "lifetime": req.Lifetime})
+	noteArgs(r, map[string]any{"app": req.App, "mode": req.Mode, "command": req.Command, "workdir": req.Workdir, "lifetime": req.Lifetime})
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	res, pid, err := s.startAndRecord(ctx, pr, rt, req.WorkspaceID, startReq, req.Command, req.Lifetime, req.SessionID)
+	origin := core.RunOrigin{App: req.App, Command: req.Command, WorkDir: req.Workdir, Env: rawEnv, EnvFile: req.EnvFile}
+	res, pid, err := s.startAndRecord(ctx, pr, rt, req.WorkspaceID, startReq, origin, req.Lifetime, req.SessionID)
 	if err != nil {
 		return nil, err
-	}
-	if req.App == "" && len(req.Command) > 0 {
-		wsID := req.WorkspaceID
-		cmd := append([]string(nil), req.Command...)
-		wd := req.Workdir
-		sess := req.SessionID
-		eng := s.engine
-		go func() {
-			time.Sleep(10 * time.Second)
-			core.LearnFromRawStart(eng, wsID, res.ProcessID, cmd, wd, sess)
-		}()
 	}
 	lifetime := req.Lifetime
 	if lifetime == "" {
@@ -368,7 +366,7 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 		"processId": res.ProcessID, "instanceId": res.InstanceID,
 		"status": res.Status, "pid": pid,
 		"profile": res.Profile, "command": res.Command,
-		"lifetime": lifetime,
+		"lifetime": lifetime, "app": res.App, "mode": res.Mode,
 	}
 	if st, err := rt.Status(res.ProcessID); err == nil {
 		out["args"] = st.Args
@@ -378,7 +376,7 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	return out, nil
 }
 
-func (s *Server) startAndRecord(ctx context.Context, pr *corePR, rt *coreRT, wsID string, req api.StartRequest, rawCommand []string, lifetime, sessionID string) (*api.StartResult, int, error) {
+func (s *Server) startAndRecord(ctx context.Context, pr *corePR, rt *coreRT, wsID string, req api.StartRequest, origin core.RunOrigin, lifetime, sessionID string) (*api.StartResult, int, error) {
 	res, err := rt.Start(ctx, req)
 	if err != nil {
 		return nil, 0, err
@@ -386,10 +384,11 @@ func (s *Server) startAndRecord(ctx context.Context, pr *corePR, rt *coreRT, wsI
 	if lifetime == "" {
 		lifetime = "persistent"
 	}
-	specJSON, _ := json.Marshal(map[string]any{"app": req.App, "command": rawCommand, "workdir": req.WorkDir})
-	prow, err := s.engine.Store().CreateProcess(res.ProcessID, wsID, req.App, string(specJSON), lifetime, "", sessionID, 0)
+	origin.Mode = res.Mode
+	specJSON := origin.JSON()
+	prow, err := s.engine.Store().CreateProcess(res.ProcessID, wsID, req.App, specJSON, lifetime, "", sessionID, 0)
 	if err != nil && sessionID != "" {
-		prow, _ = s.engine.Store().CreateProcess(res.ProcessID, wsID, req.App, string(specJSON), "persistent", "", "", 0)
+		prow, _ = s.engine.Store().CreateProcess(res.ProcessID, wsID, req.App, specJSON, "persistent", "", "", 0)
 	}
 	pid := 0
 	if st, err := rt.Status(res.ProcessID); err == nil {
@@ -697,6 +696,8 @@ func (s *Server) processInfo(pr *corePR, st *api.StatusResult) map[string]any {
 	app := ""
 	lifetime := ""
 	sessionID := ""
+	mode := st.Mode
+	saveable := false
 	if row, err := s.engine.Store().GetProcess(st.ProcessID); err == nil {
 		app = row.App
 		lifetime = row.Lifetime
@@ -704,6 +705,11 @@ func (s *Server) processInfo(pr *corePR, st *api.StatusResult) map[string]any {
 		if lifetime == "" {
 			lifetime = "persistent"
 		}
+		o := core.ParseOrigin(row.SpecJSON)
+		if mode == "" {
+			mode = o.SavedMode
+		}
+		saveable = core.Saveable(o)
 	}
 	return map[string]any{
 		"id": st.ProcessID, "processId": st.ProcessID, "instanceId": st.InstanceID, "app": app,
@@ -715,6 +721,7 @@ func (s *Server) processInfo(pr *corePR, st *api.StatusResult) map[string]any {
 		"stdoutLines": st.StdoutLines, "stderrLines": st.StderrLines,
 		"ports": ports, "stale": pr.IsStale(""), "loaded": true,
 		"lifetime": lifetime, "sessionId": sessionID,
+		"mode": mode, "saveable": saveable,
 	}
 }
 
@@ -904,8 +911,8 @@ func (s *Server) handleProcOpenShell(w http.ResponseWriter, r *http.Request) (an
 	if err != nil {
 		return nil, err
 	}
-	specJSON, _ := json.Marshal(map[string]any{"command": res.Command, "workdir": res.WorkDir})
-	_, _ = s.engine.Store().CreateProcess(res.ProcessID, pr.WorkspaceID(), "", string(specJSON), lifetime, "", sessionID, 0)
+	origin := core.RunOrigin{Command: []string{res.Command}, WorkDir: res.WorkDir, Shell: true}
+	_, _ = s.engine.Store().CreateProcess(res.ProcessID, pr.WorkspaceID(), "", origin.JSON(), lifetime, "", sessionID, 0)
 	return map[string]any{
 		"processId": res.ProcessID, "instanceId": res.InstanceID,
 		"status": res.Status, "lifetime": lifetime,

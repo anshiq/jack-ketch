@@ -81,8 +81,8 @@ function scriptProgram(script: string): string {
   return '';
 }
 
-export function displayName(p: Pick<Process, 'app' | 'command' | 'args'>): string {
-  if (p.app) return p.app;
+export function displayName(p: Pick<Process, 'app' | 'command' | 'args'> & { mode?: string }): string {
+  if (p.app) return p.mode ? `${p.app} · ${p.mode}` : p.app;
   const first = (p.command ?? '').trim().split(/\s+/)[0] ?? '';
   const prog = baseName(first);
   if (!prog) return 'process';

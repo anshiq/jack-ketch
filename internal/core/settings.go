@@ -53,8 +53,6 @@ func (e *Engine) settingBool(key string, def bool) bool {
 	return def
 }
 
-func (e *Engine) LearnRawStarts() bool { return e.settingBool("learn_raw_starts", true) }
-
 func (e *Engine) EventRetention() time.Duration {
 	d, err := ParseRetention(e.settingString("retention", "30d"))
 	if err != nil {

@@ -29,6 +29,8 @@ function proc(over: Partial<Process>): Process {
     loaded: true,
     lifetime: '',
     sessionId: '',
+    mode: '',
+    saveable: false,
     ...over
   };
 }

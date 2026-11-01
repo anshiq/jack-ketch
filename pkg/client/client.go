@@ -460,6 +460,7 @@ func (c *ProcessServiceClient) Start(ctx context.Context, req *StartRequest) (*S
 type StartRequest struct {
 	WorkspaceID string            `json:"workspaceId"`
 	App         string            `json:"app"`
+	Mode        string            `json:"mode,omitempty"`
 	Command     []string          `json:"command"`
 	WorkDir     string            `json:"workdir"`
 	Env         map[string]string `json:"env"`

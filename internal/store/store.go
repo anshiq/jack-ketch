@@ -919,6 +919,11 @@ func (d *DB) CreateProcess(id, ws, app, specJSON, lifetime, restart, startedBy s
 		Lifetime: lifetime, Restart: restart, StartedBy: startedBy, ConfigRev: configRev, CreatedAt: now}, nil
 }
 
+func (d *DB) UpdateProcessOrigin(id, app, specJSON string) error {
+	_, err := d.db.Exec("UPDATE processes SET app=?, spec_json=? WHERE id=?", nullStr(app), specJSON, id)
+	return err
+}
+
 // RemoveProcess soft-deletes a process.
 func (d *DB) RemoveProcess(id string) error {
 	_, err := d.db.Exec("UPDATE processes SET removed_at=? WHERE id=?", time.Now().Unix(), id)

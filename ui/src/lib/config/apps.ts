@@ -1,4 +1,15 @@
-import type { Process } from '../api/types';
+import type { CheckSpec, EnvSourceSpec, Process } from '../api/types';
+import { toCheck, toEnvSource } from '../api/assist';
+
+export interface ConfigMode {
+  name: string;
+  description: string;
+  command: string[];
+  workdir: string;
+  envSources: EnvSourceSpec[];
+  checks: CheckSpec[];
+  isDefault: boolean;
+}
 
 export interface ConfigApp {
   name: string;
@@ -18,6 +29,11 @@ export interface ConfigApp {
   envCount: number;
   provenance: string;
   auto: boolean;
+  description: string;
+  defaultMode: string;
+  envSources: EnvSourceSpec[];
+  checks: CheckSpec[];
+  modes: ConfigMode[];
 }
 
 type Rec = Record<string, unknown>;
@@ -35,8 +51,54 @@ function rec(v: unknown): Rec {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Rec) : {};
 }
 
+function legacySources(o: Rec): EnvSourceSpec[] {
+  const out: EnvSourceSpec[] = [];
+  const file = String(pick(o, 'EnvFile', 'env_file') ?? '');
+  if (file) out.push({ file });
+  const env = strs(pick(o, 'Env', 'env'));
+  if (env.length > 0) out.push({ vars: env });
+  const extra = pick(o, 'EnvSources', 'env_sources');
+  if (Array.isArray(extra)) for (const s of extra) out.push(toEnvSource(s));
+  return out;
+}
+
+function checksOf(v: unknown): CheckSpec[] {
+  return Array.isArray(v) ? v.map(toCheck).filter((c): c is CheckSpec => c !== null) : [];
+}
+
+export function mergeChecks(base: CheckSpec[], over: CheckSpec[]): CheckSpec[] {
+  const out = [...base];
+  for (const c of over) {
+    const i = out.findIndex((x) => x.name === c.name);
+    if (i >= 0) out[i] = c;
+    else out.push(c);
+  }
+  return out;
+}
+
 export function toConfigApp(name: string, raw: unknown, provenance = '', auto = false): ConfigApp {
   const o = rec(raw);
+  const baseCommand = strs(pick(o, 'Command', 'command'));
+  const baseSources = legacySources(o);
+  const baseChecks = checksOf(pick(o, 'Checks', 'checks'));
+  const modesRaw = rec(pick(o, 'Modes', 'modes'));
+  const declaredDefault = String(pick(o, 'DefaultMode', 'default_mode') ?? '');
+  const modeNames = Object.keys(modesRaw).sort((a, b) => a.localeCompare(b));
+  let effectiveDefault = declaredDefault && modeNames.includes(declaredDefault) ? declaredDefault : '';
+  if (!effectiveDefault && baseCommand.length === 0 && modeNames.length === 1) effectiveDefault = modeNames[0] as string;
+  const modes: ConfigMode[] = modeNames.map((m) => {
+    const mo = rec(modesRaw[m]);
+    const cmd = strs(pick(mo, 'command', 'Command'));
+    return {
+      name: m,
+      description: String(pick(mo, 'description', 'Description') ?? ''),
+      command: cmd.length > 0 ? cmd : baseCommand,
+      workdir: String(pick(mo, 'workdir', 'WorkDir') ?? ''),
+      envSources: [...baseSources, ...legacySources(mo)],
+      checks: mergeChecks(baseChecks, checksOf(pick(mo, 'checks', 'Checks'))),
+      isDefault: m === effectiveDefault
+    };
+  });
   const health = rec(pick(o, 'HealthCheck', 'health_check'));
   const restart = rec(pick(o, 'Restart', 'restart'));
   const portsRaw = rec(pick(o, 'Ports', 'ports'));
@@ -60,7 +122,12 @@ export function toConfigApp(name: string, raw: unknown, provenance = '', auto = 
     ports,
     envCount: strs(pick(o, 'Env', 'env')).length,
     provenance,
-    auto
+    auto,
+    description: String(pick(o, 'Description', 'description') ?? ''),
+    defaultMode: effectiveDefault,
+    envSources: baseSources,
+    checks: baseChecks,
+    modes
   };
 }
 
@@ -97,6 +164,19 @@ export function matchProcesses(app: ConfigApp, procs: Process[]): Process[] {
     const args = p.args ?? [];
     return args.length === app.command.length - 1 && args.every((a, i) => a === app.command[i + 1]);
   });
+}
+
+export function modeView(app: ConfigApp, mode: string): { command: string[]; envSources: EnvSourceSpec[]; checks: CheckSpec[]; description: string } {
+  const m = app.modes.find((x) => x.name === mode);
+  if (m) return { command: m.command, envSources: m.envSources, checks: m.checks, description: m.description };
+  return { command: app.command, envSources: app.envSources, checks: app.checks, description: app.description };
+}
+
+export function sourceLabel(s: EnvSourceSpec): string {
+  if (s.file) return s.optional ? `${s.file}?` : s.file;
+  const keys = (s.vars ?? []).map((kv) => kv.split('=')[0]);
+  if (keys.length === 0) return 'vars';
+  return keys.length > 3 ? `${keys.slice(0, 3).join(', ')} +${keys.length - 3}` : keys.join(', ');
 }
 
 export function primaryProcess(matches: Process[]): Process | null {

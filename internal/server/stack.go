@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"jack-ketch/internal/core"
 	"jack-ketch/pkg/api"
 )
 
@@ -99,7 +100,7 @@ func (s *Server) handleStartStack(w http.ResponseWriter, r *http.Request) (any, 
 	var started []any
 	for _, name := range order {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
-		res, _, err := s.startAndRecord(ctx, pr, rt, req.WorkspaceID, api.StartRequest{App: name}, nil, "persistent", sessionID)
+		res, _, err := s.startAndRecord(ctx, pr, rt, req.WorkspaceID, api.StartRequest{App: name}, core.RunOrigin{App: name}, "persistent", sessionID)
 		if err != nil {
 			cancel()
 			return map[string]any{"started": started, "order": order, "failed": name, "error": err.Error()}, nil

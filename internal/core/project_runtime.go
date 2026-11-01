@@ -28,6 +28,7 @@ type ProjectRuntime struct {
 	dataDir   string
 	logger    *slog.Logger
 	allocPort func(workspaceID, name string, def int) (int, error)
+	portOwner func(port int) string
 	store     *store.DB
 
 	notifyLoaded func(workspaceID string)
@@ -143,6 +144,9 @@ func (p *ProjectRuntime) loadLocked() error {
 	}
 	loaded := p.loadedFor(resolved)
 	rt := iruntime.New(loaded, p.logger)
+	if p.portOwner != nil {
+		rt.SetPortOwner(p.portOwner)
+	}
 	p.rt = rt
 	p.resolved = resolved
 	p.expandPortsLocked()
@@ -173,14 +177,15 @@ func (p *ProjectRuntime) expandPortsLocked() {
 		for pn, decl := range app.Ports {
 			defaults[pn] = decl.Default
 		}
-		expanded, err := config.ExpandPortTemplates(app.Env, func(n string) (int, error) {
-			return p.allocPort(p.wsID, n, defaults[n])
+		err := app.ExpandEnv(func(list []string) ([]string, error) {
+			return config.ExpandPortTemplates(list, func(n string) (int, error) {
+				return p.allocPort(p.wsID, n, defaults[n])
+			})
 		})
 		if err != nil {
 			p.logger.Warn("port templating failed; leaving raw", "app", name, "error", err)
 			continue
 		}
-		app.Env = expanded
 		p.resolved.Apps[name] = app
 	}
 }

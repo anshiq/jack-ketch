@@ -221,6 +221,7 @@ func (e *Engine) GetOrCreateRuntime(workspaceID string) (*ProjectRuntime, error)
 		lastUsed:     time.Now(),
 		stale:        map[string]bool{},
 		allocPort:    e.AllocatePort,
+		portOwner:    e.PortOwner,
 		store:        e.store,
 		notifyLoaded: e.runtimeLoad.publish,
 	}

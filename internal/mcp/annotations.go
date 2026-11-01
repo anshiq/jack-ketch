@@ -22,6 +22,7 @@ var coreTools = map[string]bool{
 	"list_processes": true, "get_logs": true, "wait_for_log": true, "wait_for_exit": true,
 	"list_apps": true, "search_logs": true, "send_stdin": true, "signal_process": true,
 	"get_project_info": true, "set_workspace": true,
+	"diagnose_process": true, "probe": true, "save_run_config": true,
 }
 
 func toolsetFor(name string) map[string]bool {

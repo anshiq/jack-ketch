@@ -34,7 +34,7 @@ alive; slow consumers get `Gap{dropped}` instead of backpressure (§5.4).
 | Health | liveness + uptime |
 | GetStats | projects, processes (loaded runtimes), sessions |
 | GetRuntimeStats | `{workspaceId}` required; runtime health for one workspace: process counts by status, log-pipeline drops, uptime |
-| GetSettings / UpdateSettings | `log_level`, `idle_exit`, `retention` (event history: `7d`/`30d`/`90d`; audit history is always kept 90 days), `learn_raw_starts` |
+| GetSettings / UpdateSettings | `log_level`, `idle_exit`, `retention` (event history: `7d`/`30d`/`90d`; audit history is always kept 90 days), `suggest_saving_runs` (offer to save successful raw runs as app modes; nothing is saved without the user) |
 | EnableTCP | `{addr}`; starts the authenticated loopback listener used by the web UI, creates the token file if needed; loopback addresses only; `{addr, started}` (idempotent: an existing listener is returned with `started: false`) |
 | Shutdown | `{keepProcesses}` (default true): drain; false stops everything first |
 
@@ -52,6 +52,12 @@ Plan (terraform-style diff: added/removed/restart-required/applied-live),
 Apply (`base_revision` optimistic concurrency → `stale_revision` on
 conflict), ListRevisions, GetRevision, Rollback, WatchConfig (stream).
 
+| RPC | Notes |
+|---|---|
+| SaveRun | `{process_id, action?: save\|dismiss, app?, mode?, scope?: project\|workspace, description?, set_default?, overwrite?, env_sources?, checks?}`; writes the process's command, workdir and env (as ordered `env_sources`) as `apps.<app>.modes.<mode>`; revisions get source `saved`; `dismiss` stops suggesting that run. Returns `{saved, app, mode, start_with, yaml, gitignore?}` |
+| GitignoreStatus | `{workspaceId}` → `{repo, missing:[{path, kind, reason}], tracked, suggestion}` for jack-ketch files git would track (`.jack-ketch/`, env files loaded by saved apps, project-scope integration files) |
+| UpdateGitignore | `{workspaceId, entries?, action?: add\|dismiss}`; appends under a `# jack-ketch` header, or remembers the user's no |
+
 ## ProcessService
 
 Start (returns immediately), Stop, Restart, Signal, SendStdin, Remove,
@@ -59,7 +65,15 @@ Get, List (`workspaceId` or `allWorkspaces`), WatchProcesses (stream),
 WaitForExit, SetRestartPolicy, GetEnv (redacted unless policy allows),
 OpenShell (defaults `lifetime: session`), Attach (server-stream output +
 SendStdin input; full bidi with codegen), GetResourceUsage,
-WatchResourceUsage.
+WatchResourceUsage. Start takes `mode` with `app`.
+
+| RPC | Notes |
+|---|---|
+| Diagnose | `{processId}` → `{category, actor: user\|agent\|agent_with_approval, summary, issues[{evidence, steps, fixes[{command, needs_approval}]}], missing_env[{key, hint, example, add_to}], service?, guidance}` |
+| Outcome | `{processId}` → `{success, kind: server\|task, reason: ready\|stable\|exit_0\|ran_until_stopped, ready_line, uptime_ms}` |
+| SaveSuggestion | `{processId}` → `{suggestion}` (null when the run failed, is already saved, was dismissed, or suggestions are off) |
+| Probe | `api.ProbeRequest` → status, headers, body and the log lines the process printed during the request; `{needsConfirmation, reason}` for non-GET/HEAD/OPTIONS or non-loopback targets until `confirmed: true` |
+| RunChecks | `{process_id \| workspaceId+app+mode, names?}` → per-check results with logs, `passed`, `failed` |
 
 ## LogService
 

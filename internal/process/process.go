@@ -49,6 +49,8 @@ type StartSpec struct {
 	// App is the configured app name this spec came from ("" for raw starts).
 	App string
 
+	Mode string
+
 	// Readiness is the armed readiness regex strings for this process (empty
 	// means no readiness gating). Supervision carries the declarative
 	// health/restart policy.

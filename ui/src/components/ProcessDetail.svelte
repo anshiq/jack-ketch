@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type DetailTab = 'logs' | 'info' | 'env' | 'resources' | 'terminal';
+  export type DetailTab = 'logs' | 'info' | 'env' | 'diagnose' | 'probe' | 'resources' | 'terminal';
 </script>
 
 <script lang="ts">
@@ -15,6 +15,19 @@
   import Activity from '@lucide/svelte/icons/activity';
   import SquareTerminal from '@lucide/svelte/icons/square-terminal';
   import SearchX from '@lucide/svelte/icons/search-x';
+  import Stethoscope from '@lucide/svelte/icons/stethoscope';
+  import Send from '@lucide/svelte/icons/send';
+  import BookmarkPlus from '@lucide/svelte/icons/bookmark-plus';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import { AssistService } from '../lib/api';
+  import type { Diagnosis, SaveSuggestion } from '../lib/api/types';
+  import DiagnosePanel from './assist/DiagnosePanel.svelte';
+  import ProbePanel from './assist/ProbePanel.svelte';
+  import SaveRunDialog from './assist/SaveRunDialog.svelte';
+  import { actorInfo, isFailing, isHealthyRun } from './assist/assistView';
+  import { toasts, toastError } from '../lib/toasts.svelte';
+  import { processes } from '../lib/state/processes.svelte';
   import type { Component } from 'svelte';
   import type { Process } from '../lib/api/types';
   import { scopeState } from '../lib/state/scope.svelte';
@@ -73,6 +86,8 @@
     { id: 'logs', label: 'Logs', icon: ScrollText },
     { id: 'info', label: 'Overview', icon: Info },
     { id: 'env', label: 'Env', icon: KeyRound },
+    { id: 'diagnose', label: 'Diagnose', icon: Stethoscope },
+    { id: 'probe', label: 'Probe', icon: Send },
     { id: 'resources', label: 'Resources', icon: Activity },
     { id: 'terminal', label: 'Terminal', icon: SquareTerminal }
   ];
@@ -88,6 +103,63 @@
   const items = $derived(
     process ? processMenu(process, { onCopyId, afterRemove: onRemoved }) : []
   );
+
+  let suggestion = $state<SaveSuggestion | null>(null);
+  let brief = $state<Diagnosis | null>(null);
+  let saveOpen = $state(false);
+  let hideSuggestion = $state(false);
+  let dismissing = $state(false);
+
+  const failing = $derived(process ? isFailing(process) : false);
+  const assistKey = $derived(process ? `${process.id}|${process.instanceId}|${process.status}|${process.exitCode}|${process.health}|${process.saveable}` : '');
+
+  $effect(() => {
+    const key = assistKey;
+    const p = process;
+    if (!key || !p) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (isFailing(p)) {
+        suggestion = null;
+        try {
+          const d = await AssistService.diagnose(p.id);
+          if (!cancelled) brief = d.category === 'none' ? null : d;
+        } catch {
+          if (!cancelled) brief = null;
+        }
+        return;
+      }
+      brief = null;
+      if (!p.saveable || !isHealthyRun(p)) {
+        suggestion = null;
+        return;
+      }
+      try {
+        const s = await AssistService.suggestion(p.id);
+        if (!cancelled) suggestion = s;
+      } catch {
+        if (!cancelled) suggestion = null;
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  });
+
+  async function notNow() {
+    if (!process) return;
+    dismissing = true;
+    try {
+      await AssistService.saveRun({ processId: process.id, action: 'dismiss' });
+      hideSuggestion = true;
+      toasts.ok("Won't suggest saving this run again");
+    } catch (err) {
+      toastError(err);
+    } finally {
+      dismissing = false;
+    }
+  }
 
   function selectTab(next: DetailTab) {
     if (next === tab) return;
@@ -158,7 +230,31 @@
   </header>
 
   {#if process && line}
-    <div class="cmdrow mono truncate" title={line}>{line}</div>
+    <div class="cmdrow mono truncate" title={line}>{line}{#if process.mode}<span class="modechip">{process.mode}</span>{/if}</div>
+  {/if}
+
+  {#if process && failing && brief}
+    {@const a = actorInfo(brief.actor)}
+    <div class="assist bad" role="alert">
+      <CircleAlert size={15} />
+      <div class="assist-text">
+        <strong>{brief.summary}</strong>
+        <span class="muted">{a.label}</span>
+      </div>
+      {#if tab !== 'diagnose'}
+        <button type="button" class="btn sm" onclick={() => selectTab('diagnose')}>Diagnose<ArrowRight size={13} /></button>
+      {/if}
+    </div>
+  {:else if process && suggestion && !hideSuggestion}
+    <div class="assist good" role="status">
+      <BookmarkPlus size={15} />
+      <div class="assist-text">
+        <strong>{suggestion.kind === 'task' ? 'This command finished successfully.' : 'This run is working.'}</strong>
+        <span class="muted">Save it as <span class="mono">{suggestion.app} · {suggestion.mode}</span> so it starts in one click next time, with the same command and env.</span>
+      </div>
+      <button type="button" class="btn sm ghost" disabled={dismissing} onclick={notNow}>Don't save</button>
+      <button type="button" class="btn sm primary" onclick={() => (saveOpen = true)}>Save as mode…</button>
+    </div>
   {/if}
 
   <div class="tablist" role="tablist" aria-label="Process details" tabindex="-1" onkeydown={tabKey}>
@@ -200,6 +296,10 @@
       <ProcessInfo {process} />
     {:else if tab === 'env'}
       <ProcessEnv {processId} />
+    {:else if tab === 'diagnose'}
+      <DiagnosePanel {processId} instanceKey={assistKey} />
+    {:else if tab === 'probe'}
+      <ProbePanel {process} />
     {:else if tab === 'resources'}
       <ProcessResources {processId} {live} />
     {:else}
@@ -219,7 +319,64 @@
   </div>
 </div>
 
+{#if saveOpen && process}
+  <SaveRunDialog
+    {process}
+    {suggestion}
+    onClose={() => (saveOpen = false)}
+    onSaved={(r) => {
+      if (!r.saved) return;
+      hideSuggestion = true;
+      processes.patch(processId, { app: r.app, mode: r.mode, saveable: false });
+    }}
+  />
+{/if}
+
 <style>
+  .modechip {
+    margin-left: 8px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-3));
+    color: var(--text-0);
+    font-size: 11px;
+  }
+  .assist {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0 var(--space-5) var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: var(--fs-sm);
+  }
+  .assist.bad {
+    border-color: color-mix(in srgb, var(--err) 40%, var(--border));
+    background: color-mix(in srgb, var(--err) 7%, var(--bg-1));
+    color: var(--err);
+  }
+  .assist.good {
+    border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+    background: color-mix(in srgb, var(--ok) 7%, var(--bg-1));
+    color: var(--ok);
+  }
+  .assist-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .assist-text strong {
+    color: var(--text-0);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .assist-text .muted {
+    font-size: var(--fs-xs);
+  }
   .loading-terminal {
     flex: 1;
     display: flex;

@@ -318,7 +318,7 @@ func (b *Bridge) Start(ctx context.Context, req api.StartRequest) (*api.StartRes
 		cmd = append([]string{req.Command}, req.Args...)
 	}
 	res, err := b.client.ProcessService().Start(ctx, &client.StartRequest{
-		WorkspaceID: b.ws(), App: req.App, Command: cmd,
+		WorkspaceID: b.ws(), App: req.App, Mode: req.Mode, Command: cmd,
 		WorkDir: req.WorkDir, Env: env, EnvFile: req.EnvFile, Lifetime: req.Lifetime, SessionID: b.SessionID(),
 	})
 	if err != nil {
@@ -326,10 +326,11 @@ func (b *Bridge) Start(ctx context.Context, req api.StartRequest) (*api.StartRes
 	}
 	out := &api.StartResult{
 		ProcessID: res.ProcessID, InstanceID: res.InstanceID,
-		Status: res.Status, Command: req.Command, Args: req.Args, WorkDir: req.WorkDir,
+		Status: res.Status, Command: req.Command, Args: req.Args, WorkDir: req.WorkDir, App: req.App, Mode: req.Mode,
 	}
 	if st, err := b.Status(res.ProcessID); err == nil {
 		out.Status, out.Command, out.Args, out.WorkDir, out.Profile = st.Status, st.Command, st.Args, st.WorkDir, st.Profile
+		out.App, out.Mode = st.App, st.Mode
 	}
 	return out, nil
 }
@@ -520,6 +521,7 @@ func (b *Bridge) Apps() (*api.ListAppsResult, error) {
 		info.Lifetime = asString(pick(m, "Lifetime", "lifetime"))
 		info.Autostart, _ = pick(m, "Autostart", "autostart").(bool)
 		info.DependsOn = asStrings(pick(m, "DependsOn", "depends_on"))
+		describeRawApp(m, &info)
 		out.Apps = append(out.Apps, info)
 	}
 	return out, nil

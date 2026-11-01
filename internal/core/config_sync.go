@@ -1,21 +1,20 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	"jack-ketch/internal/config"
 	"jack-ketch/internal/detect"
 	"jack-ketch/internal/store"
+
+	"gopkg.in/yaml.v3"
 )
 
 type dbConfigSource struct {
@@ -494,155 +493,6 @@ func (e *Engine) ApplyProjectYAML(projectID, layer, workspaceID, yamlText, sourc
 		}
 	}
 	return rev, restarted, nil
-}
-
-var learnDenylist = map[string]bool{
-	"sh": true, "bash": true, "zsh": true, "fish": true, "dash": true, "ksh": true, "csh": true, "tcsh": true,
-	"pwsh": true, "powershell": true, "cmd": true, "env": true, "sudo": true, "doas": true, "nohup": true,
-	"timeout": true, "docker": true, "podman": true, "kubectl": true, "helm": true, "git": true, "ls": true,
-	"cat": true, "grep": true, "rg": true, "find": true, "echo": true, "curl": true, "wget": true, "sleep": true,
-	"tail": true, "head": true, "true": true, "false": true, "ssh": true, "scp": true, "rsync": true, "tar": true,
-}
-
-func learnBase(cmd string) string {
-	base := filepath.Base(cmd)
-	return strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
-}
-
-type learnedApp struct {
-	Command []string `yaml:"command,flow"`
-	WorkDir string   `yaml:"workdir,omitempty"`
-}
-
-func insertAppYAML(cur []byte, name string, app learnedApp) (string, error) {
-	var doc yaml.Node
-	if len(bytes.TrimSpace(cur)) > 0 {
-		if err := yaml.Unmarshal(cur, &doc); err != nil {
-			return "", err
-		}
-	}
-	if doc.Kind == 0 || len(doc.Content) == 0 {
-		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}}
-		root := doc.Content[0]
-		root.Content = append(root.Content,
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "version"},
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: "3"})
-	}
-	root := doc.Content[0]
-	if root.Kind != yaml.MappingNode {
-		return "", fmt.Errorf("project config is not a mapping")
-	}
-	apps := findMapValue(root, "apps")
-	if apps == nil {
-		apps = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "apps"}, apps)
-	}
-	if apps.Kind != yaml.MappingNode {
-		apps.Kind = yaml.MappingNode
-		apps.Tag = "!!map"
-		apps.Value = ""
-		apps.Style = 0
-		apps.Content = nil
-	}
-	var val yaml.Node
-	if err := val.Encode(app); err != nil {
-		return "", err
-	}
-	apps.Content = append(apps.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: name}, &val)
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&doc); err != nil {
-		return "", err
-	}
-	if err := enc.Close(); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-func LearnFromRawStart(e *Engine, workspaceID, processID string, command []string, workdir, sessionID string) {
-	if len(command) == 0 {
-		return
-	}
-	if !e.LearnRawStarts() {
-		return
-	}
-	if learnDenylist[learnBase(command[0])] {
-		return
-	}
-	prVal, ok := e.runtimes.Load(workspaceID)
-	if !ok {
-		return
-	}
-	pr := prVal.(*ProjectRuntime)
-	rt := pr.LoadedRuntime()
-	if rt == nil {
-		return
-	}
-	if st, err := rt.Status(processID); err != nil || (st.Status != "running" && st.Status != "ready") {
-		return
-	}
-	mu := projectLock(pr.projectID)
-	mu.Lock()
-	defer mu.Unlock()
-	res := pr.ResolvedConfig()
-	if res == nil {
-		return
-	}
-	normWD := normalizeWorkdir(pr.wsPath, workdir)
-	for _, app := range res.Apps {
-		aw := app.WorkDir
-		if aw == "" {
-			aw = "."
-		}
-		if strings.Join(app.Command, "\x00") == strings.Join(command, "\x00") && aw == normWD {
-			return
-		}
-	}
-	base := command[0]
-	if i := strings.LastIndex(base, "/"); i >= 0 {
-		base = base[i+1:]
-	}
-	if base == "" {
-		base = "app"
-	}
-	name := base
-	if _, exists := res.Apps[name]; exists {
-		for i := 2; ; i++ {
-			cand := fmt.Sprintf("%s-%d", base, i)
-			if _, exists := res.Apps[cand]; !exists {
-				name = cand
-				break
-			}
-		}
-	}
-	projYAML, _, _ := e.store.GetConfig(pr.projectID, "project", "")
-	wd := normWD
-	if wd == "." {
-		wd = ""
-	}
-	newYAML, err := insertAppYAML(projYAML, name, learnedApp{Command: command, WorkDir: wd})
-	if err != nil {
-		return
-	}
-	rev, err := e.store.PutConfigTx(pr.projectID, "project", "", newYAML, config.SHA256([]byte(newYAML)), true, "", "learned", sessionID, "learned from raw start")
-	if err != nil || rev == 0 {
-		return
-	}
-	syncRow, _ := e.store.GetConfigSync(pr.projectID)
-	autoMap := map[string]string{}
-	if syncRow != nil && syncRow.AutoAppsJSON != "" {
-		_ = json.Unmarshal([]byte(syncRow.AutoAppsJSON), &autoMap)
-	}
-	newApp := config.V3App{}
-	newApp.Command = append([]string(nil), command...)
-	newApp.WorkDir = wd
-	autoMap[name] = hashApp(newApp)
-	aj, _ := json.Marshal(autoMap)
-	sig := detect.Signature(pr.wsPath)
-	_ = e.store.PutConfigSync(pr.projectID, sig, string(aj))
-	pr.reloadFromDB()
 }
 
 func normalizeWorkdir(wsPath, wd string) string {

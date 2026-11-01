@@ -26,6 +26,8 @@ export interface Process {
   loaded: boolean;
   lifetime: string;
   sessionId: string;
+  mode: string;
+  saveable: boolean;
 }
 
 export interface LogLine {
@@ -232,4 +234,152 @@ export interface ResourceSample {
   children: number;
   ports: number[];
   at: number;
+}
+
+export interface EnvSourceSpec {
+  file?: string;
+  optional?: boolean;
+  vars?: string[];
+}
+
+export interface CheckSpec {
+  name: string;
+  method?: string;
+  url?: string;
+  tcp?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  expect_status?: number;
+  expect_contains?: string;
+  timeout_ms?: number;
+}
+
+export interface SaveSuggestion {
+  processId: string;
+  kind: string;
+  reason: string;
+  app: string;
+  mode: string;
+  newApp: boolean;
+  modeExists: boolean;
+  type: string;
+  command: string[];
+  workdir: string;
+  envSources: EnvSourceSpec[];
+  yaml: string;
+  ask: string;
+}
+
+export interface SuggestedFix {
+  kind: string;
+  description: string;
+  command: string;
+  workdir: string;
+  needsApproval: boolean;
+}
+
+export interface MissingEnvVar {
+  key: string;
+  hint: string;
+  example: string;
+  source: string;
+  addTo: string;
+}
+
+export interface DiagnosisIssue {
+  category: string;
+  summary: string;
+  actor: string;
+  evidence: string[];
+  steps: string[];
+  fixes: SuggestedFix[];
+}
+
+export interface Diagnosis {
+  processId: string;
+  status: string;
+  exitCode: number | null;
+  failing: boolean;
+  category: string;
+  actor: string;
+  summary: string;
+  issues: DiagnosisIssue[];
+  missingEnv: MissingEnvVar[];
+  envFiles: string[];
+  service: { name: string; host: string; port: number; image: string; runHint: string; projectApp: string } | null;
+  tail: string[];
+  guidance: string;
+}
+
+export interface ProbeLog {
+  id: number;
+  timestamp: string;
+  stream: string;
+  line: string;
+}
+
+export interface ProbeResult {
+  name: string;
+  processId: string;
+  method: string;
+  url: string;
+  tcp: string;
+  ok: boolean;
+  status: number;
+  statusText: string;
+  durationMs: number;
+  headers: Record<string, string>;
+  body: string;
+  bodyBytes: number;
+  bodyTruncated: boolean;
+  error: string;
+  failures: string[];
+  logs: ProbeLog[];
+  logsTruncated: boolean;
+  errorLogs: number;
+  listeningPorts: number[];
+  processStatus: string;
+  check: CheckSpec | null;
+  needsConfirmation: boolean;
+  confirmReason: string;
+}
+
+export interface ChecksResult {
+  processId: string;
+  app: string;
+  mode: string;
+  passed: number;
+  failed: number;
+  results: ProbeResult[];
+}
+
+export interface GitignoreEntry {
+  path: string;
+  kind: string;
+  reason: string;
+  exists: boolean;
+}
+
+export interface GitignoreStatus {
+  repo: boolean;
+  repoRoot: string;
+  gitignore: string;
+  missing: GitignoreEntry[];
+  tracked: string[];
+}
+
+export interface SaveRunResult {
+  saved: boolean;
+  dismissed: boolean;
+  app: string;
+  mode: string;
+  scope: string;
+  newApp: boolean;
+  replaced: boolean;
+  unchanged: boolean;
+  revision: number;
+  yaml: string;
+  startWith: string;
+  message: string;
+  gitignore: GitignoreStatus | null;
 }

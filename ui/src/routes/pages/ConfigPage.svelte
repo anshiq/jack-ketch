@@ -16,6 +16,9 @@
   import { type LayerName } from '../../lib/config/session.svelte';
   import { configSession, cachedConfigSessionsDirty } from '../../lib/config/store.svelte';
   import { ROUTE_CONTEXT, type RouteView } from '../../lib/routes';
+  import { AssistService } from '../../lib/api';
+  import type { GitignoreStatus } from '../../lib/api/types';
+  import GitignorePrompt from '../../components/assist/GitignorePrompt.svelte';
 
   const route = getContext<RouteView | undefined>(ROUTE_CONTEXT);
   let session = $state(configSession(''));
@@ -28,6 +31,27 @@
   ];
 
   const otherWarnings = $derived(session.warnings);
+  let gitignore = $state<GitignoreStatus | null>(null);
+  let gitignoreFor = '';
+
+  $effect(() => {
+    const id = wsId;
+    const rev = session.revision;
+    if (!id || scopeState.all) {
+      gitignore = null;
+      return;
+    }
+    const key = `${id}:${rev}`;
+    if (key === gitignoreFor) return;
+    gitignoreFor = key;
+    void AssistService.gitignoreStatus(id)
+      .then((st) => {
+        if (gitignoreFor === key) gitignore = st.repo && st.missing.length > 0 ? st : null;
+      })
+      .catch(() => {
+        if (gitignoreFor === key) gitignore = null;
+      });
+  });
 
   function go(path: string) {
     void router.navigate(path);
@@ -176,6 +200,13 @@
     {#each otherWarnings as w}
       <div class="banner warn"><TriangleAlert size={16} /><span class="grow">{w}</span></div>
     {/each}
+    {#if gitignore && !onRevisions}
+      <div class="gi-wrap">
+        {#key gitignore}
+          <GitignorePrompt workspaceId={wsId} status={gitignore} compact onDone={() => (gitignore = null)} />
+        {/key}
+      </div>
+    {/if}
 
     <div class="tabs" role="tablist" aria-label="Config sections">
       <button role="tab" aria-selected={!onRevisions} class:active={!onRevisions} onclick={() => go('/config')}>Editor</button>
@@ -213,6 +244,9 @@
 {/if}
 
 <style>
+  .gi-wrap {
+    flex: none;
+  }
   .page {
     gap: var(--space-4);
   }

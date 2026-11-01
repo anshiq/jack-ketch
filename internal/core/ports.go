@@ -12,6 +12,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"jack-ketch/internal/process"
 )
 
 // AllocatePort returns the stable port for (workspace, name).
@@ -57,4 +59,39 @@ func freePort() (int, error) {
 	}
 	defer ln.Close()
 	return ln.Addr().(*net.TCPAddr).Port, nil
+}
+
+func (e *Engine) PortOwner(port int) string {
+	found := ""
+	e.RangeRuntimes(func(pr *ProjectRuntime) bool {
+		rt := pr.LoadedRuntime()
+		if rt == nil {
+			return true
+		}
+		list, err := rt.List()
+		if err != nil {
+			return true
+		}
+		for _, p := range list.Processes {
+			if p.PID <= 0 || (p.Status != "running" && p.Status != "starting") {
+				continue
+			}
+			for _, lp := range process.ListeningPortsForPID(p.PID) {
+				if lp != port {
+					continue
+				}
+				label := p.Command
+				if p.App != "" {
+					label = "app " + p.App
+					if p.Mode != "" {
+						label += ", mode " + p.Mode
+					}
+				}
+				found = fmt.Sprintf("process %s (%s) in %s", p.ProcessID, label, pr.WorkspacePath())
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
