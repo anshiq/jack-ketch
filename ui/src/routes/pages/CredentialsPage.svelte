@@ -42,7 +42,6 @@
   let profiles = $state<CredentialProfile[]>([]);
   let proxies = $state<CredentialProxy[]>([]);
   let keystore = $state<KeystoreStatus | null>(null);
-  let hint = $state('');
   let loaded = $state(false);
   let error = $state('');
   let apps = $state<string[]>([]);
@@ -77,7 +76,6 @@
       const [list, px, ks] = await Promise.all([CredentialService.list(workspaceId), CredentialService.proxies(workspaceId), CredentialService.keystore()]);
       if (my !== seq) return;
       profiles = list.profiles;
-      hint = list.hint;
       proxies = px;
       keystore = ks;
       error = '';
@@ -369,7 +367,7 @@
         <div class="empty-state">
           <span class="icon-wrap"><KeyRound size={20} /></span>
           <h3>No credential profiles yet</h3>
-          <p>{hint || 'Add a JWT, session cookie or API key, plus a tenant id if the API needs one. The agent can then call your authenticated endpoints and see the logs each call produced.'}</p>
+          <p>Add a JWT, session cookie or API key, plus a tenant id if the API needs one. The agent can then call your authenticated endpoints and see the logs each call produced.</p>
           <div class="empty-actions">
             <button class="btn primary" onclick={startNew}><Plus size={14} />New profile</button>
             <button class="btn" onclick={() => (importing = true)}><Terminal size={14} />Import from cURL</button>
