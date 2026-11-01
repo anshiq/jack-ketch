@@ -37,6 +37,7 @@ func (s *Server) routeSystem(mux *http.ServeMux) {
 	mux.HandleFunc(p+"EnableTCP", s.wrap(s.sysEnableTCP))
 	mux.HandleFunc(p+"GetSettings", s.wrap(s.sysGetSettings))
 	mux.HandleFunc(p+"UpdateSettings", s.wrap(s.sysUpdateSettings))
+	mux.HandleFunc(p+"ListDirectory", s.wrap(s.sysListDirectory))
 	mux.HandleFunc(p+"Shutdown", s.wrap(s.sysShutdown))
 }
 

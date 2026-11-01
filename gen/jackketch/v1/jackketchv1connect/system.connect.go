@@ -48,6 +48,9 @@ const (
 	// SystemServiceUpdateSettingsProcedure is the fully-qualified name of the SystemService's
 	// UpdateSettings RPC.
 	SystemServiceUpdateSettingsProcedure = "/jackketch.v1.SystemService/UpdateSettings"
+	// SystemServiceListDirectoryProcedure is the fully-qualified name of the SystemService's
+	// ListDirectory RPC.
+	SystemServiceListDirectoryProcedure = "/jackketch.v1.SystemService/ListDirectory"
 	// SystemServiceShutdownProcedure is the fully-qualified name of the SystemService's Shutdown RPC.
 	SystemServiceShutdownProcedure = "/jackketch.v1.SystemService/Shutdown"
 )
@@ -59,6 +62,7 @@ type SystemServiceClient interface {
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error)
 	Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error)
 }
 
@@ -103,6 +107,12 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("UpdateSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		listDirectory: connect.NewClient[v1.ListDirectoryRequest, v1.ListDirectoryResponse](
+			httpClient,
+			baseURL+SystemServiceListDirectoryProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("ListDirectory")),
+			connect.WithClientOptions(opts...),
+		),
 		shutdown: connect.NewClient[v1.ShutdownRequest, v1.ShutdownResponse](
 			httpClient,
 			baseURL+SystemServiceShutdownProcedure,
@@ -119,6 +129,7 @@ type systemServiceClient struct {
 	getStats       *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	getSettings    *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
 	updateSettings *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	listDirectory  *connect.Client[v1.ListDirectoryRequest, v1.ListDirectoryResponse]
 	shutdown       *connect.Client[v1.ShutdownRequest, v1.ShutdownResponse]
 }
 
@@ -147,6 +158,11 @@ func (c *systemServiceClient) UpdateSettings(ctx context.Context, req *connect.R
 	return c.updateSettings.CallUnary(ctx, req)
 }
 
+// ListDirectory calls jackketch.v1.SystemService.ListDirectory.
+func (c *systemServiceClient) ListDirectory(ctx context.Context, req *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error) {
+	return c.listDirectory.CallUnary(ctx, req)
+}
+
 // Shutdown calls jackketch.v1.SystemService.Shutdown.
 func (c *systemServiceClient) Shutdown(ctx context.Context, req *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error) {
 	return c.shutdown.CallUnary(ctx, req)
@@ -159,6 +175,7 @@ type SystemServiceHandler interface {
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error)
 	Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error)
 }
 
@@ -199,6 +216,12 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("UpdateSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceListDirectoryHandler := connect.NewUnaryHandler(
+		SystemServiceListDirectoryProcedure,
+		svc.ListDirectory,
+		connect.WithSchema(systemServiceMethods.ByName("ListDirectory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	systemServiceShutdownHandler := connect.NewUnaryHandler(
 		SystemServiceShutdownProcedure,
 		svc.Shutdown,
@@ -217,6 +240,8 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceGetSettingsHandler.ServeHTTP(w, r)
 		case SystemServiceUpdateSettingsProcedure:
 			systemServiceUpdateSettingsHandler.ServeHTTP(w, r)
+		case SystemServiceListDirectoryProcedure:
+			systemServiceListDirectoryHandler.ServeHTTP(w, r)
 		case SystemServiceShutdownProcedure:
 			systemServiceShutdownHandler.ServeHTTP(w, r)
 		default:
@@ -246,6 +271,10 @@ func (UnimplementedSystemServiceHandler) GetSettings(context.Context, *connect.R
 
 func (UnimplementedSystemServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("jackketch.v1.SystemService.UpdateSettings is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("jackketch.v1.SystemService.ListDirectory is not implemented"))
 }
 
 func (UnimplementedSystemServiceHandler) Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error) {

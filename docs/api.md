@@ -35,6 +35,7 @@ alive; slow consumers get `Gap{dropped}` instead of backpressure (§5.4).
 | GetStats | projects, processes (loaded runtimes), sessions |
 | GetRuntimeStats | `{workspaceId}` required; runtime health for one workspace: process counts by status, log-pipeline drops, uptime |
 | GetSettings / UpdateSettings | `log_level`, `idle_exit`, `retention` (event history: `7d`/`30d`/`90d`; audit history is always kept 90 days), `suggest_saving_runs` (offer to save successful raw runs as app modes; nothing is saved without the user) |
+| ListDirectory | `{dir?, prefix?, baseDir?, dirsOnly?, limit?}` → `{dir, entries:[{name, isDir}], truncated, error?}`; read-only path autocomplete for the web UI. Relative `dir` resolves against `baseDir` (default home), `~` expands to home, dotfiles are included, directories sort first, and results are capped (default 100, max 500). File contents are never read. |
 | EnableTCP | `{addr}`; starts the authenticated loopback listener used by the web UI, creates the token file if needed; loopback addresses only; `{addr, started}` (idempotent: an existing listener is returned with `started: false`) |
 | Shutdown | `{keepProcesses}` (default true): drain; false stops everything first |
 

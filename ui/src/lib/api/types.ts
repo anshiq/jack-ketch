@@ -383,3 +383,15 @@ export interface SaveRunResult {
   message: string;
   gitignore: GitignoreStatus | null;
 }
+
+export interface DirectoryEntry {
+  name: string;
+  isDir: boolean;
+}
+
+export interface DirectoryListing {
+  dir: string;
+  entries: DirectoryEntry[];
+  truncated: boolean;
+  error?: string;
+}

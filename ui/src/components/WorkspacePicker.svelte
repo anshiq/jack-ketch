@@ -4,6 +4,7 @@
   import FolderPlus from '@lucide/svelte/icons/folder-plus';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Spinner from '../lib/ui/Spinner.svelte';
+  import PathSuggest from '../lib/ui/PathSuggest.svelte';
   import { scopeState } from '../lib/state/scope.svelte';
   import { processes } from '../lib/state/processes.svelte';
 
@@ -14,6 +15,7 @@
   }: { title: string; body: string; icon?: Component<{ size?: number }> } = $props();
 
   let path = $state('');
+  let pathInput = $state<HTMLInputElement | null>(null);
 
   const items = $derived(
     scopeState.workspaces.map((w) => {
@@ -67,7 +69,8 @@
   <form class="open" onsubmit={open}>
     <div class="input-wrap">
       <FolderPlus size={14} />
-      <input bind:value={path} placeholder="Open another folder, e.g. /home/me/projects/app" aria-label="Open workspace by path" spellcheck="false" />
+      <input bind:this={pathInput} bind:value={path} placeholder="Open another folder, e.g. /home/me/projects/app" aria-label="Open workspace by path" spellcheck="false" />
+      <PathSuggest input={pathInput} absolute dirsOnly />
     </div>
     <button class="btn primary" type="submit" disabled={!path.trim() || scopeState.resolving}>
       {#if scopeState.resolving}<Spinner size={14} />{/if}

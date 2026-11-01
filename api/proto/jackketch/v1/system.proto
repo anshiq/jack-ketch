@@ -12,6 +12,7 @@ service SystemService {
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 
@@ -48,6 +49,24 @@ message UpdateSettingsRequest {
   bytes daemon_config = 1;
 }
 message UpdateSettingsResponse {}
+
+message ListDirectoryRequest {
+  string dir = 1;
+  string prefix = 2;
+  string base_dir = 3;
+  bool dirs_only = 4;
+  int32 limit = 5;
+}
+message DirectoryEntry {
+  string name = 1;
+  bool is_dir = 2;
+}
+message ListDirectoryResponse {
+  string dir = 1;
+  repeated DirectoryEntry entries = 2;
+  bool truncated = 3;
+  string error = 4;
+}
 
 message ShutdownRequest {
   bool keep_processes = 1;

@@ -46,6 +46,7 @@
   import RelativeTime from '../../lib/ui/RelativeTime.svelte';
   import Sparkline from '../../lib/ui/Sparkline.svelte';
   import Spinner from '../../lib/ui/Spinner.svelte';
+  import PathSuggest from '../../lib/ui/PathSuggest.svelte';
   import ElsewhereNotice from '../../components/ElsewhereNotice.svelte';
 
   interface Stats {
@@ -67,6 +68,7 @@
   let harnessChecked = false;
   let restarting = $state(new Set<string>());
   let quickPath = $state('');
+  let quickInput = $state<HTMLInputElement | null>(null);
   let stepsDismissed = $state(false);
 
   const statsQuery = query(() => 'overview:stats', () => SystemService.stats(), { staleMs: 5000, refetchOnFocus: true });
@@ -253,8 +255,9 @@
                 <form class="quick" onsubmit={openQuick}>
                   <div class="input-wrap">
                     <FolderOpen size={14} />
-                    <input placeholder="/path/to/project" aria-label="Workspace path" bind:value={quickPath} disabled={scopeState.resolving} />
+                    <input placeholder="/path/to/project" aria-label="Workspace path" bind:this={quickInput} bind:value={quickPath} disabled={scopeState.resolving} />
                   </div>
+                  <PathSuggest input={quickInput} absolute dirsOnly />
                   <button class="btn primary" type="submit" disabled={!quickPath.trim() || scopeState.resolving}>
                     {#if scopeState.resolving}<Spinner size={14} />{/if}Open
                   </button>

@@ -15,6 +15,7 @@ import {
 import type {
   AuditEntry,
   DaemonEvent,
+  DirectoryListing,
   HarnessInfo,
   IntegrationChange,
   IntegrationSnippet,
@@ -38,6 +39,8 @@ export const SystemService = {
   stats: () => call<Record<string, never>, { projects: number; processes: number; sessions: number; processesRunning: number; processesFailed: number; logDiskBytes: number; indexLagSeconds: number; uptimeSeconds: number }>('SystemService', 'GetStats', {}),
   getSettings: () => call<Record<string, never>, { settings: Record<string, unknown>; schema: Record<string, { type: string; enum?: string[]; description: string }> }>('SystemService', 'GetSettings', {}),
   updateSettings: (req: Record<string, unknown>) => call<Record<string, unknown>, { settings: Record<string, unknown> }>('SystemService', 'UpdateSettings', req),
+  listDirectory: (req: { dir: string; prefix?: string; baseDir?: string; dirsOnly?: boolean; limit?: number }) =>
+    call<typeof req, DirectoryListing>('SystemService', 'ListDirectory', req),
   shutdown: (keepProcesses = true) => call<{ keepProcesses: boolean }, { draining: boolean }>('SystemService', 'Shutdown', { keepProcesses })
 };
 
