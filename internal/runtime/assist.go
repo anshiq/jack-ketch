@@ -1,11 +1,9 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +14,7 @@ import (
 	"time"
 
 	"jack-ketch/internal/config"
+	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/diagnose"
 	"jack-ketch/internal/logs"
 	"jack-ketch/internal/process"
@@ -366,6 +365,11 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 	}
 	env := proc.Spec().Env
 
+	act, scrub, err := r.probeCredential(proc, req, res)
+	if err != nil {
+		return nil, err
+	}
+
 	var target *url.URL
 	if req.TCP != "" {
 		res.TCP = expandFromEnv(req.TCP, env)
@@ -380,6 +384,10 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 		raw := expandFromEnv(strings.TrimSpace(req.URL), env)
 		if raw == "" {
 			raw = "/"
+		}
+		raw, err = expandCredential(act, raw, credentials.EscURL)
+		if err != nil {
+			return nil, err
 		}
 		if strings.HasPrefix(raw, "/") || !strings.Contains(raw, "://") {
 			base, ports, err := r.probeBase(proc, req.Port)
@@ -397,21 +405,22 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 		}
 		u, err := url.Parse(raw)
 		if err != nil || u.Host == "" {
-			return nil, fmt.Errorf("invalid url %q", raw)
+			return nil, fmt.Errorf("invalid url %q", scrub.Scrub(raw))
 		}
 		if u.Scheme != "http" && u.Scheme != "https" {
 			return nil, fmt.Errorf("unsupported scheme %q (http or https)", u.Scheme)
 		}
 		target = u
 		res.Method = method
-		res.URL = u.String()
-		if !preapproved && !req.Confirmed {
-			switch {
-			case !loopbackHost(u.Hostname()):
-				return nil, &ConfirmError{Reason: "the target " + u.Host + " is not on this machine"}
-			case !safeMethod(method):
-				return nil, &ConfirmError{Reason: method + " requests can change data"}
+		res.URL = scrub.Scrub(u.String())
+		if gate := credentialGate(act, u, method, preapproved, req.Confirmed); gate != nil {
+			if gate.block != "" {
+				res.Error = gate.block
+				res.Failures = []string{gate.block}
+				res.ProcessStatus = string(proc.Info().Status)
+				return res, nil
 			}
+			return nil, &ConfirmError{Reason: gate.reason}
 		}
 	}
 
@@ -429,51 +438,11 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 			res.OK = true
 		}
 	} else {
-		var body io.Reader
-		if req.Body != "" {
-			body = strings.NewReader(expandFromEnv(req.Body, env))
-		}
-		hctx, cancel := context.WithTimeout(ctx, timeout)
-		hreq, err := http.NewRequestWithContext(hctx, method, target.String(), body)
-		if err != nil {
-			cancel()
+		if err := r.probeHTTP(ctx, probeCall{
+			req: req, res: res, act: act, scrub: scrub, env: env, target: target, method: method,
+			timeout: timeout, maxBody: maxBody, start: start,
+		}); err != nil {
 			return nil, err
-		}
-		for k, v := range req.Headers {
-			hreq.Header.Set(k, expandFromEnv(v, env))
-		}
-		if req.Body != "" && hreq.Header.Get("Content-Type") == "" {
-			trimmed := strings.TrimSpace(req.Body)
-			if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
-				hreq.Header.Set("Content-Type", "application/json")
-			}
-		}
-		hreq.Header.Set("User-Agent", "jack-ketch-probe")
-		client := &http.Client{Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-		resp, err := client.Do(hreq)
-		if err != nil {
-			cancel()
-			res.DurationMS = time.Since(start).Milliseconds()
-			res.Error = err.Error()
-			res.Failures = append(res.Failures, "request failed: "+err.Error())
-		} else {
-			data, rerr := io.ReadAll(io.LimitReader(resp.Body, int64(maxBody)+1))
-			_ = resp.Body.Close()
-			cancel()
-			res.DurationMS = time.Since(start).Milliseconds()
-			res.Status = resp.StatusCode
-			res.StatusText = resp.Status
-			res.Headers = pickHeaders(resp.Header)
-			if len(data) > maxBody {
-				data = data[:maxBody]
-				res.BodyTruncated = true
-			}
-			res.BodyBytes = len(data)
-			res.Body = string(bytes.ToValidUTF8(data, []byte("?")))
-			if rerr != nil {
-				res.Failures = append(res.Failures, "reading body: "+rerr.Error())
-			}
-			res.OK = true
 		}
 	}
 	if settle > 0 {
@@ -488,7 +457,9 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 		res.LogsTruncated = true
 	}
 	for _, e := range entries {
-		res.Logs = append(res.Logs, toAPIEntry(e))
+		entry := toAPIEntry(e)
+		entry.Line = scrub.Scrub(entry.Line)
+		res.Logs = append(res.Logs, entry)
 		if e.Stream == logs.StreamStderr && stderrErrorRe.MatchString(e.Line) {
 			res.ErrorLogs++
 		}
@@ -513,8 +484,12 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 			res.ListeningPorts = process.ListeningPortsForPID(info.PID)
 		}
 	}
+	r.finishCredential(act, res)
 	res.OK = res.OK && len(res.Failures) == 0
 	check := &api.CheckSpec{Name: suggestCheckName(method, target, res.TCP), Method: method, ExpectStatus: req.ExpectStatus, ExpectContains: req.ExpectContains, Headers: req.Headers, Body: req.Body}
+	if act != nil && act.Explicit() {
+		check.Credential = act.Name()
+	}
 	if target != nil {
 		check.URL = strings.TrimSpace(req.URL)
 		if check.URL == "" {
@@ -530,6 +505,7 @@ func (r *Runtime) probe(ctx context.Context, proc *process.ManagedProcess, req a
 		check.TCP, check.Method = req.TCP, ""
 	}
 	res.Check = check
+	scrubResult(res, scrub)
 	return res, nil
 }
 
@@ -643,6 +619,7 @@ func (r *Runtime) RunChecks(ctx context.Context, req api.RunChecksRequest) (*api
 		pr, err := r.probe(ctx, proc, api.ProbeRequest{
 			ProcessID: proc.ID, Method: c.EffectiveMethod(), URL: c.URL, TCP: c.TCP, Headers: c.Headers, Body: c.Body,
 			ExpectStatus: c.ExpectStatus, ExpectContains: c.ExpectContains, TimeoutMS: int(c.EffectiveTimeout().Milliseconds()), SettleMS: 200,
+			Credential: c.Credential,
 		}, true)
 		if err != nil {
 			pr = &api.ProbeResult{ProcessID: proc.ID, Error: err.Error(), Failures: []string{err.Error()}, Logs: []api.LogEntry{}}

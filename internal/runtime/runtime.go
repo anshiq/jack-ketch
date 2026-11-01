@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"jack-ketch/internal/config"
+	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/logs"
 	"jack-ketch/internal/logstore"
 	"jack-ketch/internal/policy"
@@ -71,6 +72,8 @@ type Runtime struct {
 
 	portOwnerMu sync.RWMutex
 	portOwner   func(port int) string
+
+	creds atomic.Pointer[credentials.Scope]
 
 	rootCtx context.Context
 	cancel  context.CancelFunc

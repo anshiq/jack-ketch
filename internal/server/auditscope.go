@@ -89,6 +89,15 @@ var auditedMethods = map[string]bool{
 	"SystemService/Shutdown":           true,
 	"SystemService/EnableTCP":          true,
 	"SessionService/Close":             true,
+	"CredentialService/Upsert":         true,
+	"CredentialService/Delete":         true,
+	"CredentialService/Reveal":         true,
+	"CredentialService/ClearJar":       true,
+	"CredentialService/Refresh":        true,
+	"CredentialService/StartProxy":     true,
+	"CredentialService/StopProxy":      true,
+	"CredentialService/SetKeystore":    true,
+	"CredentialService/ResetKey":       true,
 }
 
 func auditMethod(path string) string {

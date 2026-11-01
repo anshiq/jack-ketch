@@ -16,6 +16,7 @@ type CheckSpec struct {
 	ExpectStatus   int               `json:"expect_status,omitempty"`
 	ExpectContains string            `json:"expect_contains,omitempty"`
 	TimeoutMS      int               `json:"timeout_ms,omitempty"`
+	Credential     string            `json:"credential,omitempty"`
 }
 
 type ModeInfo struct {
@@ -152,6 +153,7 @@ type ProbeRequest struct {
 	SettleMS       int               `json:"settle_ms,omitempty"`
 	MaxBodyBytes   int               `json:"max_body_bytes,omitempty"`
 	Confirmed      bool              `json:"confirmed,omitempty"`
+	Credential     string            `json:"credential,omitempty"`
 }
 
 type ProbeResult struct {
@@ -176,6 +178,11 @@ type ProbeResult struct {
 	ListeningPorts []int             `json:"listening_ports,omitempty"`
 	ProcessStatus  string            `json:"process_status,omitempty"`
 	Check          *CheckSpec        `json:"check,omitempty"`
+
+	Credential          string `json:"credential,omitempty"`
+	CredentialStatus    string `json:"credential_status,omitempty"`
+	CredentialRefreshed bool   `json:"credential_refreshed,omitempty"`
+	CredentialHint      string `json:"credential_hint,omitempty"`
 }
 
 type RunChecksRequest struct {

@@ -29,11 +29,16 @@ func (s *Server) handleProcDiagnose(w http.ResponseWriter, r *http.Request) (any
 		ProcessID string `json:"processId"`
 	}
 	_ = decode(r, &req)
-	_, rt, _, err := s.findProcess(req.ProcessID)
+	_, rt, wsID, err := s.findProcess(req.ProcessID)
 	if err != nil {
 		return nil, err
 	}
-	return rt.Diagnose(req.ProcessID)
+	d, err := rt.Diagnose(req.ProcessID)
+	if err != nil {
+		return nil, err
+	}
+	redactDiagnosis(d, s.redactorForWorkspace(wsID))
+	return d, nil
 }
 
 func (s *Server) handleProcOutcome(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -58,7 +63,7 @@ func (s *Server) handleProcProbe(w http.ResponseWriter, r *http.Request) (any, e
 		return nil, err
 	}
 	noteScope(r, wsID, pr.ProjectID())
-	noteArgs(r, map[string]any{"processId": req.ProcessID, "method": req.Method, "url": req.URL, "tcp": req.TCP, "confirmed": req.Confirmed})
+	noteArgs(r, map[string]any{"processId": req.ProcessID, "method": req.Method, "url": req.URL, "tcp": req.TCP, "confirmed": req.Confirmed, "credential": req.Credential})
 	timeout := time.Duration(req.TimeoutMS)*time.Millisecond + 15*time.Second
 	if req.TimeoutMS <= 0 {
 		timeout = 30 * time.Second

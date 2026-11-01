@@ -218,3 +218,26 @@ DELETE FROM events WHERE id IN (
   )
 );
 `
+
+const migration4 = `
+CREATE TABLE IF NOT EXISTS credential_profiles (
+  id             TEXT PRIMARY KEY,
+  project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',
+  environment    TEXT NOT NULL DEFAULT '',
+  is_default     INTEGER NOT NULL DEFAULT 0,
+  apps_json      TEXT NOT NULL DEFAULT '[]',
+  fields_json    TEXT NOT NULL DEFAULT '[]',
+  recipe_json    TEXT NOT NULL DEFAULT '',
+  jar_json       TEXT NOT NULL DEFAULT '',
+  capture_jar    INTEGER NOT NULL DEFAULT 1,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL,
+  last_used_at   INTEGER,
+  last_refresh_at INTEGER,
+  last_error     TEXT NOT NULL DEFAULT '',
+  UNIQUE (project_id, name)
+);
+CREATE INDEX IF NOT EXISTS cred_project ON credential_profiles(project_id);
+`

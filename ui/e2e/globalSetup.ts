@@ -53,6 +53,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       env: {
         ...process.env,
         PATH: `${tmpDir}:${process.env.PATH}`,
+        JACK_KETCH_NO_KEYCHAIN: '1',
         XDG_RUNTIME_DIR: path.join(tmpDir, 'runtime'),
         XDG_CONFIG_HOME: path.join(tmpDir, 'cfg'),
         XDG_DATA_HOME: path.join(tmpDir, 'data'),

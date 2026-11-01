@@ -7,6 +7,7 @@ const GOTO: Record<string, string> = {
   l: '/logs',
   a: '/apps',
   c: '/config',
+  r: '/credentials',
   e: '/events',
   j: '/projects',
   s: '/sessions',

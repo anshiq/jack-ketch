@@ -84,6 +84,7 @@ $XDG_RUNTIME_DIR/jack-ketch/
 | SessionService | Register, Heartbeat, ListSessions | Session management |
 | IntegrationService | ListHarnesses, InstallMCP, InstallSkills | Integrations |
 | AuditService | ListAudit | Audit trail |
+| CredentialService | List, Upsert, Delete, Reveal, ClearJar, Refresh, ListProxies, StartProxy, StopProxy, GetKeystore, SetKeystore, ResetKey | Per-project credential profiles for authenticated probes |
 
 ## Migration Path
 

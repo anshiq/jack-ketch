@@ -4,6 +4,7 @@ import Terminal from '@lucide/svelte/icons/terminal';
 import ScrollText from '@lucide/svelte/icons/scroll-text';
 import Boxes from '@lucide/svelte/icons/boxes';
 import FileCog from '@lucide/svelte/icons/file-cog';
+import KeyRound from '@lucide/svelte/icons/key-round';
 import History from '@lucide/svelte/icons/history';
 import Activity from '@lucide/svelte/icons/activity';
 import Users from '@lucide/svelte/icons/users';
@@ -54,6 +55,7 @@ const ROUTES: { path: string; title: string; icon: Icon; keys?: string; keywords
   { path: '/logs', title: 'Logs', icon: ScrollText, keys: 'g l', keywords: 'output stdout stderr' },
   { path: '/apps', title: 'Apps', icon: Boxes, keys: 'g a', keywords: 'definitions' },
   { path: '/config', title: 'Config', icon: FileCog, keys: 'g c', keywords: 'yaml project config' },
+  { path: '/credentials', title: 'Credentials', icon: KeyRound, keys: 'g r', keywords: 'secrets tokens jwt cookie auth login tenant' },
   { path: '/config/revisions', title: 'Config Revisions', icon: History, keywords: 'history rollback' },
   { path: '/events', title: 'Events', icon: Activity, keys: 'g e', keywords: 'activity stream' },
   { path: '/sessions', title: 'Sessions', icon: Users, keys: 'g s', keywords: 'clients agents' },

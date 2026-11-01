@@ -13,11 +13,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/project"
 	iruntime "jack-ketch/internal/runtime"
 	"jack-ketch/internal/session"
@@ -43,6 +45,8 @@ type Engine struct {
 	// alerted tracks workspaces with an active alert poller.
 	alerted     map[string]bool
 	runtimeLoad *runtimeLoadBus
+	creds       *credentials.Service
+	proxies     *credentials.ProxyManager
 
 	// levelVar is the daemon log level knob (settings: log_level).
 	levelVar *slog.LevelVar
@@ -116,7 +120,14 @@ func NewWithOptions(db *store.DB, opt Options) *Engine {
 	if opt.Logger == nil {
 		opt.Logger = slog.Default()
 	}
+	keyDir := opt.DataDir
+	if keyDir == "" {
+		keyDir = filepath.Dir(db.Path())
+	}
+	creds := credentials.NewService(db, credentials.NewKeyManager(keyDir, db))
 	e := &Engine{
+		creds:       creds,
+		proxies:     credentials.NewProxyManager(creds),
 		store:       db,
 		dataDir:     opt.DataDir,
 		logger:      opt.Logger,
@@ -132,6 +143,10 @@ func NewWithOptions(db *store.DB, opt Options) *Engine {
 	go e.reapLoop()
 	return e
 }
+
+func (e *Engine) Credentials() *credentials.Service { return e.creds }
+
+func (e *Engine) Proxies() *credentials.ProxyManager { return e.proxies }
 
 // Store returns the state database (daemon is the only writer).
 func (e *Engine) Store() *store.DB { return e.store }
@@ -223,6 +238,7 @@ func (e *Engine) GetOrCreateRuntime(workspaceID string) (*ProjectRuntime, error)
 		allocPort:    e.AllocatePort,
 		portOwner:    e.PortOwner,
 		store:        e.store,
+		credentials:  e.creds,
 		notifyLoaded: e.runtimeLoad.publish,
 	}
 	e.runtimes.Store(workspaceID, rt)
@@ -406,6 +422,7 @@ func (e *Engine) IdleLongerThan(d time.Duration) bool {
 // Close unloads all runtimes and stops the engine.
 func (e *Engine) Close() error {
 	e.cancel()
+	e.proxies.StopAll()
 	e.runtimes.Range(func(key, val any) bool {
 		val.(*ProjectRuntime).shutdown()
 		e.runtimes.Delete(key)

@@ -129,6 +129,14 @@ current client.
 - **See it working.** `probe` sends a request to a running process and returns
   the response plus the log lines that request produced. Useful probes can be
   saved as `checks` and re-run with `run_checks`.
+- **Authenticated probes without sharing secrets.** Add test credentials (JWT,
+  cookies, API keys, tenant ids, or a login recipe that fetches and refreshes
+  a token) on the web UI's Credentials page. `probe` attaches the project's
+  default profile, or `credential=<name>`, so the agent calls your API as a
+  real user and sees the logs the request produced, without ever seeing the
+  values. `credential_proxy` opens a short-lived local proxy for curl,
+  Playwright or e2e runs. Values are encrypted at rest (file key or OS
+  keychain) and scrubbed from every result and log.
 - **Git hygiene.** jack-ketch lists the files it uses that git would track:
   its `.jack-ketch/` dir, env files that saved apps load, and integration
   files. It offers to add them to `.gitignore` (`update_gitignore`).

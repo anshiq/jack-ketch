@@ -20,6 +20,7 @@ jack-ketch runs and supervises this project's development processes. Use its MCP
 4. On failure use process_status, get_logs, search_logs and diagnose_process; restart with restart_process.
 5. After a change use probe or run_checks to verify the running behaviour.
 6. When a result carries save_suggestion, ask the user before saving it as an app mode.
+7. For authenticated endpoints call list_credentials and use probe (the default profile is attached automatically, or credential=<name>); never ask for or look for secret values. If a result carries credential_hint, tell the user to update the profile on the web UI's Credentials page.
 
 Do not use jack-ketch for one-off shell commands (ls, cat, grep, git, docker, kubectl, package managers); use your own tools for those.`
 )

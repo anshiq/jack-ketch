@@ -4,6 +4,7 @@
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Boxes from '@lucide/svelte/icons/boxes';
   import FileCog from '@lucide/svelte/icons/file-cog';
+  import KeyRound from '@lucide/svelte/icons/key-round';
   import Activity from '@lucide/svelte/icons/activity';
   import FolderKanban from '@lucide/svelte/icons/folder-kanban';
   import Users from '@lucide/svelte/icons/users';
@@ -31,7 +32,8 @@
         { path: '/processes', label: 'Processes', key: 'g p', icon: Terminal },
         { path: '/logs', label: 'Logs', key: 'g l', icon: ScrollText },
         { path: '/apps', label: 'Apps', key: 'g a', icon: Boxes },
-        { path: '/config', label: 'Config', key: 'g c', icon: FileCog }
+        { path: '/config', label: 'Config', key: 'g c', icon: FileCog },
+        { path: '/credentials', label: 'Credentials', key: 'g r', icon: KeyRound }
       ]
     },
     {

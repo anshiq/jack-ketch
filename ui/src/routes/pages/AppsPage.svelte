@@ -23,8 +23,8 @@
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Layers from '@lucide/svelte/icons/layers';
-  import KeyRound from '@lucide/svelte/icons/key-round';
   import ListChecks from '@lucide/svelte/icons/list-checks';
+  import KeyRound from '@lucide/svelte/icons/key-round';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import CircleX from '@lucide/svelte/icons/circle-x';
   import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
@@ -582,9 +582,10 @@
                       <li class:fail={!c.ok}>
                         {#if c.ok}<CircleCheck size={12} />{:else}<CircleX size={12} />{/if}
                         <span class="mono cname">{c.name}</span>
+                        {#if c.credential}<span class="badge" title={c.credentialStatus ? `Credential ${c.credential}: ${c.credentialStatus}` : `Sent as ${c.credential}`}><KeyRound size={10} />{c.credential}</span>{/if}
                         <span class="muted mono">{c.tcp ? c.tcp : `${c.method || 'GET'} ${c.status || '—'}`}</span>
                         <span class="muted">{c.durationMs}ms</span>
-                        {#if !c.ok}<span class="why" title={[...c.failures, c.error].filter(Boolean).join('\n')}>{c.failures[0] ?? c.error}</span>{/if}
+                        {#if !c.ok}<span class="why" title={[...c.failures, c.error, c.credentialHint].filter(Boolean).join('\n')}>{c.credentialHint || (c.failures[0] ?? c.error)}</span>{/if}
                       </li>
                     {/each}
                   </ul>

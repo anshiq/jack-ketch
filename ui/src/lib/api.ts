@@ -4,3 +4,4 @@ export * from './api/services';
 export * from './api/types';
 export * from './api/normalize';
 export * from './api/assist';
+export * from './api/credentials';

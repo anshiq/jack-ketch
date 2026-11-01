@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	schemaMigration = 3
+	schemaMigration = 4
 )
 
 // DB is the state database handle.
@@ -142,6 +142,8 @@ func migrationSQL(v int) string {
 		return migration2
 	case 3:
 		return migration3
+	case 4:
+		return migration4
 	default:
 		return ""
 	}

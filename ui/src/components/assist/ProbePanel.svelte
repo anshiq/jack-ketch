@@ -5,8 +5,10 @@
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import CircleX from '@lucide/svelte/icons/circle-x';
   import History from '@lucide/svelte/icons/history';
-  import { AssistService } from '../../lib/api';
-  import type { Process, ProbeResult } from '../../lib/api/types';
+  import KeyRound from '@lucide/svelte/icons/key-round';
+  import { AssistService, CredentialService } from '../../lib/api';
+  import type { CredentialProfile, Process, ProbeResult } from '../../lib/api/types';
+  import { sendAsOptions } from '../../lib/credentialsView';
   import { toasts, toastError } from '../../lib/toasts.svelte';
   import Spinner from '../../lib/ui/Spinner.svelte';
   import { parseHeaders, prettyBody } from './assistView';
@@ -29,6 +31,8 @@
   let naming = $state(false);
   let checkName = $state('');
   let result = $state<ProbeResult | null>(null);
+  let credential = $state('');
+  let profiles = $state<CredentialProfile[]>([]);
   let history = $state<{ method: string; url: string; body: string }[]>(readHistory());
 
   function readHistory() {
@@ -52,6 +56,26 @@
     }
   }
 
+  $effect(() => {
+    const ws = process.workspaceId;
+    if (!ws) return;
+    let cancelled = false;
+    void CredentialService.list(ws)
+      .then((r) => {
+        if (cancelled) return;
+        profiles = r.profiles;
+        if (credential && credential !== 'none' && !r.profiles.some((p) => p.name === credential)) credential = '';
+      })
+      .catch(() => {
+        if (!cancelled) profiles = [];
+      });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  const sendAs = $derived(sendAsOptions(profiles));
+  const activeProfile = $derived(profiles.find((p) => p.name === credential) ?? (credential === '' ? profiles.find((p) => p.default) : undefined));
   const live = $derived(process.status === 'running' || process.status === 'ready' || process.status === 'starting');
   const unsafe = $derived(!['GET', 'HEAD', 'OPTIONS'].includes(method) || /^https?:\/\/(?!localhost|127\.|\[::1\])/i.test(url.trim()));
   const pretty = $derived(result ? prettyBody(result.body) : { text: '', json: false });
@@ -71,6 +95,7 @@
         body: body || undefined,
         expectStatus: expectStatus ? Number(expectStatus) : undefined,
         expectContains: expectContains || undefined,
+        credential: credential || undefined,
         confirmed: true
       });
       remember();
@@ -148,6 +173,14 @@
     {/if}
     <div class="row2">
       <button type="button" class="linkish" aria-expanded={showAdvanced} onclick={() => (showAdvanced = !showAdvanced)}>{showAdvanced ? 'Hide' : 'Headers, body, expectations'}</button>
+      {#if profiles.length > 0}
+        <label class="port" title="Credential profile attached to the request. Secret values are never shown here.">
+          <KeyRound size={12} />
+          <select bind:value={credential} aria-label="Send as">
+            {#each sendAs as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+          </select>
+        </label>
+      {/if}
       {#if process.ports.length > 1}
         <label class="port">port
           <select bind:value={port} aria-label="Port">
@@ -205,6 +238,16 @@
           </button>
         {/if}
       </div>
+      {#if result.credential}
+        <p class="credline">
+          <KeyRound size={12} />Sent as <strong class="mono">{result.credential}</strong>
+          {#if result.credentialRefreshed}<span class="badge info">token refreshed</span>{/if}
+          {#if result.credentialStatus === 'rejected'}<span class="badge err">rejected</span>{:else if result.credentialStatus === 'expired' || result.credentialStatus === 'empty'}<span class="badge warn">{result.credentialStatus}</span>{/if}
+        </p>
+      {/if}
+      {#if result.credentialHint}
+        <p class="credhint"><TriangleAlert size={13} />{result.credentialHint}</p>
+      {/if}
       {#if result.failures.length > 0 || result.error}
         <ul class="fails">
           {#if result.error}<li>{result.error}</li>{/if}
@@ -430,6 +473,22 @@
     color: var(--text-0);
     padding: 0 8px;
     font-size: var(--fs-xs);
+  }
+  .credline {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    color: var(--text-2);
+  }
+  .credhint {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    color: var(--warn);
   }
   .fails {
     margin: 0;

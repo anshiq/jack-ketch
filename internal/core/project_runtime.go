@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"jack-ketch/internal/config"
+	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/events"
 	iruntime "jack-ketch/internal/runtime"
 	"jack-ketch/internal/store"
@@ -30,6 +31,8 @@ type ProjectRuntime struct {
 	allocPort func(workspaceID, name string, def int) (int, error)
 	portOwner func(port int) string
 	store     *store.DB
+
+	credentials *credentials.Service
 
 	notifyLoaded func(workspaceID string)
 
@@ -144,6 +147,9 @@ func (p *ProjectRuntime) loadLocked() error {
 	}
 	loaded := p.loadedFor(resolved)
 	rt := iruntime.New(loaded, p.logger)
+	if p.credentials != nil {
+		rt.SetCredentials(p.credentials.Scope(p.projectID))
+	}
 	if p.portOwner != nil {
 		rt.SetPortOwner(p.portOwner)
 	}
