@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HarnessInfo, ScopeName, ScopeReport, ScopeStatus } from '../../lib/api/types';
-import { actionLabel, filterHarnesses, hue, initials, needsAttention, scopeOf, scopeTitle, sortHarnesses, statusLabel, statusTone } from './harness';
+import { actionLabel, filterHarnesses, instructionState, hue, initials, needsAttention, scopeOf, scopeTitle, sortHarnesses, statusLabel, statusTone } from './harness';
 
 function report(scope: ScopeName, status: ScopeStatus): ScopeReport {
   return { scope, status, portable: false, note: '', entries: [], error: '' };
@@ -17,6 +17,7 @@ function harness(id: string, over: Partial<HarnessInfo> = {}): HarnessInfo {
     evidence: [],
     scopes: [],
     skillsSupported: false,
+    instructions: null,
     manualSteps: '',
     restartHint: '',
     maxWaitMs: 0,
@@ -130,5 +131,14 @@ describe('hue', () => {
     expect(a).toBe(hue('claude-code'));
     expect(a).toBeGreaterThanOrEqual(0);
     expect(a).toBeLessThan(360);
+  });
+});
+
+describe('instructionState', () => {
+  const base = { path: '/x/CLAUDE.md', fileExists: true, installed: true, upToDate: true, shared: false };
+  it('reports added, outdated and missing blocks', () => {
+    expect(instructionState(base)).toEqual({ label: 'Added', tone: 'ok' });
+    expect(instructionState({ ...base, upToDate: false })).toEqual({ label: 'Update available', tone: 'warn' });
+    expect(instructionState({ ...base, installed: false, upToDate: false })).toEqual({ label: 'Not added', tone: 'neutral' });
   });
 });

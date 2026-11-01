@@ -269,6 +269,13 @@ func plan(id string, scope Scope, opts Options, remove bool) ([]Change, error) {
 		}
 		out = append(out, c)
 	}
+	if scope == ScopeUser {
+		ic, err := planInstructions(h, env, remove)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ic...)
+	}
 	return out, nil
 }
 

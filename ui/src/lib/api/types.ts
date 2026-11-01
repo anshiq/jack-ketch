@@ -131,6 +131,14 @@ export interface ScopeReport {
   error: string;
 }
 
+export interface InstructionInfo {
+  path: string;
+  fileExists: boolean;
+  installed: boolean;
+  upToDate: boolean;
+  shared: boolean;
+}
+
 export interface HarnessInfo {
   id: string;
   displayName: string;
@@ -141,6 +149,7 @@ export interface HarnessInfo {
   evidence: string[];
   scopes: ScopeReport[];
   skillsSupported: boolean;
+  instructions: InstructionInfo | null;
   manualSteps: string;
   restartHint: string;
   maxWaitMs: number;

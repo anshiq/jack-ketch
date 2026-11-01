@@ -6,7 +6,7 @@
   import IconButton from '../../lib/ui/IconButton.svelte';
   import { getPlatform } from '../../lib/platform';
   import { toasts } from '../../lib/toasts.svelte';
-  import { actionLabel, hue, initials, scopeOf, statusLabel, statusTone } from './harness';
+  import { actionLabel, hue, initials, instructionState, scopeOf, statusLabel, statusTone } from './harness';
 
   let {
     harness,
@@ -31,6 +31,8 @@
   const report = $derived(scopeOf(harness, scope));
   const status = $derived(report?.status ?? 'absent');
   const problems = $derived((report?.entries ?? []).flatMap((e) => e.problems));
+  const instructions = $derived(scope === 'user' && harness.instructions ? harness.instructions : null);
+  const instructionInfo = $derived(instructions ? instructionState(instructions) : null);
   const connectedActions = $derived(status === 'installed' || status === 'outdated' || status === 'broken');
 
   async function copyPath(path: string) {
@@ -79,6 +81,17 @@
             <li>{problem}</li>
           {/each}
         </ul>
+      {/if}
+      {#if instructions && instructionInfo}
+        <div class="instr">
+          <span class="instr-label">Agent instructions</span>
+          <Badge tone={instructionInfo.tone} dot>{instructionInfo.label}</Badge>
+          <div class="instr-path">
+            <code class="path" title={instructions.path}>{instructions.path}</code>
+            <IconButton label="Copy path" size="sm" onclick={() => void copyPath(instructions.path)}><Copy size={13} /></IconButton>
+          </div>
+          {#if instructions.shared}<p class="micro">Shared with Claude Code's global file.</p>{/if}
+        </div>
       {/if}
       {#if report?.note}<p class="note">{report.note}</p>{/if}
       {#if status === 'unavailable' && report?.error}<p class="warn-line">{report.error}</p>{/if}
@@ -193,6 +206,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .instr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px var(--space-2);
+    min-width: 0;
+  }
+  .instr-label {
+    color: var(--text-2);
+    font-size: var(--fs-xs);
+  }
+  .instr-path {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .instr .micro {
+    flex-basis: 100%;
   }
   .problems {
     list-style: none;

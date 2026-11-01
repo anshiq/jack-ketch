@@ -10,6 +10,7 @@
       "evidence": ["/home/dev/.claude", "claude on PATH"],
       "connected": 2,
       "skillsSupported": true,
+      "instructions": { "path": "/home/dev/.claude/CLAUDE.md", "fileExists": true, "installed": true, "upToDate": false },
       "manualSteps": "",
       "restartHint": "restart Claude Code",
       "maxWaitMs": 120000,

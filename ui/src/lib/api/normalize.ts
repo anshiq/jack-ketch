@@ -4,6 +4,7 @@ import type {
   EntryStatus,
   HarnessInfo,
   IntegrationChange,
+  InstructionInfo,
   IntegrationSnippet,
   LogLine,
   Process,
@@ -168,6 +169,20 @@ export function toScopeReport(raw: Record<string, unknown>): ScopeReport {
   };
 }
 
+export function toInstructionInfo(raw: unknown): InstructionInfo | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const path = str(r['path']);
+  if (!path) return null;
+  return {
+    path,
+    fileExists: r['fileExists'] === true,
+    installed: r['installed'] === true,
+    upToDate: r['upToDate'] === true,
+    shared: r['shared'] === true
+  };
+}
+
 export function toHarnessInfo(raw: Record<string, unknown>): HarnessInfo {
   const detection = raw['detection'] && typeof raw['detection'] === 'object' ? (raw['detection'] as Record<string, unknown>) : {};
   return {
@@ -180,6 +195,7 @@ export function toHarnessInfo(raw: Record<string, unknown>): HarnessInfo {
     evidence: arr(raw['evidence'] ?? detection['evidence']),
     scopes: Array.isArray(raw['scopes']) ? (raw['scopes'] as unknown[]).map((s) => toScopeReport(s as Record<string, unknown>)) : [],
     skillsSupported: raw['skillsSupported'] === true,
+    instructions: toInstructionInfo(raw['instructions']),
     manualSteps: str(raw['manualSteps']),
     restartHint: str(raw['restartHint']),
     maxWaitMs: typeof raw['maxWaitMs'] === 'number' ? raw['maxWaitMs'] : 0,

@@ -20,6 +20,36 @@ project or local where the agent supports it; project entries are portable
 (they use the bare `jack-ketch` command, so it must be on `PATH`), user
 entries use the absolute path of the installed binary.
 
+## Agent instructions
+
+A user-scope install (and remove) also manages a short jack-ketch usage block
+in the agent's global instruction file, wrapped in
+`<!-- JACK-KETCH_START -->` / `<!-- JACK-KETCH_END -->`. Your own text in the
+file is never touched; reinstalling replaces the block in place, and
+`integrate remove` strips it again. Project and local scopes never write
+instruction files. `integrate list` shows the state in the INSTRUCTIONS
+column, `jack-ketch doctor` flags an outdated block, and the web UI shows it
+on each harness card.
+
+| Agent | Instruction file |
+| --- | --- |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Codex | `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`) |
+| Gemini CLI | `~/.gemini/GEMINI.md` |
+| Qwen Code | `~/.qwen/QWEN.md` |
+| Copilot CLI | `~/.copilot/copilot-instructions.md` |
+| Zed | `~/.config/zed/AGENTS.md` |
+| opencode | `~/.config/opencode/AGENTS.md` |
+| Goose | `~/.config/goose/.goosehints` (or `AGENTS.md` if that is the one you use) |
+| Amp | `~/.config/amp/AGENTS.md` |
+| Crush | `~/.config/crush/CRUSH.md` |
+
+opencode reads `~/.claude/CLAUDE.md` only when it has no global `AGENTS.md`.
+To avoid hiding your Claude rules behind a new file, an opencode install with
+no `AGENTS.md` writes the block into `~/.claude/CLAUDE.md` instead, and
+`integrate remove opencode` leaves that shared file alone (remove it with
+`integrate remove claude-code`).
+
 ## The entry written
 
 Every harness gets the same MCP server under the name `jack-ketch`, with

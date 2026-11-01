@@ -361,7 +361,7 @@ func runIntegrateList(out io.Writer, fl integrateFlags) error {
 	if fl.json {
 		return json.NewEncoder(out).Encode(reports)
 	}
-	fmt.Fprintf(out, "%-14s %-22s %-16s %-11s %-9s %-9s %s\n", "AGENT", "NAME", "DETECTED", "USER", "PROJECT", "LOCAL", "SKILLS")
+	fmt.Fprintf(out, "%-14s %-22s %-16s %-11s %-9s %-9s %-8s %s\n", "AGENT", "NAME", "DETECTED", "USER", "PROJECT", "LOCAL", "SKILLS", "INSTRUCTIONS")
 	for _, r := range reports {
 		if !fl.all && r.Tier != 1 && !r.Detection.Detected {
 			continue
@@ -387,12 +387,25 @@ func runIntegrateList(out io.Writer, fl integrateFlags) error {
 				skills = "-"
 			}
 		}
-		fmt.Fprintf(out, "%-14s %-22s %-16s %-11s %-9s %-9s %s\n",
+		fmt.Fprintf(out, "%-14s %-22s %-16s %-11s %-9s %-9s %-8s %s\n",
 			r.ID, r.DisplayName, det,
 			scopeWord(r, integrate.ScopeUser), scopeWord(r, integrate.ScopeProject), scopeWord(r, integrate.ScopeLocal),
-			skills)
+			skills, instructionWord(r.Instructions))
 	}
 	return nil
+}
+
+func instructionWord(r *integrate.InstructionReport) string {
+	switch {
+	case r == nil:
+		return "n/a"
+	case !r.Installed:
+		return "-"
+	case !r.UpToDate:
+		return "update"
+	default:
+		return "added"
+	}
 }
 
 func scopeWord(r integrate.HarnessReport, scope integrate.Scope) string {

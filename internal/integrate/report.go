@@ -38,16 +38,17 @@ type ScopeReport struct {
 }
 
 type HarnessReport struct {
-	ID          string        `json:"id"`
-	DisplayName string        `json:"displayName"`
-	Tier        int           `json:"tier"`
-	DocsURL     string        `json:"docsUrl"`
-	Detection   Detection     `json:"detection"`
-	Scopes      []ScopeReport `json:"scopes"`
-	SkillsAvail bool          `json:"skillsSupported"`
-	ManualSteps string        `json:"manualSteps,omitempty"`
-	RestartHint string        `json:"restartHint,omitempty"`
-	MaxWaitMS   int           `json:"maxWaitMs"`
+	ID           string             `json:"id"`
+	DisplayName  string             `json:"displayName"`
+	Tier         int                `json:"tier"`
+	DocsURL      string             `json:"docsUrl"`
+	Detection    Detection          `json:"detection"`
+	Scopes       []ScopeReport      `json:"scopes"`
+	SkillsAvail  bool               `json:"skillsSupported"`
+	Instructions *InstructionReport `json:"instructions,omitempty"`
+	ManualSteps  string             `json:"manualSteps,omitempty"`
+	RestartHint  string             `json:"restartHint,omitempty"`
+	MaxWaitMS    int                `json:"maxWaitMs"`
 }
 
 func stringList(v any) []string {
@@ -246,6 +247,7 @@ func Report(h Harness, projectDir string) HarnessReport {
 		Detection: Detect(h), SkillsAvail: h.Skills != nil, ManualSteps: h.ManualSteps,
 		RestartHint: h.RestartHint, MaxWaitMS: WaitLimit(h.ID, true),
 	}
+	r.Instructions = InstructionStatus(h, currentPathEnv(projectDir))
 	for _, sc := range h.ScopeList() {
 		t := h.Scopes[sc]
 		sr := ScopeReport{Scope: sc, Portable: t.Portable, Note: t.Note}
