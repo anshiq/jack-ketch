@@ -32,6 +32,8 @@ Failures: when a result carries diagnosis (or after diagnose_process), follow it
 
 Runtime verification: after implementing a fix or feature and its tests pass, ask the user whether they want to see it working at runtime. If yes, start or restart the affected app, wait until ready, then exercise the changed behaviour: probe for HTTP endpoints (returns the response plus the logs the request produced; non-GET or remote targets need the user's OK), start_process one-shots for CLIs and scripts, wait_for_log for workers and jobs. Show the user the evidence. Offer to save useful probes as checks (save_run_config checks=[probe result check]) so run_checks can re-verify in one call.
 
+Credentials: the user can store test credentials (JWT, cookies, API keys, tenant ids) per project in the web UI. They are never shown to you. list_credentials shows the profiles; probe attaches the default profile automatically (or credential=<name>, or ${cred:<field>} placeholders) so you can call authenticated endpoints as a real user and see the logs the request produced. credential_proxy opens a short-lived local proxy for curl, Playwright or e2e runs. If a result carries credential_hint (rejected or expired credential), do not guess values or look for secrets in env files; tell the user to update the profile on the Credentials page. When credentials would help and none exist, ask the user to add a profile there.
+
 Git hygiene: when get_project_info or save_run_config returns gitignore.missing, ask the user whether to add those paths to .gitignore. Yes: update_gitignore. No: update_gitignore(action="dismiss").
 
 Projects: tools act on this session's project. If no project is bound (for example a desktop app without a working folder), pass workspace="/absolute/path" or call set_workspace once.
@@ -89,6 +91,7 @@ func NewServerWith(o Options) *mcp.Server {
 	registerTools(server, h)
 	registerV3Tools(server, h)
 	registerAssistTools(server, h)
+	registerCredentialTools(server, h)
 	registerPrompts(server, h)
 	registerResources(server, h)
 	return server

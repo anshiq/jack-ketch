@@ -73,28 +73,34 @@ type SkillSpec struct {
 	ProjectDir string
 }
 
+type InstructionSpec struct {
+	Paths    []PathSpec
+	Fallback []PathSpec
+}
+
 type Limits struct {
 	InstalledMaxWaitMS int
 	DetectedMaxWaitMS  int
 }
 
 type Harness struct {
-	ID          string
-	DisplayName string
-	Tier        int
-	DocsURL     string
-	Binaries    []string
-	DetectPaths []PathSpec
-	Extensions  []string
-	Scopes      map[Scope]Target
-	Dialect     Dialect
-	Limits      Limits
-	Skills      *SkillSpec
-	RestartHint string
-	ManualSteps string
-	SnippetKey  []string
-	CLIAdd      func(ServerSpec) string
-	Deeplink    func(ServerSpec) string
+	ID           string
+	DisplayName  string
+	Tier         int
+	DocsURL      string
+	Binaries     []string
+	DetectPaths  []PathSpec
+	Extensions   []string
+	Scopes       map[Scope]Target
+	Dialect      Dialect
+	Limits       Limits
+	Skills       *SkillSpec
+	Instructions *InstructionSpec
+	RestartHint  string
+	ManualSteps  string
+	SnippetKey   []string
+	CLIAdd       func(ServerSpec) string
+	Deeplink     func(ServerSpec) string
 }
 
 func (h Harness) ScopeList() []Scope {

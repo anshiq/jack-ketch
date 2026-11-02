@@ -42,10 +42,14 @@ func (s *Server) redactorForWorkspace(workspaceID string) *config.Redactor {
 	if err != nil {
 		return nil
 	}
+	var red *config.Redactor
 	if res := pr.ResolvedConfig(); res != nil && len(res.Redact) > 0 {
-		return config.CompileRedactor(res.Redact)
+		red = config.CompileRedactor(res.Redact)
 	}
-	return nil
+	if lits := s.engine.Credentials().Secrets(pr.ProjectID()); len(lits) > 0 {
+		red = red.WithLiterals(lits)
+	}
+	return red
 }
 
 func (s *Server) logGet(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -405,7 +409,7 @@ func (s *Server) logTail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) logWait(w http.ResponseWriter, r *http.Request) (any, error) {
 	var req api.WaitForLogRequest
 	_ = decode(r, &req)
-	_, rt, _, err := s.findProcess(req.ProcessID)
+	_, rt, wsID, err := s.findProcess(req.ProcessID)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +419,17 @@ func (s *Server) logWait(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), d)
 	defer cancel()
-	return rt.WaitForLog(ctx, req)
+	res, err := rt.WaitForLog(ctx, req)
+	if err != nil || res == nil {
+		return res, err
+	}
+	if red := s.redactorForWorkspace(wsID); !red.Empty() {
+		if res.Entry != nil {
+			res.Entry.Line = red.Redact(res.Entry.Line)
+		}
+		redactDiagnosis(res.Diagnosis, red)
+	}
+	return res, nil
 }
 
 func (s *Server) logClear(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -556,4 +570,18 @@ func levelAtLeast(line, min string) bool {
 		return true
 	}
 	return g >= m
+}
+
+func redactDiagnosis(d *api.Diagnosis, red *config.Redactor) {
+	if d == nil || red.Empty() {
+		return
+	}
+	for i := range d.Tail {
+		d.Tail[i] = red.Redact(d.Tail[i])
+	}
+	for i := range d.Issues {
+		for j := range d.Issues[i].Evidence {
+			d.Issues[i].Evidence[j] = red.Redact(d.Issues[i].Evidence[j])
+		}
+	}
 }

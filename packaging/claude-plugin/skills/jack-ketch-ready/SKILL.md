@@ -28,6 +28,8 @@ Never launch a dev server from your own shell. Never start a second copy to see 
 | Something is failing | Read `diagnosis` from the start/wait/status result, or call `diagnose_process(process_id)`; then `get_logs(stream="stderr", lines=50)` narrowed with `contains=` or `pattern=` |
 | A run worked and was started by hand (raw command, or app with extra env) | The result carries `save_suggestion`: ask the user, then `save_run_config` (or `action="dismiss"`) |
 | Show a fix or feature working | `probe(process_id, url="/path", method=..., body=...)`: response + the logs that request produced |
+| Call an authenticated endpoint | `list_credentials` shows the profiles the user configured; `probe` attaches the default profile automatically, or pass `credential=<name>`. Secrets are never shown to you |
+| Drive curl, Playwright or e2e as a user | `credential_proxy(action="start", profile=..., process_id=...)` (needs the user's approval) returns a local URL that attaches the profile |
 | Re-verify after a change | `run_checks(app=..., mode=...)` runs the saved checks in one call |
 | Find an error across processes | `search_logs` searches the whole workspace (history + live) with optional `stream=`, `level=`, `context=`; `get_logs` reads one process |
 | Trace one request | `get_logs(contains="request_id=<id>")` |
@@ -82,6 +84,18 @@ After you finish a fix or feature and its tests pass, ask the user whether they 
 2. Exercise the changed behaviour with 2-5 concrete interactions including an edge case: `probe` for HTTP (path, method, headers, body, `expect_status`, `expect_contains`), a one-shot `start_process(command=..., timeout_ms=...)` for CLIs and scripts, trigger + `wait_for_log` for workers and jobs.
 3. Report expected vs actual with the key log lines from each probe. On failure call `diagnose_process`.
 4. Offer to save the useful probes as checks: `save_run_config(process_id, app, mode, checks=[probe.check, ...])`. Later `run_checks(app, mode)` repeats them in one call.
+
+## Authenticated calls
+
+The user can store test credentials (JWT, cookies, API keys, tenant ids, or a login recipe) per project on the web UI's Credentials page. You never see the values.
+
+1. `list_credentials` lists the profiles: name, environment, default flag, fields (names and kinds; values only for non-secret fields such as a tenant id), `status` (ok, expiring, expired, empty) and whether a login recipe refreshes them.
+2. `probe` attaches the default profile automatically. Pass `credential=<name>` to act as another user (for example to check that a viewer is refused where an admin is allowed), or `credential="none"` to send the request anonymously. `${cred:<field>}` placeholders expand from the active profile in the url, headers and body.
+3. A result with `credential_status=rejected|expired|empty` and a `credential_hint` means the stored credential no longer works. Do not guess values or look for tokens in env files; tell the user to update the profile on the Credentials page, then retry.
+4. Saved checks may carry `credential: <name>`; they never send credentials to a non-local host.
+5. If a profile is tagged production, or the target is not local, the user must approve the request first.
+
+When no profile exists and the endpoint needs authentication, ask the user to add one instead of asking them to paste a token into the chat.
 
 `probe` runs GET/HEAD/OPTIONS against localhost directly. Other methods, or any non-local target, need the user's approval: ask, then pass `confirmed=true`. Never point probes at production data.
 

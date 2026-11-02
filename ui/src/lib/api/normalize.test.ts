@@ -75,6 +75,7 @@ describe('toHarnessInfo', () => {
     expect(h.evidence).toEqual(['/home/dev/.claude', 'claude on PATH']);
     expect(h.connected).toBe(2);
     expect(h.skillsSupported).toBe(true);
+    expect(h.instructions).toEqual({ path: '/home/dev/.claude/CLAUDE.md', fileExists: true, installed: true, upToDate: false, shared: false });
     expect(h.restartHint).toBe('restart Claude Code');
     expect(h.maxWaitMs).toBe(120000);
     expect(h.scopes.map((s) => s.scope)).toEqual(['user', 'project']);
@@ -97,6 +98,7 @@ describe('toHarnessInfo', () => {
     expect(h.version).toBe('');
     expect(h.evidence).toEqual([]);
     expect(h.skillsSupported).toBe(false);
+    expect(h.instructions).toBeNull();
     expect(h.connected).toBe(0);
     expect(h.maxWaitMs).toBe(0);
     expect(h.scopes[0]?.status).toBe('absent');

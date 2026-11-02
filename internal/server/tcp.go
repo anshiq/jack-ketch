@@ -7,6 +7,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -132,8 +133,21 @@ func staticWebUI() http.Handler {
 	})
 }
 
+type webKey struct{}
+
+func markWeb(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), webKey{}, true)))
+	})
+}
+
+func viaWeb(r *http.Request) bool {
+	v, _ := r.Context().Value(webKey{}).(bool)
+	return v
+}
+
 func tcpMux(apiHandler http.Handler, token string) http.Handler {
-	api := bearerGuard(stripAPIPrefix(apiHandler), token)
+	api := bearerGuard(stripAPIPrefix(markWeb(apiHandler)), token)
 	static := staticWebUI()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {

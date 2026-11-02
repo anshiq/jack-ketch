@@ -8,6 +8,7 @@
   import { scopeState } from '../lib/state/scope.svelte';
   import { processes } from '../lib/state/processes.svelte';
   import { isLive } from '../components/processView';
+  import PathSuggest from '../lib/ui/PathSuggest.svelte';
 
   interface Option {
     id: string;
@@ -19,6 +20,7 @@
 
   let open = $state(false);
   let path = $state('');
+  let pathInput = $state<HTMLInputElement | null>(null);
   let query = $state('');
   let active = $state(0);
   let root: HTMLDivElement | null = $state(null);
@@ -184,7 +186,8 @@
       <form class="open-form" onsubmit={submit}>
         <div class="section">Open workspace</div>
         <div class="row">
-          <input bind:value={path} placeholder="/path/to/project" aria-label="Workspace path" spellcheck="false" />
+          <input bind:this={pathInput} bind:value={path} placeholder="/path/to/project" aria-label="Workspace path" spellcheck="false" />
+          <PathSuggest input={pathInput} absolute dirsOnly />
           <button class="btn primary" type="submit" disabled={scopeState.resolving || !path.trim()}>
             <Plus size={14} />{scopeState.resolving ? 'Opening…' : 'Open'}
           </button>

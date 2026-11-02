@@ -1,0 +1,88 @@
+- name: "Claude Code"
+  id: claude-code
+  scopes: "user, project, local"
+  wait: 600
+- name: "Claude Desktop"
+  id: claude-desktop
+  scopes: "user"
+  wait: 50
+- name: "Codex"
+  id: codex
+  scopes: "user, project"
+  wait: 600
+- name: "Gemini CLI"
+  id: gemini
+  scopes: "user, project"
+  wait: 600
+- name: "Qwen Code"
+  id: qwen-code
+  scopes: "user, project"
+  wait: 50
+- name: "Cursor"
+  id: cursor
+  scopes: "user, project"
+  wait: 50
+- name: "VS Code (GitHub Copilot)"
+  id: vscode-copilot
+  scopes: "user, project"
+  wait: 50
+- name: "GitHub Copilot CLI"
+  id: copilot-cli
+  scopes: "user, project"
+  wait: 50
+- name: "Windsurf"
+  id: windsurf
+  scopes: "user"
+  wait: 50
+- name: "Zed"
+  id: zed
+  scopes: "user, project"
+  wait: 50
+- name: "Cline"
+  id: cline
+  scopes: "user"
+  wait: 600
+- name: "Roo Code"
+  id: roo
+  scopes: "user, project"
+  wait: 290
+- name: "Kilo Code"
+  id: kilo
+  scopes: "user, project"
+  wait: 50
+- name: "opencode"
+  id: opencode
+  scopes: "user, project"
+  wait: 50
+- name: "Goose"
+  id: goose
+  scopes: "user"
+  wait: 600
+- name: "Kiro"
+  id: kiro
+  scopes: "user, project"
+  wait: 50
+- name: "Amp"
+  id: amp
+  scopes: "user, project"
+  wait: 50
+- name: "Crush"
+  id: crush
+  scopes: "user, project"
+  wait: 50
+- name: "JetBrains Junie"
+  id: junie
+  scopes: "user, project"
+  wait: 50
+- name: "Continue"
+  id: continue
+  scopes: "user, project"
+  wait: 50
+- name: "Augment (Auggie CLI)"
+  id: augment
+  scopes: "user"
+  wait: 50
+- name: "LM Studio"
+  id: lmstudio
+  scopes: "user"
+  wait: 50

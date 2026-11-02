@@ -123,6 +123,7 @@ type Check struct {
 	ExpectStatus   int               `yaml:"expect_status,omitempty" json:"expect_status,omitempty"`
 	ExpectContains string            `yaml:"expect_contains,omitempty" json:"expect_contains,omitempty"`
 	Timeout        Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	Credential     string            `yaml:"credential,omitempty" json:"credential,omitempty"`
 }
 
 var httpMethods = map[string]bool{
@@ -139,7 +140,7 @@ func (c Check) validate() error {
 	if hasURL == hasTCP {
 		return fmt.Errorf("check %q: set exactly one of url or tcp", c.Name)
 	}
-	if hasTCP && (c.Method != "" || c.Body != "" || len(c.Headers) > 0 || c.ExpectStatus != 0 || c.ExpectContains != "") {
+	if hasTCP && (c.Method != "" || c.Body != "" || len(c.Headers) > 0 || c.ExpectStatus != 0 || c.ExpectContains != "" || c.Credential != "") {
 		return fmt.Errorf("check %q: tcp checks only take tcp and timeout", c.Name)
 	}
 	if c.Method != "" && !httpMethods[strings.ToUpper(c.Method)] {

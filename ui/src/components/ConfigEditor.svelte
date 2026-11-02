@@ -18,6 +18,8 @@
   import PlanPanel from './config/PlanPanel.svelte';
   import { ConfigService } from '../lib/api';
   import { applyMonacoTheme, ensureMonacoConfigured, isMonacoConfigured, monaco, monoFontFamily, refreshMonacoFonts, watchMonacoTheme } from '../lib/monacoSetup';
+  import { registerYamlPathCompletions } from '../lib/yamlPathCompletion';
+  import { scopeState } from '../lib/state/scope.svelte';
   import type { ConfigSession, ValidationIssue } from '../lib/config/session.svelte';
   import { toastError } from '../lib/toasts.svelte';
 
@@ -59,6 +61,7 @@
       } catch (err) {
         toastError(err);
       }
+      registerYamlPathCompletions(() => scopeState.path);
       if (disposed || !host) return;
       const theme = applyMonacoTheme();
       editor = monaco.editor.create(host, {

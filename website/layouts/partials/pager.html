@@ -1,0 +1,25 @@
+{{ $docs := site.GetPage "/docs" }}
+{{ $flat := slice }}
+{{ $flat = $flat | append $docs }}
+{{ range $docs.Pages.ByWeight }}
+  {{ if .IsSection }}
+    {{ $flat = $flat | append . }}
+    {{ range .Pages.ByWeight }}
+      {{ if .IsSection }}
+        {{ range .Pages.ByWeight }}{{ $flat = $flat | append . }}{{ end }}
+      {{ else }}
+        {{ $flat = $flat | append . }}
+      {{ end }}
+    {{ end }}
+  {{ else }}
+    {{ $flat = $flat | append . }}
+  {{ end }}
+{{ end }}
+{{ $idx := -1 }}
+{{ range $i, $p := $flat }}{{ if eq $p $ }}{{ $idx = $i }}{{ end }}{{ end }}
+{{ if ge $idx 0 }}
+<nav class="pager" aria-label="Pagination">
+  {{ if gt $idx 0 }}{{ with index $flat (sub $idx 1) }}<a class="prev" href="{{ .RelPermalink }}"><small>Previous</small><span>{{ .Title }}</span></a>{{ end }}{{ else }}<span></span>{{ end }}
+  {{ if lt $idx (sub (len $flat) 1) }}{{ with index $flat (add $idx 1) }}<a class="next" href="{{ .RelPermalink }}"><small>Next</small><span>{{ .Title }}</span></a>{{ end }}{{ end }}
+</nav>
+{{ end }}

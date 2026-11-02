@@ -30,9 +30,9 @@ func (m *Manager) startInstance(proc *ManagedProcess, grace time.Duration) error
 
 	// The command derives from the manager's root context, NOT the caller's
 	// context: the process must outlive the MCP request that started it.
-	cmd := exec.CommandContext(m.rootCtx, proc.Spec.Command, proc.Spec.Args...)
-	cmd.Dir = proc.Spec.WorkDir
-	cmd.Env = proc.Spec.Env
+	cmd := exec.CommandContext(m.rootCtx, proc.Spec().Command, proc.Spec().Args...)
+	cmd.Dir = proc.Spec().WorkDir
+	cmd.Env = proc.Spec().Env
 	setProcAttr(cmd)
 
 	// Child stdout/stderr are routed through in-memory pipes assigned as
@@ -67,7 +67,7 @@ func (m *Manager) startInstance(proc *ManagedProcess, grace time.Duration) error
 
 	// Resource limits (Phase 7): place the child in a per-process cgroup v2
 	// slice. Failure degrades gracefully to unlimited.
-	cgroupPath, closeFD, rcleanup, rerr := configureResources(cmd, proc.Spec.Limits, proc.ID)
+	cgroupPath, closeFD, rcleanup, rerr := configureResources(cmd, proc.Spec().Limits, proc.ID)
 	if rerr != nil {
 		m.opts.Logger.Warn("resource limits unavailable; running unlimited", "process_id", proc.ID, "error", rerr)
 	} else {
@@ -98,7 +98,7 @@ func (m *Manager) startInstance(proc *ManagedProcess, grace time.Duration) error
 			Type: events.Failed, ProcessID: proc.ID, InstanceID: instID,
 			Timestamp: time.Now(), Payload: map[string]any{"error": err.Error()},
 		})
-		return fmt.Errorf("start %q: %w", proc.Spec.Command, err)
+		return fmt.Errorf("start %q: %w", proc.Spec().Command, err)
 	}
 
 	now := time.Now()
@@ -125,7 +125,7 @@ func (m *Manager) startInstance(proc *ManagedProcess, grace time.Duration) error
 	m.recordInstance(proc, inst, now, nil, nil)
 	m.opts.Logger.Debug("process started",
 		"process_id", proc.ID, "instance_id", instID,
-		"pid", cmd.Process.Pid, "command", proc.Spec.Command, "args", proc.Spec.Args)
+		"pid", cmd.Process.Pid, "command", proc.Spec().Command, "args", proc.Spec().Args)
 
 	inst.readers.Add(2)
 	go m.readLoop(proc, inst, stdoutR, logs.StreamStdout)
@@ -209,7 +209,7 @@ func (m *Manager) recordInstance(proc *ManagedProcess, inst *instance, startedAt
 	if s := inst.snap.Load(); s != nil {
 		pid = int64(s.pid)
 	}
-	_ = m.sink.RecordInstance(proc.ID, inst.id, proc.Spec.Command, proc.Spec.WorkDir, proc.Profile, startedAt.UnixNano(), pid, exNanos, code)
+	_ = m.sink.RecordInstance(proc.ID, inst.id, proc.Spec().Command, proc.Spec().WorkDir, proc.Profile, startedAt.UnixNano(), pid, exNanos, code)
 }
 
 // waitLoop waits for the child to exit, records the result and notifies

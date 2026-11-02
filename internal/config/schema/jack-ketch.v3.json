@@ -41,7 +41,8 @@
           "body": { "type": "string", "description": "Request body." },
           "expect_status": { "type": "integer", "description": "Expected HTTP status; default accepts 2xx and 3xx." },
           "expect_contains": { "type": "string", "description": "Substring the response body must contain." },
-          "timeout": { "type": ["string", "integer"], "description": "Request timeout, default 10s." }
+          "timeout": { "type": ["string", "integer"], "description": "Request timeout, default 10s." },
+          "credential": { "type": "string", "description": "Credential profile (from the web UI Credentials page) sent with this check; \"none\" disables the project's default profile. Omit to use the default profile." }
         }
       }
     }

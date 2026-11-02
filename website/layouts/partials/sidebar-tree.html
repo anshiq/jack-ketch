@@ -1,0 +1,21 @@
+{{ $cur := .cur }}
+{{ range .pages.ByWeight }}
+  {{ if .IsSection }}
+    {{ $open := or ($cur.InSection .) (eq $cur .) }}
+    {{ if eq .Parent.RelPermalink "/docs/" }}
+      <div class="sb-group">
+        <a class="sb-head {{ if eq $cur . }}on{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{ partial "sidebar-tree.html" (dict "pages" .Pages "cur" $cur) }}
+      </div>
+    {{ else }}
+      <details class="sb-sub" {{ if $open }}open{{ end }}>
+        <summary>{{ .Title }}</summary>
+        {{ partial "sidebar-tree.html" (dict "pages" .Pages "cur" $cur) }}
+      </details>
+    {{ end }}
+  {{ else if eq .Parent.RelPermalink "/docs/" }}
+    <div class="sb-group"><a class="sb-head {{ if eq $cur . }}on{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a></div>
+  {{ else }}
+    <a class="sb-link {{ if eq $cur . }}on{{ end }}" href="{{ .RelPermalink }}" {{ if eq $cur . }}aria-current="page"{{ end }}>{{ .Title }}</a>
+  {{ end }}
+{{ end }}

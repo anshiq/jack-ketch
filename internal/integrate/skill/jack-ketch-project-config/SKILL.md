@@ -177,6 +177,7 @@ checks:
     method: POST                      # default GET
     url: /api/orders                  # path → the process's listening port (or PORT); or a full URL
     headers: {Authorization: "Bearer ${API_TOKEN}"}   # ${VAR} expands from the process env
+    credential: admin                 # optional credential profile from the web UI ("none" = anonymous); default profile otherwise
     body: '{"sku": "A1", "qty": 2}'
     expect_status: 201                # default: any 2xx/3xx
     expect_contains: '"id"'

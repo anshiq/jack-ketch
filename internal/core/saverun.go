@@ -738,7 +738,7 @@ func (e *Engine) SaveSuggestion(workspaceID, processID string) (*api.SaveSuggest
 func checksFromAPI(in []api.CheckSpec) ([]config.Check, error) {
 	out := make([]config.Check, 0, len(in))
 	for _, c := range in {
-		cc := config.Check{Name: c.Name, Method: strings.ToUpper(c.Method), URL: c.URL, TCP: c.TCP, Headers: c.Headers, Body: c.Body, ExpectStatus: c.ExpectStatus, ExpectContains: c.ExpectContains}
+		cc := config.Check{Name: c.Name, Method: strings.ToUpper(c.Method), URL: c.URL, TCP: c.TCP, Headers: c.Headers, Body: c.Body, ExpectStatus: c.ExpectStatus, ExpectContains: c.ExpectContains, Credential: strings.TrimSpace(c.Credential)}
 		if cc.Method == "GET" {
 			cc.Method = ""
 		}

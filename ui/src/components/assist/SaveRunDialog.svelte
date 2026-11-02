@@ -10,9 +10,11 @@
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import Dialog from '../../lib/ui/Dialog.svelte';
   import Spinner from '../../lib/ui/Spinner.svelte';
+  import PathSuggest from '../../lib/ui/PathSuggest.svelte';
   import { AssistService, ConfigService } from '../../lib/api';
   import type { EnvSourceSpec, GitignoreStatus, Process, SaveRunResult, SaveSuggestion } from '../../lib/api/types';
   import { toasts, toastError } from '../../lib/toasts.svelte';
+  import { scopeState } from '../../lib/state/scope.svelte';
   import { commandLine, toConfigApps, type ConfigApp } from '../../lib/config/apps';
   import GitignorePrompt from './GitignorePrompt.svelte';
   import { NAME_RE, cleanSources } from './assistView';
@@ -25,11 +27,12 @@
     file: string;
     optional: boolean;
     vars: string;
+    el?: HTMLInputElement | null;
   }
 
   let seq = 0;
   function toRow(s: EnvSourceSpec): Row {
-    return { id: ++seq, kind: s.file !== undefined ? 'file' : 'vars', file: s.file ?? '', optional: s.optional === true, vars: (s.vars ?? []).join('\n') };
+    return { id: ++seq, kind: s.file !== undefined ? 'file' : 'vars', file: s.file ?? '', optional: s.optional === true, vars: (s.vars ?? []).join('\n'), el: null };
   }
 
   const initial = untrack(() => suggestion);
@@ -78,7 +81,7 @@
   }
 
   function addRow(kind: 'file' | 'vars') {
-    rows = [...rows, { id: ++seq, kind, file: kind === 'file' ? '.env' : '', optional: kind === 'file', vars: '' }];
+    rows = [...rows, { id: ++seq, kind, file: kind === 'file' ? '.env' : '', optional: kind === 'file', vars: '', el: null }];
   }
 
   function sources(): EnvSourceSpec[] {
@@ -171,7 +174,8 @@
               <span class="prio">{i + 1}</span>
               {#if r.kind === 'file'}
                 <FileText size={14} />
-                <input class="mono grow" bind:value={r.file} placeholder=".env.local" aria-label="Env file path" spellcheck="false" />
+                <input class="mono grow" bind:this={r.el} bind:value={r.file} placeholder=".env.local" aria-label="Env file path" spellcheck="false" />
+                <PathSuggest input={r.el} baseDir={scopeState.workspacePath(process.workspaceId)} />
                 <label class="opt"><input type="checkbox" bind:checked={r.optional} />optional</label>
               {:else}
                 <Braces size={14} />

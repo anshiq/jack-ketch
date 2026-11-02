@@ -1,0 +1,7 @@
+{{ $src := .Params.source }}
+{{ if $src }}
+  {{ $path := cond (hasPrefix $src "adr/") (printf "docs/%s" $src) (printf "%s/%s" site.Params.editPath $src) }}
+  <a class="edit" href="{{ printf "%s/edit/%s/%s" site.Params.repo site.Params.editBranch $path }}" rel="noopener">Edit this page on GitHub</a>
+{{ else if .File }}
+  <a class="edit" href="{{ printf "%s/edit/%s/website/content/%s" site.Params.repo site.Params.editBranch .File.Path }}" rel="noopener">Edit this page on GitHub</a>
+{{ end }}

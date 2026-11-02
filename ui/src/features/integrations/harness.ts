@@ -1,4 +1,4 @@
-import type { HarnessInfo, ScopeName, ScopeReport, ScopeStatus } from '../../lib/api/types';
+import type { HarnessInfo, InstructionInfo, ScopeName, ScopeReport, ScopeStatus } from '../../lib/api/types';
 
 export type HarnessFilter = 'all' | 'detected' | 'connected' | 'attention';
 
@@ -26,6 +26,12 @@ export function statusLabel(s: ScopeStatus): string {
     default:
       return 'Not connected';
   }
+}
+
+export function instructionState(i: InstructionInfo): { label: string; tone: 'ok' | 'warn' | 'neutral' } {
+  if (!i.installed) return { label: 'Not added', tone: 'neutral' };
+  if (!i.upToDate) return { label: 'Update available', tone: 'warn' };
+  return { label: 'Added', tone: 'ok' };
 }
 
 export function actionLabel(s: ScopeStatus): string {

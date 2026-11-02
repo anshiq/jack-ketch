@@ -15,6 +15,7 @@
         { keys: 'g l', label: 'Go to Logs' },
         { keys: 'g a', label: 'Go to Apps' },
         { keys: 'g c', label: 'Go to Config' },
+        { keys: 'g r', label: 'Go to Credentials' },
         { keys: 'g e', label: 'Go to Events' },
         { keys: 'g s', label: 'Go to Sessions' },
         { keys: 'g u', label: 'Go to Audit' },

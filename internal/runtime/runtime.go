@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"jack-ketch/internal/config"
+	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/logs"
 	"jack-ketch/internal/logstore"
 	"jack-ketch/internal/policy"
@@ -71,6 +72,8 @@ type Runtime struct {
 
 	portOwnerMu sync.RWMutex
 	portOwner   func(port int) string
+
+	creds atomic.Pointer[credentials.Scope]
 
 	rootCtx context.Context
 	cancel  context.CancelFunc
@@ -329,7 +332,7 @@ func (r *Runtime) Start(ctx context.Context, req api.StartRequest) (*api.StartRe
 	r.envSrcMu.Lock()
 	r.envSrc[info.ID] = source
 	r.envSrcMu.Unlock()
-	r.recordOrigin(info.ID, processOrigin{app: spec.App, mode: spec.Mode, envFiles: envFiles})
+	r.recordOrigin(info.ID, processOrigin{app: spec.App, mode: spec.Mode, reqMode: req.Mode, env: req.Env, envFile: req.EnvFile, envFiles: envFiles})
 	return &api.StartResult{
 		ProcessID:  info.ID,
 		InstanceID: info.InstanceID,
@@ -349,9 +352,49 @@ func (r *Runtime) Stop(ctx context.Context, id string) error {
 	return r.manager.Stop(ctx, id)
 }
 
-// Restart stops and re-launches a process with the same specification.
+// Restart stops and re-launches a process. A process started from an app is
+// re-resolved against the current config first (command, env files, env,
+// readiness, limits), and a resolve failure aborts before anything is stopped.
+// Raw-command processes relaunch with their original specification.
 func (r *Runtime) Restart(ctx context.Context, id string) error {
-	return r.manager.Restart(ctx, id)
+	proc, ok := r.manager.Get(id)
+	if !ok {
+		return r.manager.Restart(ctx, id)
+	}
+	o := r.origin(id)
+	req := api.StartRequest{App: o.app, Mode: o.reqMode, Env: o.env, EnvFile: o.envFile}
+	if req.App == "" {
+		cur := proc.Spec()
+		if cur.App == "" {
+			return r.manager.Restart(ctx, id)
+		}
+		req.App, req.Mode = cur.App, cur.Mode
+	}
+	spec, prof, source, envFiles, err := r.resolveStart(req)
+	if err != nil {
+		return err
+	}
+	if err := r.deny("restart_process", map[string]any{"command": spec.Command, "workdir": spec.WorkDir}, func() *policy.Denial {
+		if d := r.policyNow().DenyCommand(spec.Command); d != nil {
+			return d
+		}
+		return r.policyNow().DenyWorkdir(spec.WorkDir)
+	}); err != nil {
+		return err
+	}
+	grace := r.getCfg().Config.Runtime.StopGrace.Time()
+	if prof != nil && prof.Grace() > grace {
+		grace = prof.Grace()
+	}
+	if err := r.manager.RestartWithSpec(ctx, id, &spec, grace); err != nil {
+		return err
+	}
+	r.envSrcMu.Lock()
+	r.envSrc[id] = source
+	r.envSrcMu.Unlock()
+	o.app, o.mode, o.envFiles = spec.App, spec.Mode, envFiles
+	r.recordOrigin(id, o)
+	return nil
 }
 
 // SetRestartPolicy sets the restart policy of an existing process (the hook for
@@ -409,7 +452,7 @@ func (r *Runtime) ProcessEnv(req api.ProcessEnvRequest) (*api.ProcessEnvResult, 
 			return nil, err
 		}
 	} else {
-		vars = proc.Spec.Env
+		vars = proc.Spec().Env
 		r.envSrcMu.RLock()
 		if src, ok := r.envSrc[req.ProcessID]; ok {
 			res.Source = src
@@ -439,8 +482,8 @@ func (r *Runtime) OpenShell(ctx context.Context, req api.OpenShellRequest) (*api
 		if !ok {
 			return nil, fmt.Errorf("unknown process %q", req.ProcessID)
 		}
-		workDir = proc.Spec.WorkDir
-		env = proc.Spec.Env
+		workDir = proc.Spec().WorkDir
+		env = proc.Spec().Env
 		prof = r.profiles.Lookup(proc.Profile)
 		if _, err := os.Stat(workDir); err != nil {
 			return nil, fmt.Errorf("open_shell workdir %q: %w", workDir, err)
@@ -536,8 +579,8 @@ func (r *Runtime) Status(id string) (*api.StatusResult, error) {
 		InstanceID:    info.InstanceID,
 		Status:        string(info.Status),
 		PID:           info.PID,
-		App:           proc.Spec.App,
-		Mode:          proc.Spec.Mode,
+		App:           proc.Spec().App,
+		Mode:          proc.Spec().Mode,
 		PGID:          info.PID, // Setpgid on Unix means pgid == pid
 		Command:       info.Command,
 		Args:          info.Args,
@@ -582,8 +625,8 @@ func (r *Runtime) List() (*api.ListResult, error) {
 			Status:     string(info.Status),
 			Command:    info.Command,
 			Profile:    info.Profile,
-			App:        p.Spec.App,
-			Mode:       p.Spec.Mode,
+			App:        p.Spec().App,
+			Mode:       p.Spec().Mode,
 			PID:        info.PID,
 			Health:     string(p.Health().State),
 			ExitCode:   info.ExitCode,
@@ -1154,8 +1197,8 @@ func (r *Runtime) buildMatcher(req api.WaitForLogRequest, proc *process.ManagedP
 		// Prefer the process's armed readiness (app override or profile
 		// default captured at start); fall back to the profile registry for
 		// ad-hoc processes started without an app entry.
-		if len(proc.Spec.Readiness) > 0 {
-			return proc.Spec.Supervision.CompileReadiness().Ready, nil
+		if len(proc.Spec().Readiness) > 0 {
+			return proc.Spec().Supervision.CompileReadiness().Ready, nil
 		}
 		prof := r.profiles.Lookup(proc.Profile)
 		if prof == nil || len(prof.Readiness) == 0 {

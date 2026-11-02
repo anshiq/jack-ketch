@@ -495,6 +495,202 @@ func (*UpdateSettingsResponse) Descriptor() ([]byte, []int) {
 	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{9}
 }
 
+type ListDirectoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dir           string                 `protobuf:"bytes,1,opt,name=dir,proto3" json:"dir,omitempty"`
+	Prefix        string                 `protobuf:"bytes,2,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	BaseDir       string                 `protobuf:"bytes,3,opt,name=base_dir,json=baseDir,proto3" json:"base_dir,omitempty"`
+	DirsOnly      bool                   `protobuf:"varint,4,opt,name=dirs_only,json=dirsOnly,proto3" json:"dirs_only,omitempty"`
+	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDirectoryRequest) Reset() {
+	*x = ListDirectoryRequest{}
+	mi := &file_jackketch_v1_system_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDirectoryRequest) ProtoMessage() {}
+
+func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_system_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*ListDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListDirectoryRequest) GetDir() string {
+	if x != nil {
+		return x.Dir
+	}
+	return ""
+}
+
+func (x *ListDirectoryRequest) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *ListDirectoryRequest) GetBaseDir() string {
+	if x != nil {
+		return x.BaseDir
+	}
+	return ""
+}
+
+func (x *ListDirectoryRequest) GetDirsOnly() bool {
+	if x != nil {
+		return x.DirsOnly
+	}
+	return false
+}
+
+func (x *ListDirectoryRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type DirectoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	IsDir         bool                   `protobuf:"varint,2,opt,name=is_dir,json=isDir,proto3" json:"is_dir,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DirectoryEntry) Reset() {
+	*x = DirectoryEntry{}
+	mi := &file_jackketch_v1_system_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DirectoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DirectoryEntry) ProtoMessage() {}
+
+func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_system_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
+func (*DirectoryEntry) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DirectoryEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DirectoryEntry) GetIsDir() bool {
+	if x != nil {
+		return x.IsDir
+	}
+	return false
+}
+
+type ListDirectoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Dir           string                 `protobuf:"bytes,1,opt,name=dir,proto3" json:"dir,omitempty"`
+	Entries       []*DirectoryEntry      `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	Truncated     bool                   `protobuf:"varint,3,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDirectoryResponse) Reset() {
+	*x = ListDirectoryResponse{}
+	mi := &file_jackketch_v1_system_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDirectoryResponse) ProtoMessage() {}
+
+func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_system_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*ListDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListDirectoryResponse) GetDir() string {
+	if x != nil {
+		return x.Dir
+	}
+	return ""
+}
+
+func (x *ListDirectoryResponse) GetEntries() []*DirectoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *ListDirectoryResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *ListDirectoryResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type ShutdownRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	KeepProcesses bool                   `protobuf:"varint,1,opt,name=keep_processes,json=keepProcesses,proto3" json:"keep_processes,omitempty"`
@@ -504,7 +700,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_jackketch_v1_system_proto_msgTypes[10]
+	mi := &file_jackketch_v1_system_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -516,7 +712,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_jackketch_v1_system_proto_msgTypes[10]
+	mi := &file_jackketch_v1_system_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -529,7 +725,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{10}
+	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ShutdownRequest) GetKeepProcesses() bool {
@@ -547,7 +743,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_jackketch_v1_system_proto_msgTypes[11]
+	mi := &file_jackketch_v1_system_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -559,7 +755,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_jackketch_v1_system_proto_msgTypes[11]
+	mi := &file_jackketch_v1_system_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -572,7 +768,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{11}
+	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{14}
 }
 
 var File_jackketch_v1_system_proto protoreflect.FileDescriptor
@@ -604,17 +800,32 @@ const file_jackketch_v1_system_proto_rawDesc = "" +
 	"\rdaemon_config\x18\x01 \x01(\fR\fdaemonConfig\"<\n" +
 	"\x15UpdateSettingsRequest\x12#\n" +
 	"\rdaemon_config\x18\x01 \x01(\fR\fdaemonConfig\"\x18\n" +
-	"\x16UpdateSettingsResponse\"8\n" +
+	"\x16UpdateSettingsResponse\"\x8e\x01\n" +
+	"\x14ListDirectoryRequest\x12\x10\n" +
+	"\x03dir\x18\x01 \x01(\tR\x03dir\x12\x16\n" +
+	"\x06prefix\x18\x02 \x01(\tR\x06prefix\x12\x19\n" +
+	"\bbase_dir\x18\x03 \x01(\tR\abaseDir\x12\x1b\n" +
+	"\tdirs_only\x18\x04 \x01(\bR\bdirsOnly\x12\x14\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limit\";\n" +
+	"\x0eDirectoryEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x15\n" +
+	"\x06is_dir\x18\x02 \x01(\bR\x05isDir\"\x95\x01\n" +
+	"\x15ListDirectoryResponse\x12\x10\n" +
+	"\x03dir\x18\x01 \x01(\tR\x03dir\x126\n" +
+	"\aentries\x18\x02 \x03(\v2\x1c.jackketch.v1.DirectoryEntryR\aentries\x12\x1c\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"8\n" +
 	"\x0fShutdownRequest\x12%\n" +
 	"\x0ekeep_processes\x18\x01 \x01(\bR\rkeepProcesses\"\x12\n" +
-	"\x10ShutdownResponse2\xec\x03\n" +
+	"\x10ShutdownResponse2\xc6\x04\n" +
 	"\rSystemService\x12O\n" +
 	"\n" +
 	"GetVersion\x12\x1f.jackketch.v1.GetVersionRequest\x1a .jackketch.v1.GetVersionResponse\x12C\n" +
 	"\x06Health\x12\x1b.jackketch.v1.HealthRequest\x1a\x1c.jackketch.v1.HealthResponse\x12I\n" +
 	"\bGetStats\x12\x1d.jackketch.v1.GetStatsRequest\x1a\x1e.jackketch.v1.GetStatsResponse\x12R\n" +
 	"\vGetSettings\x12 .jackketch.v1.GetSettingsRequest\x1a!.jackketch.v1.GetSettingsResponse\x12[\n" +
-	"\x0eUpdateSettings\x12#.jackketch.v1.UpdateSettingsRequest\x1a$.jackketch.v1.UpdateSettingsResponse\x12I\n" +
+	"\x0eUpdateSettings\x12#.jackketch.v1.UpdateSettingsRequest\x1a$.jackketch.v1.UpdateSettingsResponse\x12X\n" +
+	"\rListDirectory\x12\".jackketch.v1.ListDirectoryRequest\x1a#.jackketch.v1.ListDirectoryResponse\x12I\n" +
 	"\bShutdown\x12\x1d.jackketch.v1.ShutdownRequest\x1a\x1e.jackketch.v1.ShutdownResponseB)Z'jack-ketch/gen/jackketch/v1;jackketchv1b\x06proto3"
 
 var (
@@ -629,7 +840,7 @@ func file_jackketch_v1_system_proto_rawDescGZIP() []byte {
 	return file_jackketch_v1_system_proto_rawDescData
 }
 
-var file_jackketch_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_jackketch_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_jackketch_v1_system_proto_goTypes = []any{
 	(*GetVersionRequest)(nil),      // 0: jackketch.v1.GetVersionRequest
 	(*GetVersionResponse)(nil),     // 1: jackketch.v1.GetVersionResponse
@@ -641,27 +852,33 @@ var file_jackketch_v1_system_proto_goTypes = []any{
 	(*GetSettingsResponse)(nil),    // 7: jackketch.v1.GetSettingsResponse
 	(*UpdateSettingsRequest)(nil),  // 8: jackketch.v1.UpdateSettingsRequest
 	(*UpdateSettingsResponse)(nil), // 9: jackketch.v1.UpdateSettingsResponse
-	(*ShutdownRequest)(nil),        // 10: jackketch.v1.ShutdownRequest
-	(*ShutdownResponse)(nil),       // 11: jackketch.v1.ShutdownResponse
+	(*ListDirectoryRequest)(nil),   // 10: jackketch.v1.ListDirectoryRequest
+	(*DirectoryEntry)(nil),         // 11: jackketch.v1.DirectoryEntry
+	(*ListDirectoryResponse)(nil),  // 12: jackketch.v1.ListDirectoryResponse
+	(*ShutdownRequest)(nil),        // 13: jackketch.v1.ShutdownRequest
+	(*ShutdownResponse)(nil),       // 14: jackketch.v1.ShutdownResponse
 }
 var file_jackketch_v1_system_proto_depIdxs = []int32{
-	0,  // 0: jackketch.v1.SystemService.GetVersion:input_type -> jackketch.v1.GetVersionRequest
-	2,  // 1: jackketch.v1.SystemService.Health:input_type -> jackketch.v1.HealthRequest
-	4,  // 2: jackketch.v1.SystemService.GetStats:input_type -> jackketch.v1.GetStatsRequest
-	6,  // 3: jackketch.v1.SystemService.GetSettings:input_type -> jackketch.v1.GetSettingsRequest
-	8,  // 4: jackketch.v1.SystemService.UpdateSettings:input_type -> jackketch.v1.UpdateSettingsRequest
-	10, // 5: jackketch.v1.SystemService.Shutdown:input_type -> jackketch.v1.ShutdownRequest
-	1,  // 6: jackketch.v1.SystemService.GetVersion:output_type -> jackketch.v1.GetVersionResponse
-	3,  // 7: jackketch.v1.SystemService.Health:output_type -> jackketch.v1.HealthResponse
-	5,  // 8: jackketch.v1.SystemService.GetStats:output_type -> jackketch.v1.GetStatsResponse
-	7,  // 9: jackketch.v1.SystemService.GetSettings:output_type -> jackketch.v1.GetSettingsResponse
-	9,  // 10: jackketch.v1.SystemService.UpdateSettings:output_type -> jackketch.v1.UpdateSettingsResponse
-	11, // 11: jackketch.v1.SystemService.Shutdown:output_type -> jackketch.v1.ShutdownResponse
-	6,  // [6:12] is the sub-list for method output_type
-	0,  // [0:6] is the sub-list for method input_type
-	0,  // [0:0] is the sub-list for extension type_name
-	0,  // [0:0] is the sub-list for extension extendee
-	0,  // [0:0] is the sub-list for field type_name
+	11, // 0: jackketch.v1.ListDirectoryResponse.entries:type_name -> jackketch.v1.DirectoryEntry
+	0,  // 1: jackketch.v1.SystemService.GetVersion:input_type -> jackketch.v1.GetVersionRequest
+	2,  // 2: jackketch.v1.SystemService.Health:input_type -> jackketch.v1.HealthRequest
+	4,  // 3: jackketch.v1.SystemService.GetStats:input_type -> jackketch.v1.GetStatsRequest
+	6,  // 4: jackketch.v1.SystemService.GetSettings:input_type -> jackketch.v1.GetSettingsRequest
+	8,  // 5: jackketch.v1.SystemService.UpdateSettings:input_type -> jackketch.v1.UpdateSettingsRequest
+	10, // 6: jackketch.v1.SystemService.ListDirectory:input_type -> jackketch.v1.ListDirectoryRequest
+	13, // 7: jackketch.v1.SystemService.Shutdown:input_type -> jackketch.v1.ShutdownRequest
+	1,  // 8: jackketch.v1.SystemService.GetVersion:output_type -> jackketch.v1.GetVersionResponse
+	3,  // 9: jackketch.v1.SystemService.Health:output_type -> jackketch.v1.HealthResponse
+	5,  // 10: jackketch.v1.SystemService.GetStats:output_type -> jackketch.v1.GetStatsResponse
+	7,  // 11: jackketch.v1.SystemService.GetSettings:output_type -> jackketch.v1.GetSettingsResponse
+	9,  // 12: jackketch.v1.SystemService.UpdateSettings:output_type -> jackketch.v1.UpdateSettingsResponse
+	12, // 13: jackketch.v1.SystemService.ListDirectory:output_type -> jackketch.v1.ListDirectoryResponse
+	14, // 14: jackketch.v1.SystemService.Shutdown:output_type -> jackketch.v1.ShutdownResponse
+	8,  // [8:15] is the sub-list for method output_type
+	1,  // [1:8] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_jackketch_v1_system_proto_init() }
@@ -676,7 +893,7 @@ func file_jackketch_v1_system_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jackketch_v1_system_proto_rawDesc), len(file_jackketch_v1_system_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

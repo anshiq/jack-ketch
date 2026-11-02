@@ -1,0 +1,1 @@
+{{ $n := 0 }}{{ range hugo.Data.tools }}{{ $n = add $n (len .tools) }}{{ end }}{{ $n }}

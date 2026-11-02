@@ -84,3 +84,48 @@ func describeRawApp(raw any, info *api.AppInfo) {
 	}
 	runtime.DescribeApp(app, info)
 }
+
+func (b *Bridge) ListCredentials(ctx context.Context) (*api.ListCredentialsResult, error) {
+	if !b.Bound() {
+		return nil, errors.New(unboundHint)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return b.client.CredentialService().List(ctx, b.ws())
+}
+
+func (b *Bridge) ListCredentialProxies(ctx context.Context) ([]api.CredentialProxy, error) {
+	if !b.Bound() {
+		return nil, errors.New(unboundHint)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	list, err := b.client.CredentialService().ListProxies(ctx, b.ws())
+	if list == nil {
+		list = []api.CredentialProxy{}
+	}
+	return list, err
+}
+
+func (b *Bridge) StartCredentialProxy(ctx context.Context, req api.StartCredentialProxyRequest) (*api.CredentialProxy, error) {
+	if !b.Bound() {
+		return nil, errors.New(unboundHint)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	got, err := b.client.CredentialService().StartProxy(ctx, b.ws(), req)
+	var cn *client.ConfirmationNeeded
+	if errors.As(err, &cn) {
+		return nil, &runtime.ConfirmError{Reason: cn.Reason}
+	}
+	return got, err
+}
+
+func (b *Bridge) StopCredentialProxy(ctx context.Context, id string) error {
+	if !b.Bound() {
+		return errors.New(unboundHint)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return b.client.CredentialService().StopProxy(ctx, b.ws(), id)
+}

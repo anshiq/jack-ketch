@@ -131,6 +131,14 @@ export interface ScopeReport {
   error: string;
 }
 
+export interface InstructionInfo {
+  path: string;
+  fileExists: boolean;
+  installed: boolean;
+  upToDate: boolean;
+  shared: boolean;
+}
+
 export interface HarnessInfo {
   id: string;
   displayName: string;
@@ -141,6 +149,7 @@ export interface HarnessInfo {
   evidence: string[];
   scopes: ScopeReport[];
   skillsSupported: boolean;
+  instructions: InstructionInfo | null;
   manualSteps: string;
   restartHint: string;
   maxWaitMs: number;
@@ -252,6 +261,7 @@ export interface CheckSpec {
   expect_status?: number;
   expect_contains?: string;
   timeout_ms?: number;
+  credential?: string;
 }
 
 export interface SaveSuggestion {
@@ -342,6 +352,10 @@ export interface ProbeResult {
   check: CheckSpec | null;
   needsConfirmation: boolean;
   confirmReason: string;
+  credential: string;
+  credentialStatus: string;
+  credentialRefreshed: boolean;
+  credentialHint: string;
 }
 
 export interface ChecksResult {
@@ -382,4 +396,112 @@ export interface SaveRunResult {
   startWith: string;
   message: string;
   gitignore: GitignoreStatus | null;
+}
+
+export interface DirectoryEntry {
+  name: string;
+  isDir: boolean;
+}
+
+export interface DirectoryListing {
+  dir: string;
+  entries: DirectoryEntry[];
+  truncated: boolean;
+  error?: string;
+}
+
+export type CredentialKind = 'bearer' | 'basic' | 'header' | 'cookie' | 'query' | 'variable';
+
+export interface CredentialField {
+  name: string;
+  kind: CredentialKind;
+  target: string;
+  secret: boolean;
+  value: string;
+  hasValue: boolean;
+  keep: boolean;
+  expiresAt: number;
+  updatedAt: number;
+}
+
+export type ExtractSource = 'json' | 'header' | 'cookie' | 'regex';
+
+export interface CredentialExtract {
+  source: ExtractSource;
+  path: string;
+  field: string;
+  kind: CredentialKind;
+  target: string;
+  expiresInPath: string;
+}
+
+export interface CredentialRecipe {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+  extract: CredentialExtract[];
+  ttlSeconds: number;
+}
+
+export interface CredentialCookie {
+  name: string;
+  host: string;
+  path: string;
+  expires: number;
+  secure: boolean;
+}
+
+export interface CredentialProfile {
+  id: string;
+  name: string;
+  description: string;
+  environment: string;
+  default: boolean;
+  apps: string[];
+  fields: CredentialField[];
+  recipe: CredentialRecipe | null;
+  cookies: CredentialCookie[];
+  captureCookies: boolean;
+  status: string;
+  expiresAt: number;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number;
+  lastRefreshAt: number;
+  lastError: string;
+}
+
+export interface CredentialDraft {
+  id: string;
+  name: string;
+  description: string;
+  environment: string;
+  default: boolean;
+  apps: string[];
+  fields: CredentialField[];
+  recipe: CredentialRecipe | null;
+  captureCookies: boolean;
+}
+
+export interface CredentialProxy {
+  id: string;
+  profile: string;
+  upstream: string;
+  url: string;
+  label: string;
+  createdAt: number;
+  expiresAt: number;
+  requests: number;
+  refreshes: number;
+  lastStatus: number;
+}
+
+export interface KeystoreStatus {
+  backend: string;
+  active: string;
+  keychainAvailable: boolean;
+  keychainTool: string;
+  keychainError: string;
+  keyPath: string;
 }

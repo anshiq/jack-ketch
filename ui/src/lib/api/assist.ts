@@ -71,6 +71,8 @@ export function toCheck(raw: unknown): CheckSpec | null {
   if (ec) c.expect_contains = ec;
   const t = n(pick(o, 'timeout_ms', 'timeoutMs'));
   if (t) c.timeout_ms = t;
+  const cred = s(o['credential']);
+  if (cred) c.credential = cred;
   return c;
 }
 
@@ -170,7 +172,11 @@ export function toProbe(raw: unknown): ProbeResult {
     processStatus: s(pick(o, 'process_status', 'processStatus')),
     check: toCheck(o['check']),
     needsConfirmation: o['needsConfirmation'] === true,
-    confirmReason: s(o['reason'])
+    confirmReason: s(o['reason']),
+    credential: s(o['credential']),
+    credentialStatus: s(pick(o, 'credential_status', 'credentialStatus')),
+    credentialRefreshed: pick(o, 'credential_refreshed', 'credentialRefreshed') === true,
+    credentialHint: s(pick(o, 'credential_hint', 'credentialHint'))
   };
 }
 
@@ -207,6 +213,7 @@ export const AssistService = {
     expectContains?: string;
     timeoutMs?: number;
     confirmed?: boolean;
+    credential?: string;
   }): Promise<ProbeResult> => {
     const body: Rec = {
       process_id: req.processId,
@@ -219,7 +226,8 @@ export const AssistService = {
       expect_status: req.expectStatus,
       expect_contains: req.expectContains,
       timeout_ms: req.timeoutMs,
-      confirmed: req.confirmed
+      confirmed: req.confirmed,
+      credential: req.credential
     };
     const r = await call<Rec, Rec>('ProcessService', 'Probe', body, { timeoutMs: (req.timeoutMs ?? 10000) + 20000 });
     return toProbe(r);

@@ -11,6 +11,7 @@ import EventsPage from '../routes/pages/EventsPage.svelte';
 import SessionsPage from '../routes/pages/SessionsPage.svelte';
 import IntegrationsPage from '../routes/pages/IntegrationsPage.svelte';
 import AuditPage from '../routes/pages/AuditPage.svelte';
+import CredentialsPage from '../routes/pages/CredentialsPage.svelte';
 import SettingsPage from '../routes/pages/SettingsPage.svelte';
 
 export interface RouteDef {
@@ -26,6 +27,7 @@ export const routes: RouteDef[] = [
   { id: 'processes', pattern: '/processes', component: ProcessesPage, keepAlive: true, title: 'Processes · jack-ketch' },
   { id: 'logs', pattern: '/logs', component: LogsPage, keepAlive: true, title: 'Logs · jack-ketch' },
   { id: 'apps', pattern: '/apps', component: AppsPage, keepAlive: true, title: 'Apps · jack-ketch' },
+  { id: 'credentials', pattern: '/credentials', component: CredentialsPage, keepAlive: true, title: 'Credentials · jack-ketch' },
   { id: 'config', pattern: '/config/:sub?', component: ConfigPage, keepAlive: true, title: 'Config · jack-ketch' },
   { id: 'projects', pattern: '/projects', component: ProjectsPage, keepAlive: true, title: 'Projects · jack-ketch' },
   { id: 'events', pattern: '/events', component: EventsPage, keepAlive: true, title: 'Events · jack-ketch' },

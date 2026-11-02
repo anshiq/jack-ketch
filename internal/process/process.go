@@ -158,7 +158,7 @@ func (i *instance) closeWriters() {
 // logs survive restarts; status reflects the current instance.
 type ManagedProcess struct {
 	ID      string
-	Spec    StartSpec
+	spec    atomic.Pointer[StartSpec]
 	Profile string
 	Logs    *logs.ProcessLogs
 
@@ -205,8 +205,8 @@ func (p *ManagedProcess) Info() Info {
 	p.mu.Unlock()
 	if inst == nil {
 		return Info{
-			ID: p.ID, Command: p.Spec.Command, Args: p.Spec.Args,
-			WorkDir: p.Spec.WorkDir, Profile: p.Profile,
+			ID: p.ID, Command: p.Spec().Command, Args: p.Spec().Args,
+			WorkDir: p.Spec().WorkDir, Profile: p.Profile,
 			Status: StatusCreated, Restarts: restarts,
 		}
 	}
@@ -217,11 +217,14 @@ func (p *ManagedProcess) Info() Info {
 	}
 	return Info{
 		ID: p.ID, InstanceID: inst.id, Status: status,
-		Command: p.Spec.Command, Args: p.Spec.Args, WorkDir: p.Spec.WorkDir,
+		Command: p.Spec().Command, Args: p.Spec().Args, WorkDir: p.Spec().WorkDir,
 		PID: snap.pid, StartedAt: snap.started, ExitedAt: snap.exited,
 		ExitCode: snap.exitCode, Profile: p.Profile, Restarts: restarts,
 	}
 }
+
+// Spec returns the start specification the next instance will launch with.
+func (p *ManagedProcess) Spec() StartSpec { return *p.spec.Load() }
 
 // InstanceID returns the current instance ID (empty before first start).
 func (p *ManagedProcess) InstanceID() string {

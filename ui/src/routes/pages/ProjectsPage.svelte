@@ -24,6 +24,7 @@
   import IconButton from '../../lib/ui/IconButton.svelte';
   import Input from '../../lib/ui/Input.svelte';
   import SearchField from '../../lib/ui/SearchField.svelte';
+  import PathSuggest from '../../lib/ui/PathSuggest.svelte';
   import Badge from '../../lib/ui/Badge.svelte';
   import Banner from '../../lib/ui/Banner.svelte';
   import Skeleton from '../../lib/ui/Skeleton.svelte';
@@ -42,6 +43,7 @@
   let openPath = $state('');
   let openError = $state('');
   let openBusy = $state(false);
+  let pathEl = $state<HTMLInputElement | null>(null);
   let linkTarget = $state<ProjectRow | null>(null);
 
   let renamingId = $state('');
@@ -364,6 +366,7 @@
           <Input
             id="ws-path"
             bind:value={openPath}
+            bind:el={pathEl}
             label="Workspace path"
             placeholder="/home/you/code/my-project"
             mono
@@ -371,6 +374,7 @@
             invalid={pathInvalid || !!openError}
             oninput={() => (openError = '')}
           />
+          <PathSuggest input={pathEl} absolute dirsOnly />
         </div>
         {#if pathInvalid}
           <span class="hint bad">Enter an absolute path, e.g. /home/you/code/app or C:\code\app.</span>

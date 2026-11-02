@@ -1,0 +1,194 @@
+{{ define "bodyclass" }}home{{ end }}
+{{ define "main" }}
+<main id="content">
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <a class="pill" href="{{ "/docs/reference/security/" | relURL }}"><i></i>Local-first. Your machine, your processes, your secrets.</a>
+      <h1>Let your agent start the server, <em>walk away</em>, and come back.</h1>
+      <p class="sub">jack-ketch is a per-user background daemon that starts, watches and signals long-running dev processes for AI coding agents over MCP. No more sessions frozen on a foreground command.</p>
+      <div class="cta">
+        <a class="btn primary" href="{{ "/docs/getting-started/quick-start/" | relURL }}">Get started</a>
+        <a class="btn" href="{{ "/docs/" | relURL }}">Read the docs</a>
+        <a class="btn ghost" href="{{ site.Params.repo }}" rel="noopener">Star on GitHub</a>
+      </div>
+      <div class="install" data-copy="{{ site.Params.installCommand }}">
+        <span class="prompt">$</span>
+        <code>{{ site.Params.installCommand }}</code>
+        <button type="button" aria-label="Copy install command">Copy</button>
+      </div>
+    </div>
+    <div class="term" aria-label="Example agent session">
+      <div class="term-bar"><i></i><i></i><i></i><span>agent session · api</span></div>
+      <div class="term-body">
+        <p class="l" style="--d:0"><b class="a">agent</b> list_processes <span class="mut">→ none running</span></p>
+        <p class="l" style="--d:1"><b class="a">agent</b> start_process app=api mode=dev timeout_ms=60000</p>
+        <p class="l" style="--d:2"><b class="j">jack-ketch</b> <span class="ok">ready</span> <span class="mut">"listening on :3000" · pid 48213 · 1.8s</span></p>
+        <p class="l" style="--d:3"><b class="a">agent</b> probe GET /health</p>
+        <p class="l" style="--d:4"><b class="j">jack-ketch</b> <span class="err">500</span> <span class="mut">+ 3 log lines the request produced</span></p>
+        <p class="l" style="--d:5"><b class="a">agent</b> diagnose_process</p>
+        <p class="l" style="--d:6"><b class="j">jack-ketch</b> <span class="warn">missing_env</span> DATABASE_URL <span class="mut">· add to .env · actor: you</span></p>
+        <p class="l" style="--d:7"><b class="a">agent</b> <span class="mut">asks you for the value, then</span> restart_process</p>
+        <p class="l" style="--d:8"><b class="j">jack-ketch</b> <span class="ok">healthy</span> <span class="mut">· GET /health 200 · check passed</span></p>
+        <p class="l cur" style="--d:9"><span class="caret"></span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap stats-grid">
+    <div><strong>{{ len hugo.Data.agents }}</strong><span>agents with one-command setup</span></div>
+    <div><strong>{{ $n := 0 }}{{ range hugo.Data.tools }}{{ $n = add $n (len .tools) }}{{ end }}{{ $n }}</strong><span>MCP tools</span></div>
+    <div><strong>≥100k</strong><span>log lines per second ingest budget</span></div>
+    <div><strong>&lt;150<small>ms</small></strong><span>MCP bridge cold start budget</span></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">The problem</p>
+      <h2>Agents block on foreground commands. Dev servers never return.</h2>
+      <p>Run <code>npm run dev</code> in an agent's shell and the session hangs. Detach it and the logs are gone, the port is orphaned and nobody knows whether it started. jack-ketch owns the process so the agent can ask questions instead of babysitting.</p>
+    </div>
+    <div class="grid3">
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></span><h3>Daemon-owned processes</h3><p>One daemon per OS user hosts every project. Processes outlive agent sessions, so a later session re-attaches with <code>list_processes</code> instead of starting a duplicate.</p></div>
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span><h3>Logs you can search</h3><p>stdout and stderr are captured to a ring buffer and an FTS5 index. Filter by stream, level, substring or regex, across every process in the project.</p></div>
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span><h3>Readiness, not guessing</h3><p>Readiness patterns, HTTP and TCP health checks and restart policies. <code>wait_for_log</code> returns when the server says it is up, capped per client so no tool call times out.</p></div>
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><h3>Failures explained</h3><p><code>diagnose_process</code> names the category, shows evidence and says who has to act: you for missing env, the agent for code errors, the agent after your approval for installs and migrations.</p></div>
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span><h3>Probe and verify</h3><p><code>probe</code> sends a request to the running app and returns the response plus the log lines it produced. Save the useful ones as checks and re-run them with <code>run_checks</code>.</p></div>
+      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><h3>Credentials without secrets</h3><p>Store test JWTs, cookies and API keys in the web UI. The agent calls your API as a real user by profile name and never sees a value. Encrypted at rest, scrubbed from every result and log.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt">
+  <div class="wrap split">
+    <div class="sec-head left">
+      <p class="eyebrow">How it fits together</p>
+      <h2>A thin MCP bridge in front of one always-on daemon.</h2>
+      <p>Your agent talks to <code>jack-ketch serve</code>, a thin stdio or HTTP bridge. The bridge calls <code>jackketchd</code> over a <code>0600</code> Unix socket. The web UI uses the same API over an authenticated loopback listener. State lives in a single SQLite database.</p>
+      <ul class="ticks">
+        <li>Socket directory <code>0700</code>, peer-credential uid check, fail closed</li>
+        <li>TCP listener off by default, bearer token, strict Host and Origin checks</li>
+        <li>Every mutating call and policy denial is audited for 90 days</li>
+      </ul>
+      <p><a class="more" href="{{ "/docs/reference/architecture/" | relURL }}">Read the architecture</a></p>
+    </div>
+    <figure class="diagram">
+      <svg viewBox="0 0 560 420" role="img" aria-label="Agents connect through MCP to jack-ketch serve, which calls jackketchd, which supervises project processes and stores state in SQLite. The web UI also talks to jackketchd.">
+        <g class="d-box"><rect x="10" y="20" width="150" height="46" rx="8"/><text x="85" y="48">Claude Code</text></g>
+        <g class="d-box"><rect x="10" y="80" width="150" height="46" rx="8"/><text x="85" y="108">Codex · Gemini · Cursor</text></g>
+        <g class="d-box"><rect x="10" y="140" width="150" height="46" rx="8"/><text x="85" y="168">+ 19 more clients</text></g>
+        <g class="d-box web"><rect x="10" y="330" width="150" height="46" rx="8"/><text x="85" y="358">Web UI</text></g>
+        <g class="d-box accent"><rect x="215" y="80" width="130" height="46" rx="8"/><text x="280" y="108">jack-ketch serve</text></g>
+        <text class="d-cap" x="190" y="72" text-anchor="middle">MCP</text>
+        <path class="d-line" d="M160 43h25v60h30M160 103h55M160 163h25v-60h30"/>
+        <path class="d-line" d="M160 353h120V250"/>
+        <path class="d-line" d="M280 126v44"/>
+        <rect class="d-daemon" x="190" y="170" width="360" height="230" rx="12"/>
+        <text class="d-title" x="210" y="196">jackketchd · one per OS user</text>
+        <g class="d-box"><rect x="210" y="212" width="150" height="42" rx="8"/><text x="285" y="238">Project runtime A</text></g>
+        <g class="d-box"><rect x="380" y="212" width="150" height="42" rx="8"/><text x="455" y="238">Project runtime B</text></g>
+        <g class="d-box"><rect x="210" y="268" width="150" height="42" rx="8"/><text x="285" y="294">Log pipeline · FTS5</text></g>
+        <g class="d-box"><rect x="380" y="268" width="150" height="42" rx="8"/><text x="455" y="294">Event bus · audit</text></g>
+        <g class="d-box store"><rect x="210" y="326" width="320" height="50" rx="8"/><text x="370" y="355">state.db · SQLite WAL · single writer</text></g>
+        <circle class="d-pulse" cx="280" cy="148" r="4"/>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Config that follows the project</p>
+      <h2>Modes, ordered env and saved runs.</h2>
+      <p>Apps are auto-detected and stored in the daemon database, not in your repository. Each app can run several ways. When a hand-built run works, jack-ketch asks you whether to save it as a mode.</p>
+    </div>
+    <div class="codes">
+      <div class="code-card">
+        <div class="code-head">project config · apps.api</div>
+{{ highlight `version: 3
+apps:
+  api:
+    type: node
+    workdir: ./services/api
+    default_mode: dev
+    env_sources:
+      - file: .env
+      - file: .env.local
+        optional: true
+    checks:
+      - name: health
+        url: /health
+    modes:
+      dev:
+        command: [npm, run, dev]
+      prod:
+        command: [npm, start]
+        env_sources:
+          - vars: {NODE_ENV: production}` "yaml" "" }}
+      </div>
+      <div class="code-card">
+        <div class="code-head">what the agent calls</div>
+{{ highlight `start_process(app="api", mode="prod", timeout_ms=60000)
+wait_for_log(process_id, ready=true)
+probe(process_id, url="/health")
+get_logs(process_id, stream="stderr", lines=100)
+run_checks(process_id)
+restart_process(process_id)` "text" "" }}
+        <p class="code-note">Later <code>env_sources</code> win, and <code>get_process_env</code> shows which source set each key.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Works where you already work</p>
+      <h2>One command connects every detected agent.</h2>
+      <p><code>jack-ketch integrate install --detected</code> prints a diff, asks, backs up the old file and writes atomically. Each entry passes <code>--harness</code> so waits match the client's real tool-call limit.</p>
+    </div>
+    <div class="agents">
+      {{ range hugo.Data.agents }}<a href="{{ "/docs/integrations/" | relURL }}" class="agent"><span>{{ .name }}</span><small>{{ .id }}</small></a>{{ end }}
+    </div>
+    <p class="agents-note">Tier-2 clients and anything else that speaks MCP get a manual snippet from <code>jack-ketch integrate show &lt;agent&gt;</code>.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Web UI</p>
+      <h2>Watch it all in the browser.</h2>
+      <p><code>jack-ketch web</code> starts the daemon on demand and opens the web UI at a token URL.</p>
+    </div>
+    <div class="grid4">
+      <div class="mini"><h4>Processes</h4><p>Live status, health, restarts and resource usage across every project.</p></div>
+      <div class="mini"><h4>Logs</h4><p>Tail, filter and full-text search with redaction on by default.</p></div>
+      <div class="mini"><h4>Config</h4><p>Edit project YAML with line and column validation, revisions and rollback.</p></div>
+      <div class="mini"><h4>Credentials</h4><p>Create profiles and login recipes. Values stay encrypted and out of the agent's reach.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h2>Install it in under a minute.</h2>
+    <p>Linux, macOS and Windows. Checksums verified. MIT licensed.</p>
+    <div class="install center" data-copy="{{ site.Params.installCommand }}">
+      <span class="prompt">$</span>
+      <code>{{ site.Params.installCommand }}</code>
+      <button type="button" aria-label="Copy install command">Copy</button>
+    </div>
+    <div class="cta center">
+      <a class="btn primary" href="{{ "/docs/getting-started/installation/" | relURL }}">Installation guide</a>
+      <a class="btn" href="{{ "/docs/reference/mcp-tools/" | relURL }}">Browse MCP tools</a>
+    </div>
+  </div>
+</section>
+</main>
+{{ end }}

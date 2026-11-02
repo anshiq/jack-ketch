@@ -1,0 +1,10 @@
+public/
+resources/
+.hugo_build.lock
+content/docs/integrations.md
+content/docs/reference/api.md
+content/docs/reference/architecture.md
+content/docs/reference/security.md
+content/docs/reference/troubleshooting.md
+content/docs/reference/migrate-v3.md
+content/docs/reference/decisions/0*.md

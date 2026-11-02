@@ -11,6 +11,7 @@
   import Dialog from '../lib/ui/Dialog.svelte';
   import Spinner from '../lib/ui/Spinner.svelte';
   import Switch from '../lib/ui/Switch.svelte';
+  import PathSuggest from '../lib/ui/PathSuggest.svelte';
   import { modeView, sourceLabel, toConfigApps, type ConfigApp } from '../lib/config/apps';
 
   interface EnvRow {
@@ -47,6 +48,8 @@
   let submitted = $state(false);
   let error = $state('');
   let commandInput: HTMLInputElement | null = $state(null);
+  let workdirInput: HTMLInputElement | null = $state(null);
+  let envFileInput: HTMLInputElement | null = $state(null);
   let appSeq = 0;
 
   const app = $derived(apps.find((a) => a.name === selectedApp));
@@ -257,7 +260,8 @@
         </div>
         <div class="form-field">
           <label for="sp-wd">Working directory <span class="opt">optional</span></label>
-          <input id="sp-wd" class="mono" bind:value={workdir} placeholder="Defaults to the workspace root" autocomplete="off" spellcheck="false" />
+          <input id="sp-wd" class="mono" bind:this={workdirInput} bind:value={workdir} placeholder="Defaults to the workspace root" autocomplete="off" spellcheck="false" />
+          <PathSuggest input={workdirInput} baseDir={scopeState.workspacePath(ws)} dirsOnly />
         </div>
       {/if}
 
@@ -300,7 +304,8 @@
 
       <div class="form-field">
         <label for="sp-envfile">Env file <span class="opt">optional</span></label>
-        <input id="sp-envfile" class="mono" bind:value={envFile} placeholder=".env.local" autocomplete="off" spellcheck="false" />
+        <input id="sp-envfile" class="mono" bind:this={envFileInput} bind:value={envFile} placeholder=".env.local" autocomplete="off" spellcheck="false" />
+        <PathSuggest input={envFileInput} baseDir={scopeState.workspacePath(ws)} />
         <span class="hint">Loaded {mode === 'app' ? "after the app's env sources" : 'below the variables above'}; the variables above win over it. Path is relative to the workspace root.</span>
       </div>
 

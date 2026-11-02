@@ -35,6 +35,7 @@ alive; slow consumers get `Gap{dropped}` instead of backpressure (§5.4).
 | GetStats | projects, processes (loaded runtimes), sessions |
 | GetRuntimeStats | `{workspaceId}` required; runtime health for one workspace: process counts by status, log-pipeline drops, uptime |
 | GetSettings / UpdateSettings | `log_level`, `idle_exit`, `retention` (event history: `7d`/`30d`/`90d`; audit history is always kept 90 days), `suggest_saving_runs` (offer to save successful raw runs as app modes; nothing is saved without the user) |
+| ListDirectory | `{dir?, prefix?, baseDir?, dirsOnly?, limit?}` → `{dir, entries:[{name, isDir}], truncated, error?}`; read-only path autocomplete for the web UI. Relative `dir` resolves against `baseDir` (default home), `~` expands to home, dotfiles are included, directories sort first, and results are capped (default 100, max 500). File contents are never read. |
 | EnableTCP | `{addr}`; starts the authenticated loopback listener used by the web UI, creates the token file if needed; loopback addresses only; `{addr, started}` (idempotent: an existing listener is returned with `started: false`) |
 | Shutdown | `{keepProcesses}` (default true): drain; false stops everything first |
 
@@ -72,8 +73,29 @@ WatchResourceUsage. Start takes `mode` with `app`.
 | Diagnose | `{processId}` → `{category, actor: user\|agent\|agent_with_approval, summary, issues[{evidence, steps, fixes[{command, needs_approval}]}], missing_env[{key, hint, example, add_to}], service?, guidance}` |
 | Outcome | `{processId}` → `{success, kind: server\|task, reason: ready\|stable\|exit_0\|ran_until_stopped, ready_line, uptime_ms}` |
 | SaveSuggestion | `{processId}` → `{suggestion}` (null when the run failed, is already saved, was dismissed, or suggestions are off) |
-| Probe | `api.ProbeRequest` → status, headers, body and the log lines the process printed during the request; `{needsConfirmation, reason}` for non-GET/HEAD/OPTIONS or non-loopback targets until `confirmed: true` |
-| RunChecks | `{process_id \| workspaceId+app+mode, names?}` → per-check results with logs, `passed`, `failed` |
+| Probe | `api.ProbeRequest` → status, headers, body and the log lines the process printed during the request; `{needsConfirmation, reason}` for non-GET/HEAD/OPTIONS or non-loopback targets until `confirmed: true`. `credential` selects a credential profile (empty = the project default, `none` = no credentials); the result carries `credential`, `credential_status` (`ok`, `expiring`, `expired`, `empty`, `rejected`), `credential_refreshed` and `credential_hint`, and every secret value is scrubbed from the body, headers, error, URL, check and log lines |
+| RunChecks | `{process_id \| workspaceId+app+mode, names?}` → per-check results with logs, `passed`, `failed`; a check's `credential` is attached, but never to a non-local host |
+
+## CredentialService
+
+Per-project credential profiles for authenticated runtime probes. Every
+call takes `workspaceId` (the project is derived from it). Calls marked
+**web** are refused on the agent socket and only accepted on the
+authenticated web listener, so an agent connected through MCP can use a
+profile but never read or change one.
+
+| RPC | Notes |
+|---|---|
+| List | `{workspaceId}` → `{profiles[{id, name, description, environment, default, apps, fields[{name, kind, target, secret, value?, has_value, expires_at}], recipe?, cookies[{name, host, path, expires}], capture_cookies, status, expires_at, last_used_at, last_refresh_at, last_error}], hint?}`. Values of secret fields and cookie values are never returned |
+| Upsert **web** | `{workspaceId, profile:{id?, name, description?, environment?, default?, apps?, fields[{name, kind: bearer\|basic\|header\|cookie\|query\|variable, target?, secret, value, keep?}], recipe?, capture_cookies?}}`. An empty `value` with `keep: true` keeps the stored secret. One default per project. Secrets are encrypted at rest |
+| Delete **web** | `{workspaceId, id}` |
+| Reveal **web** | `{workspaceId, id, field}` (`cookie:<name>` for a jar cookie) → `{value}`; audited without the value and denied when restricted mode sets `reveal_secrets: false` |
+| ClearJar **web** | `{workspaceId, id}` empties the captured cookies |
+| Refresh | `{workspaceId, id, processId \| upstream, port?}` runs the profile's login recipe now and returns the updated profile |
+| ListProxies / StartProxy / StopProxy | Short-lived loopback proxies that attach a profile to every forwarded request. `StartProxy {workspaceId, profile, processId \| upstream, port?, ttl_minutes?, label?, confirmed}` answers `{needsConfirmation, reason}` until `confirmed: true`; default 30 minutes, at most 8 hours |
+| GetKeystore | `{backend, active, keychain_available, keychain_tool, keychain_error, key_path}` |
+| SetKeystore **web** | `{backend: auto\|file\|keychain}` moves the encryption key between the 0600 key file and the OS keychain without re-encrypting anything |
+| ResetKey **web** | `{confirm: "reset"}` creates a new key and clears every stored secret (use when the key is lost) |
 
 ## LogService
 

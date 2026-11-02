@@ -175,6 +175,14 @@ func runDoctor(fix bool) []doctorCheck {
 				problems = append(problems, e.Problems...)
 			}
 		}
+		if in := rep.Instructions; in != nil && (status == "installed" || status == "outdated") {
+			switch {
+			case !in.Installed:
+				add("instructions:"+h.ID, true, fmt.Sprintf("agent instructions not added to %s (jack-ketch integrate install %s)", in.Path, h.ID), "")
+			case !in.UpToDate:
+				add("instructions:"+h.ID, false, "agent instructions outdated in "+in.Path, "jack-ketch integrate install "+h.ID)
+			}
+		}
 		switch status {
 		case "installed":
 			add("integration:"+h.ID, true, "connected", "")

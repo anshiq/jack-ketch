@@ -104,6 +104,7 @@ type probeIn struct {
 	TimeoutMS      int               `json:"timeout_ms,omitempty" jsonschema:"Request timeout (default 10000, max 120000)."`
 	SettleMS       int               `json:"settle_ms,omitempty" jsonschema:"How long to keep collecting logs after the response (default 300)."`
 	Confirmed      bool              `json:"confirmed,omitempty" jsonschema:"Set only after the user approved a data-changing method or a non-local target."`
+	Credential     string            `json:"credential,omitempty" jsonschema:"Credential profile (list_credentials) whose token, cookies, tenant headers... jack-ketch attaches to the request without revealing them. Omit to use the project's default profile; \"none\" sends the request without credentials. ${cred:<field>} placeholders in url, headers and body expand from the same profile."`
 }
 
 type runChecksIn struct {
@@ -181,14 +182,14 @@ func registerAssistTools(server *mcp.Server, h *handlers) {
 		})
 
 	addTool(server, h,
-		&mcp.Tool{Name: "probe", Title: "Probe process", Annotations: mutating("Probe process", false, false), Description: "Exercise a running process at runtime: send an HTTP request (or TCP connect) and get status, headers, body and the exact log lines the process printed while handling it, in one call. Use it to show the user a fix or feature working live. GET/HEAD/OPTIONS to localhost run directly; other methods or non-local targets need the user's approval (confirmed=true). The result's check object can be saved with save_run_config(checks=[...]) for one-call re-verification via run_checks."},
+		&mcp.Tool{Name: "probe", Title: "Probe process", Annotations: mutating("Probe process", false, false), Description: "Exercise a running process at runtime: send an HTTP request (or TCP connect) and get status, headers, body and the exact log lines the process printed while handling it, in one call. Use it to show the user a fix or feature working live. GET/HEAD/OPTIONS to localhost run directly; other methods or non-local targets need the user's approval (confirmed=true). Authenticated calls: when the user configured credential profiles (list_credentials) the default profile is attached automatically, or pass credential=<name>; tokens, cookies and tenant headers are added by jack-ketch and never shown to you, and a rejected or expired credential is reported in credential_status and credential_hint for the user to fix in the web UI. The result's check object can be saved with save_run_config(checks=[...]) for one-call re-verification via run_checks."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in probeIn) (*mcp.CallToolResult, *api.ProbeResult, error) {
 			rt, err := h.facade(ctx)
 			if err != nil {
 				return nil, nil, err
 			}
 			preq := api.ProbeRequest{ProcessID: in.ProcessID, Method: in.Method, URL: in.URL, TCP: in.TCP, Port: in.Port, Headers: in.Headers, Body: in.Body,
-				ExpectStatus: in.ExpectStatus, ExpectContains: in.ExpectContains, TimeoutMS: in.TimeoutMS, SettleMS: in.SettleMS, Confirmed: in.Confirmed}
+				ExpectStatus: in.ExpectStatus, ExpectContains: in.ExpectContains, TimeoutMS: in.TimeoutMS, SettleMS: in.SettleMS, Confirmed: in.Confirmed, Credential: in.Credential}
 			res, err := rt.Probe(ctx, preq)
 			var ce *runtime.ConfirmError
 			if errors.As(err, &ce) {
