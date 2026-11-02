@@ -419,6 +419,10 @@ func findMapValue(mapping *yaml.Node, key string) *yaml.Node {
 }
 
 func (e *Engine) ApplyProjectYAML(projectID, layer, workspaceID, yamlText, source, session, message string, restartAffected bool) (int64, []string, error) {
+	if layer != "workspace" {
+		layer = "project"
+		workspaceID = ""
+	}
 	if errs := config.Validate([]byte(yamlText)); len(errs) > 0 {
 		return 0, nil, errs[0]
 	}

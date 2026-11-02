@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	schemaMigration = 4
+	schemaMigration = 5
 )
 
 // DB is the state database handle.
@@ -144,6 +144,8 @@ func migrationSQL(v int) string {
 		return migration3
 	case 4:
 		return migration4
+	case 5:
+		return migration5
 	default:
 		return ""
 	}
@@ -1256,6 +1258,10 @@ func (d *DB) GetConfig(projectID, layer, workspaceID string) ([]byte, int64, err
 }
 
 func (d *DB) PutConfigTx(projectID, layer, workspaceID, content, sha string, valid bool, errors, source, session, message string) (int64, error) {
+	if layer != "workspace" {
+		layer = "project"
+		workspaceID = ""
+	}
 	tx, err := d.db.Begin()
 	if err != nil {
 		return 0, err

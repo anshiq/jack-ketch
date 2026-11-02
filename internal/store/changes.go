@@ -241,3 +241,24 @@ CREATE TABLE IF NOT EXISTS credential_profiles (
 );
 CREATE INDEX IF NOT EXISTS cred_project ON credential_profiles(project_id);
 `
+
+const migration5 = `
+INSERT INTO project_configs (project_id, layer, workspace_id, content, sha256, active_rev, updated_at)
+SELECT c.project_id, 'project', '', c.content, c.sha256, c.active_rev, c.updated_at
+FROM project_configs c
+WHERE c.layer = 'project' AND c.workspace_id <> ''
+  AND c.rowid = (
+    SELECT c2.rowid FROM project_configs c2
+    WHERE c2.project_id = c.project_id AND c2.layer = 'project' AND c2.workspace_id <> ''
+    ORDER BY COALESCE(c2.active_rev, 0) DESC, c2.updated_at DESC, c2.rowid DESC
+    LIMIT 1
+  )
+ON CONFLICT(project_id, layer, workspace_id) DO UPDATE SET
+  content = excluded.content,
+  sha256 = excluded.sha256,
+  active_rev = excluded.active_rev,
+  updated_at = excluded.updated_at
+WHERE COALESCE(excluded.active_rev, 0) >= COALESCE(project_configs.active_rev, 0);
+
+DELETE FROM project_configs WHERE layer = 'project' AND workspace_id <> '';
+`

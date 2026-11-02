@@ -125,3 +125,43 @@ func TestConfigPlan_ReportsStaleAgainstLatestRevision(t *testing.T) {
 		t.Fatalf("base_revision does not match latest; should be stale: %+v", plan)
 	}
 }
+
+func TestConfigApply_ProjectLayerIgnoresWorkspaceID(t *testing.T) {
+	eng, done := testEngine(t)
+	defer done()
+	cl := client.New(sockPath(t, eng), "test/cli")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ws := t.TempDir()
+	res, err := cl.ProjectService().Resolve(ctx, ws)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	yaml := "apps:\n  api:\n    command: [sleep, \"5\"]\n"
+	applied, err := cl.ConfigService().Apply(ctx, map[string]any{
+		"projectId": res.ProjectID, "workspaceId": res.WorkspaceID, "layer": "project",
+		"yaml": yaml, "message": "edited from gui",
+	})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if applied["applied"] != true {
+		t.Fatalf("apply not applied: %v", applied)
+	}
+
+	var got struct {
+		Raw            map[string]string `json:"raw"`
+		ConfigRevision int64             `json:"configRevision"`
+	}
+	if err := cl.Call(ctx, "ConfigService", "GetConfig", map[string]any{"workspaceId": res.WorkspaceID}, &got); err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+	if got.Raw["project"] != yaml {
+		t.Fatalf("project raw = %q", got.Raw["project"])
+	}
+	if got.ConfigRevision != int64(applied["revision"].(float64)) {
+		t.Fatalf("config revision = %d, applied = %v", got.ConfigRevision, applied["revision"])
+	}
+}
