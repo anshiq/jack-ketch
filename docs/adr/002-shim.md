@@ -1,7 +1,14 @@
 # ADR-002: Shim Process Supervisor
 
 ## Status
-Accepted
+Superseded (2026-11-13). The shim was never wired into process supervision
+and has been removed, together with the `jack-ketch-shim` binary and its
+protocol. Managed processes are children of `jackketchd`: stopping,
+restarting or updating the daemon stops all of them. Users are warned
+instead: `daemon stop`/`daemon restart` list the running processes and ask
+for confirmation, the web UI shows an update banner once a new binary is
+installed, and MCP results carry `update_notice` so agents tell the user
+before anything restarts the daemon.
 
 ## Context
 Process lifetime is currently tied to the daemon's pipes (`lifecycle.go` uses in-process `io.Pipe`s). A daemon restart cuts every child's stdout/stderr. The children keep running but become unobservable.

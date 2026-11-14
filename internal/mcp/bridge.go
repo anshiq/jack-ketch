@@ -382,7 +382,16 @@ func (b *Bridge) List() (*api.ListResult, error) {
 		}
 		out.Processes = append(out.Processes, s)
 	}
+	out.UpdateNotice = b.updateNotice(ctx)
 	return out, nil
+}
+
+func (b *Bridge) updateNotice(ctx context.Context) string {
+	st, err := b.client.SystemService().UpdateStatus(ctx)
+	if err != nil || !st.Pending {
+		return ""
+	}
+	return st.Notice + " Tell the user before anything restarts the daemon."
 }
 
 func (b *Bridge) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
@@ -439,6 +448,7 @@ func (b *Bridge) WaitForLog(ctx context.Context, req api.WaitForLogRequest) (*ap
 	got, err := b.client.LogService().WaitForLog(ctx, map[string]any{
 		"process_id": req.ProcessID, "contains": req.Contains,
 		"pattern": req.Pattern, "ready": req.Ready, "timeout_ms": req.TimeoutMS,
+		"since": req.Since, "fail_contains": req.FailContains, "fail_pattern": req.FailPattern,
 	})
 	if err != nil {
 		return nil, err
@@ -669,14 +679,36 @@ func (b *Bridge) ProjectInfo(ctx context.Context) (map[string]any, error) {
 		return nil, err
 	}
 	sessions, _ := b.client.SessionService().List(ctx, b.ws())
-	return map[string]any{
+	out := map[string]any{
 		"projectId": b.proj(), "workspaceId": b.ws(),
 		"workspacePath": b.WorkspacePath(), "sessionId": b.SessionID(),
 		"project": proj, "configSource": cfg["configSource"],
 		"configRevision": cfg["configRevision"], "revision": cfg["revision"],
 		"pendingProposal": cfg["pendingProposal"],
 		"sessions":        sessions,
-	}, nil
+	}
+	if n := b.updateNotice(ctx); n != "" {
+		out["update_notice"] = n
+	}
+	if nested := b.nestedFor(ctx); len(nested) > 0 {
+		out["nested"] = nested
+		out["nested_hint"] = "This project overlaps with another project: the same apps are defined in both and can be started twice. Ask the user to merge them on the web UI's Projects page, or run `jack-ketch project merge <child-id> --into <parent-id>`. Do not start apps from both."
+	}
+	return out, nil
+}
+
+func (b *Bridge) nestedFor(ctx context.Context) []client.NestedProject {
+	list, err := b.client.ProjectService().Nested(ctx)
+	if err != nil {
+		return nil
+	}
+	var out []client.NestedProject
+	for _, n := range list {
+		if n.Child.ProjectID == b.proj() || n.Parent.ProjectID == b.proj() {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func (b *Bridge) ValidateConfig(ctx context.Context, yaml string) (map[string]any, error) {

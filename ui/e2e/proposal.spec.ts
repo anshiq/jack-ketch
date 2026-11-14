@@ -28,7 +28,8 @@ test('proposal banner appears with approve and dismiss', async ({ page }) => {
   await page.getByRole('button', { name: 'Workspace scope' }).click();
   await page.locator('input[aria-label="Workspace path"]').fill(info.workspace);
   await page.getByRole('button', { name: 'Open', exact: true }).click();
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   await expect(page.getByText(/Auto-detect proposes/i)).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();

@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -168,4 +169,77 @@ func (d *DB) UpdateCredentialState(id, fieldsJSON, jarJSON, lastError string, re
 func (d *DB) SetCredentialError(id, lastError string) error {
 	_, err := d.db.Exec(`UPDATE credential_profiles SET last_error=? WHERE id=?`, lastError, id)
 	return err
+}
+
+func (d *DB) MoveCredentials(fromProject, toProject string, rename map[string]string) (moved, skipped int, err error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return 0, 0, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.Query(`SELECT id, name, is_default, apps_json FROM credential_profiles WHERE project_id=?`, fromProject)
+	if err != nil {
+		return 0, 0, err
+	}
+	type item struct {
+		id, name, apps string
+		def            bool
+	}
+	var items []item
+	for rows.Next() {
+		var it item
+		var def int
+		if err := rows.Scan(&it.id, &it.name, &def, &it.apps); err != nil {
+			rows.Close()
+			return 0, 0, err
+		}
+		it.def = def != 0
+		items = append(items, it)
+	}
+	rows.Close()
+	var hasDefault int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM credential_profiles WHERE project_id=? AND is_default=1`, toProject).Scan(&hasDefault); err != nil {
+		return 0, 0, err
+	}
+	for _, it := range items {
+		var clash int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM credential_profiles WHERE project_id=? AND name=?`, toProject, it.name).Scan(&clash); err != nil {
+			return 0, 0, err
+		}
+		if clash > 0 {
+			skipped++
+			continue
+		}
+		def := it.def && hasDefault == 0
+		if def {
+			hasDefault = 1
+		}
+		apps := renameJSONApps(it.apps, rename)
+		if _, err := tx.Exec(`UPDATE credential_profiles SET project_id=?, is_default=?, apps_json=?, updated_at=? WHERE id=?`,
+			toProject, b2i(def), apps, time.Now().Unix(), it.id); err != nil {
+			return 0, 0, err
+		}
+		moved++
+	}
+	return moved, skipped, tx.Commit()
+}
+
+func renameJSONApps(raw string, rename map[string]string) string {
+	if len(rename) == 0 || raw == "" {
+		return raw
+	}
+	var names []string
+	if err := json.Unmarshal([]byte(raw), &names); err != nil {
+		return raw
+	}
+	for i, n := range names {
+		if to, ok := rename[n]; ok {
+			names[i] = to
+		}
+	}
+	out, err := json.Marshal(names)
+	if err != nil {
+		return raw
+	}
+	return string(out)
 }

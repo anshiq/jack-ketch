@@ -30,20 +30,42 @@ alive; slow consumers get `Gap{dropped}` instead of backpressure (§5.4).
 
 | RPC | Notes |
 |---|---|
-| GetVersion | `{daemonVersion, apiVersion, minClientVersion, shimProtocol}`; clients below minimum get an upgrade error |
+| GetVersion | `{daemonVersion, apiVersion, minClientVersion, update}`; clients below minimum get an upgrade error. `update` is the same object GetUpdateStatus returns |
+| GetUpdateStatus | `{}` → `{pending, runningVersion, installedVersion?, executable, runningProcesses, processes[{processId, app, command, status, workspaceId, workspacePath}], notice?}`. `pending` is true when the `jackketchd` binary on disk was replaced (and reports a different `--version`) since the daemon started; `notice` is a ready-to-show sentence saying that restarting finishes the update and stops the running managed processes |
 | Health | liveness + uptime |
 | GetStats | projects, processes (loaded runtimes), sessions |
 | GetRuntimeStats | `{workspaceId}` required; runtime health for one workspace: process counts by status, log-pipeline drops, uptime |
 | GetSettings / UpdateSettings | `log_level`, `idle_exit`, `retention` (event history: `7d`/`30d`/`90d`; audit history is always kept 90 days), `suggest_saving_runs` (offer to save successful raw runs as app modes; nothing is saved without the user) |
 | ListDirectory | `{dir?, prefix?, baseDir?, dirsOnly?, limit?}` → `{dir, entries:[{name, isDir}], truncated, error?}`; read-only path autocomplete for the web UI. Relative `dir` resolves against `baseDir` (default home), `~` expands to home, dotfiles are included, directories sort first, and results are capped (default 100, max 500). File contents are never read. |
 | EnableTCP | `{addr}`; starts the authenticated loopback listener used by the web UI, creates the token file if needed; loopback addresses only; `{addr, started}` (idempotent: an existing listener is returned with `started: false`) |
-| Shutdown | `{keepProcesses}` (default true): drain; false stops everything first |
+| Shutdown | `{}` → `{draining: true}`: stops every managed process gracefully, then the daemon. The old `keepProcesses` field is ignored |
 
 ## ProjectService
 
 Resolve (path → project/workspace via the locator chain), ListProjects,
 GetProject, UpdateProject (rename), ListWorkspaces, LinkWorkspace,
-ForgetProject (soft delete, 30-day trash), GC (missing paths).
+ForgetProject (soft delete, 30-day trash), GC (missing paths),
+ListNestedProjects, MergeNestedProject.
+
+Resolve attaches a folder to the nearest enclosing workspace whose project
+config already defines an app inside that folder, instead of creating a
+second project; the response carries `attachedSubpath` (the folder relative to
+that workspace). Workspaces of forgotten projects no longer resolve, and their
+folder can be registered again.
+
+ListNestedProjects returns every project whose folder sits inside another
+live workspace whose config defines apps there: `{nested: [{child, parent,
+apps: [{name, workdir, status, parentApp}], running}]}` where `status` is
+`duplicate` (same workdir and command), `conflict` (same name and workdir,
+different command) or `unique` (only in the child).
+
+MergeNestedProject `{childProjectId, parentProjectId, dryRun}` copies the
+child's apps, modes and checks into the parent config (parent values win,
+unique apps are added with a workdir relative to the parent), moves the
+child's credential profiles (a name that exists in the parent stays behind),
+unlinks the child's workspaces and forgets the child project. It refuses
+while the child has running processes. `dryRun` returns the same report
+without changing anything.
 
 ## ConfigService
 
@@ -61,9 +83,11 @@ conflict), ListRevisions, GetRevision, Rollback, WatchConfig (stream).
 
 ## ProcessService
 
-Start (returns immediately), Stop, Restart, Signal, SendStdin, Remove,
+Start (returns immediately; refuses with `failed_precondition` when another project is already running the same command in the same folder, unless `force: true`), Stop, Restart, Signal, SendStdin, Remove,
 Get, List (`workspaceId` or `allWorkspaces`), WatchProcesses (stream),
-WaitForExit, SetRestartPolicy, GetEnv (redacted unless policy allows),
+WaitForExit (the result carries `tests: {framework, passed, failed,
+skipped, total, failures}` when the output contains a go test, pytest, jest,
+vitest, cargo, dotnet, rspec, mocha or phpunit summary), SetRestartPolicy, GetEnv (redacted unless policy allows),
 OpenShell (defaults `lifetime: session`), Attach (server-stream output +
 SendStdin input; full bidi with codegen), GetResourceUsage,
 WatchResourceUsage. Start takes `mode` with `app`.
@@ -75,6 +99,10 @@ WatchResourceUsage. Start takes `mode` with `app`.
 | SaveSuggestion | `{processId}` → `{suggestion}` (null when the run failed, is already saved, was dismissed, or suggestions are off) |
 | Probe | `api.ProbeRequest` → status, headers, body and the log lines the process printed during the request; `{needsConfirmation, reason}` for non-GET/HEAD/OPTIONS or non-loopback targets until `confirmed: true`. `credential` selects a credential profile (empty = the project default, `none` = no credentials); the result carries `credential`, `credential_status` (`ok`, `expiring`, `expired`, `empty`, `rejected`), `credential_refreshed` and `credential_hint`, and every secret value is scrubbed from the body, headers, error, URL, check and log lines |
 | RunChecks | `{process_id \| workspaceId+app+mode, names?}` → per-check results with logs, `passed`, `failed`; a check's `credential` is attached, but never to a non-local host |
+| GetErrors | `{process_id, since?, baseline?, limit?}` → `{process_id, instance_id, groups[{fingerprint, kind, message, count, first_seen, last_seen, first_id, stream, locations[{file, line, column, in_project}], sample, new}], total_errors, new_groups, scanned_from, cursor, truncated}`. `kind` is `compile_error`, `panic`, `exception`, `test_failure`, `browser_error`, `lint_error` or `log_error`. `since` defaults to `instance` (current run); `baseline` is a log cursor, and groups already printed before it get `new: false`. Default limit 20 |
+| StartStack | `{workspaceId, apps?, modes?{app: mode}, timeoutMs?, noReuse?}` → `{started[{app, processId, instanceId, mode, ready, reused}], order, pulledIn?, failed?, failedProcessId?, error?}`. `depends_on` dependencies are added and started first (cycles and unknown apps are rejected); apps already running in the requested mode are reused; empty `apps` means every declared app; each app is awaited until ready (`timeoutMs` per app, default 30 s, max 600 s) and the call stops at the first failure |
+| StartBrowserProxy | `{processId, url?, port?, ttlMinutes?, warnings?}` → `{id, processId, workspaceId, upstream, url, warnings, createdAt, expiresAt, requests, reports, pagesInstrumented}`. Opens `127.0.0.1:<random>` in front of the process's dev server (local hosts only), injects `/__jack-ketch/console.js` into HTML pages and appends browser `console.error` (and `console.warn` with `warnings`), uncaught exceptions, unhandled rejections and 5xx/network failures to the process's stderr as `[browser] error: ...` lines. WebSockets pass through. Default 60 minutes, max 12 hours; a second start for the same process returns the open proxy. Removing the process closes its proxies |
+| ListBrowserProxies / StopBrowserProxy | `{workspaceId?}` → `{proxies}`; `{workspaceId, id}` → `{stopped}` |
 
 ## CredentialService
 
@@ -99,9 +127,14 @@ profile but never read or change one.
 
 ## LogService
 
-GetLogs (MCP-compatible tail; `source` may be `segments`), SearchLogs
+GetLogs (MCP-compatible tail; `source` may be `segments`; `since` takes a
+cursor, `instance` or `all` and the result carries `cursor` for the next
+call; `compact: true` folds repeated lines (`count`, `last_id`) and
+dependency stack frames (`folded`), reporting `compacted_lines`), SearchLogs
 (FTS over the workspace index + bounded ring scan; `truncatedScan` flag),
-TailLogs (stream: backlog + live), WaitForLog, ClearLogs, ExportLogs
+TailLogs (stream: backlog + live), WaitForLog (`since`: `instance`
+(default), `now` or a cursor; `fail_contains`/`fail_pattern` end the wait
+with `failed: true`; results carry `cursor` and `start_cursor`), ClearLogs, ExportLogs
 (stream chunks), GetLogStats (index lag).
 
 ## EventService

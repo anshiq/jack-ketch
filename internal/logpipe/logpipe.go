@@ -3,7 +3,7 @@
 //
 // The data flow is:
 //
-//	child stdout/stderr → shim: line framing + seq + ts → segment file →
+//	child stdout/stderr → daemon: line framing + seq + ts → segment file →
 //	jackketchd ingest → ring buffer (hot tail) + index writer (FTS5) + streams
 //
 // Segment format (§6.2):
@@ -117,7 +117,7 @@ type Segment struct {
 }
 
 // SegmentWriter writes framed records to a segment file, rotating at
-// maxSize. It is not safe for concurrent use; the shim writes from a
+// maxSize. It is not safe for concurrent use; the daemon writes from a
 // single goroutine.
 type SegmentWriter struct {
 	dir        string
@@ -497,8 +497,7 @@ func lastSeq(path string) (uint64, error) {
 }
 
 // Ingest reads from segments and feeds the ring buffer + indexer.
-// CatchUp replays from the persisted cursor; live subscribe (shim.sock)
-// is wired in Phase 2b when the daemon attaches to running shims.
+// CatchUp replays from the persisted cursor.
 type Ingest struct {
 	dir    string
 	cursor uint64

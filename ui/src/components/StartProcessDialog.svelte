@@ -5,7 +5,8 @@
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Info from '@lucide/svelte/icons/info';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-  import { ConfigService, ProcessService } from '../lib/api';
+  import { ConfigService } from '../lib/api';
+  import { startGuarded } from '../lib/startGuard';
   import { splitCommand } from '../lib/shellquote';
   import { scopeState } from '../lib/state/scope.svelte';
   import Dialog from '../lib/ui/Dialog.svelte';
@@ -159,8 +160,8 @@
         req.command = parts;
         if (workdir.trim()) req.workdir = workdir.trim();
       }
-      const res = await ProcessService.start(req);
-      onStarted(String(res.processId));
+      const res = await startGuarded(req);
+      if (res) onStarted(String(res.processId));
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     } finally {

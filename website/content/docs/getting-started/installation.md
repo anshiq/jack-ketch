@@ -1,10 +1,10 @@
 ---
 title: "Installation"
-description: "Install the three binaries on Linux, macOS or Windows, or from Nix or source."
+description: "Install the two binaries on Linux, macOS or Windows, or from Nix or source."
 weight: 10
 ---
 
-jack-ketch installs three binaries: `jack-ketch` (the CLI and MCP bridge), `jackketchd` (the daemon) and `jack-ketch-shim` (a tiny process shim). They must sit in the same directory.
+jack-ketch installs two binaries: `jack-ketch` (the CLI and MCP bridge) and `jackketchd` (the daemon). They must sit in the same directory.
 
 {{< tabs >}}
 {{< tab name="Linux and macOS" >}}
@@ -28,13 +28,16 @@ git clone https://github.com/anshiq/jack-ketch
 cd jack-ketch
 go build ./cmd/jack-ketch
 go build ./cmd/jackketchd
-go build ./cmd/jack-ketch-shim
 ```
 Requires Go. See `go.mod` for the minimum version.
 {{< /tab >}}
 {{< /tabs >}}
 
-The installers resolve the latest release, verify its SHA-256 checksum and place the binaries for you.
+The installers resolve the latest release, verify its SHA-256 checksum and place the binaries for you. Upgrading from a release that shipped `jack-ketch-shim` removes that binary.
+
+## Updating
+
+Re-run the installer. If the daemon is running, it keeps running the previous version: finishing the update means restarting it, and that stops every managed process. The installer warns you, the web UI shows a banner with the processes a restart would stop, and agents see `update_notice`. Run `jack-ketch daemon restart` when you are ready; it lists the processes and asks before stopping them.
 
 ## Pin a version or directory
 

@@ -22,7 +22,17 @@ When a wait is cut short, the result has `clamped=true` and `still_running=true`
 
 ```text
 r = wait_for_log(process_id, ready=true, timeout_ms=300000)
-r.clamped and r.still_running  ->  wait_for_log(process_id, ready=true, timeout_ms=300000)
+r.clamped and r.still_running  ->  wait_for_log(process_id, ready=true, since=r.cursor, timeout_ms=300000)
+```
+
+Passing `since=r.cursor` continues exactly where the previous call stopped, so no line printed in between is skipped.
+
+## Waiting for a rebuild
+
+`wait_for_log` matches lines of the current run, including ones already printed. That is right after a start, but after an edit that a hot-reloading dev server rebuilds without restarting, an old "compiled" line would match at once. Pass `since="now"`, and add `fail_pattern` so a failed rebuild ends the wait with `failed=true` instead of a timeout:
+
+```text
+wait_for_log(process_id, contains="compiled successfully", since="now", fail_pattern="(?i)error|failed to compile")
 ```
 
 This applies to `wait_for_log`, `wait_for_exit` and `start_process` with `timeout_ms`.

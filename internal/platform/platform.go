@@ -24,27 +24,6 @@ type IPC interface {
 	PeerUID(conn net.Conn) (uint32, error)
 }
 
-// Spawner spawns and reconnects to shims.
-type Spawner interface {
-	Spawn(ctx context.Context, bundle []byte) (ShimHandle, error)
-	Reconnect(ctx context.Context, instanceDir string) (ShimHandle, error)
-}
-
-// ShimHandle represents a running shim process.
-type ShimHandle interface {
-	PID() int
-	PGID() int
-	ControlAddr() string
-}
-
-// TreeKiller sends signals to process trees.
-type TreeKiller interface {
-	Signal(h ShimHandle, sig Signal, group bool) error
-}
-
-// Signal is a POSIX signal number.
-type Signal int
-
 // ServiceManager manages daemon lifecycle via systemd/launchd/task scheduler.
 type ServiceManager interface {
 	Install() error

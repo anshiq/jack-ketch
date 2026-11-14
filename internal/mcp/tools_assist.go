@@ -12,6 +12,7 @@ import (
 	"jack-ketch/internal/diagnose"
 	"jack-ketch/internal/runtime"
 	"jack-ketch/pkg/api"
+	"jack-ketch/pkg/client"
 )
 
 type suggester interface {
@@ -166,7 +167,79 @@ func elicitApproval(req *mcp.CallToolRequest, key, message string) (pending *mcp
 	return nil, ok, true
 }
 
+type getErrorsIn struct {
+	ProcessID string `json:"process_id" jsonschema:"The process_id returned by start_process."`
+	Since     string `json:"since,omitempty" jsonschema:"Scan from here: \"instance\" (default, the current run), \"all\" (everything retained), or a cursor from get_logs, wait_for_log or an earlier get_errors."`
+	Baseline  string `json:"baseline,omitempty" jsonschema:"A cursor taken before your change (from get_logs, wait_for_log or get_errors). Errors already printed before it are marked new=false, so new=true groups are the ones your change introduced."`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Maximum groups to return (default 20)."`
+}
+
+type startStackIn struct {
+	Apps      []string          `json:"apps,omitempty" jsonschema:"Apps to bring up (list_apps). Their depends_on dependencies are added automatically. Empty starts every declared app."`
+	Modes     map[string]string `json:"modes,omitempty" jsonschema:"Mode per app, for example {\"api\": \"dev\"}. Apps not listed use their default mode."`
+	TimeoutMS int               `json:"timeout_ms,omitempty" jsonschema:"How long to wait for each app to become ready (default 60000, max 600000)."`
+	Workspace string            `json:"workspace,omitempty" jsonschema:"Absolute workspace path when this session is not bound to a project."`
+}
+
+type startStackOut struct {
+	Started         []client.StackApp `json:"started"`
+	Order           []string          `json:"order"`
+	PulledIn        []string          `json:"pulled_in,omitempty"`
+	Failed          string            `json:"failed,omitempty"`
+	FailedProcessID string            `json:"failed_process_id,omitempty"`
+	Error           string            `json:"error,omitempty"`
+	Diagnosis       *api.Diagnosis    `json:"diagnosis,omitempty"`
+	Hint            string            `json:"hint,omitempty"`
+}
+
 func registerAssistTools(server *mcp.Server, h *handlers) {
+	addTool(server, h,
+		&mcp.Tool{Name: "start_stack", Title: "Start app stack", Annotations: mutating("Start app stack", false, true), Description: "Bring up several apps in dependency order (depends_on) in one call: dependencies are added and started first, each app is awaited until ready before the next starts, and apps already running are reused instead of duplicated. Returns every process_id. On failure it stops at the failing app and includes its diagnosis. Prefer it over several start_process calls when an app needs a database, cache, API or worker running."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in startStackIn) (*mcp.CallToolResult, *startStackOut, error) {
+			b, err := h.bridge(ctx, req, in.Workspace)
+			if err != nil {
+				return nil, nil, err
+			}
+			per := in.TimeoutMS
+			if per <= 0 {
+				per = 60000
+			}
+			if per > 600000 {
+				per = 600000
+			}
+			res, err := b.StartStack(ctx, in.Apps, in.Modes, per)
+			if err != nil {
+				return nil, nil, err
+			}
+			out := &startStackOut{Started: res.Started, Order: res.Order, PulledIn: res.PulledIn, Failed: res.Failed, FailedProcessID: res.FailedProcessID, Error: res.Error}
+			if out.Started == nil {
+				out.Started = []client.StackApp{}
+			}
+			if out.FailedProcessID != "" {
+				if d, err := b.Diagnose(out.FailedProcessID); err == nil {
+					out.Diagnosis = d
+				}
+				out.Hint = "The stack stopped at " + out.Failed + ". Follow the diagnosis, then call start_stack again; apps that are already running are reused."
+			} else if out.Failed != "" {
+				out.Hint = "The stack stopped at " + out.Failed + ": " + out.Error
+			}
+			return nil, out, nil
+		})
+
+	addTool(server, h,
+		&mcp.Tool{Name: "get_errors", Title: "Get errors", Annotations: readOnly("Get errors"), Description: "Errors a process printed, grouped and deduplicated instead of raw log lines: compiler and type errors (tsc, go, rustc, C#, vite/webpack), exceptions and panics with their stack traces, test failures (pytest, jest, vitest, go test), lint errors (eslint) and error-level log lines. Each group has kind, message, count, the source locations (file, line, column; in_project=true for files in this project, listed first) and a short sample. Use it right after a build, test run or failed wait instead of paging through get_logs. Pass baseline=<cursor taken before your edit> to see which errors are new."},
+		func(ctx context.Context, req *mcp.CallToolRequest, in getErrorsIn) (*mcp.CallToolResult, *api.GetErrorsResult, error) {
+			rt, err := h.facade(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			res, err := rt.Errors(api.GetErrorsRequest{ProcessID: in.ProcessID, Since: in.Since, Baseline: in.Baseline, Limit: in.Limit})
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, res, nil
+		})
+
 	addTool(server, h,
 		&mcp.Tool{Name: "diagnose_process", Title: "Diagnose process", Annotations: readOnly("Diagnose process"), Description: "Explain why a process failed or is erroring: category (missing_env, invalid_credentials, missing_dependency, missing_tool, service_unreachable, port_in_use, migration_pending, code_error, ...), evidence lines, who must act (user, agent, or agent_with_approval), plain steps, suggested fix commands flagged needs_approval, and for env problems the exact missing keys with hints from .env.example and the file to add them to. Follow its guidance field."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in processIDOnlyIn) (*mcp.CallToolResult, *api.Diagnosis, error) {

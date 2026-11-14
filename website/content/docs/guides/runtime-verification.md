@@ -46,10 +46,10 @@ Ask your agent to offer this after a fix: it can call `save_run_config(process_i
 
 ## A good verification flow
 
-1. Reuse the running process or `restart_process`, then `wait_for_log(ready=true)`.
+1. `verify_change(process_id)` restarts (or waits for a hot reload), runs saved checks and lists only new errors. Step by step: `restart_process`, then `wait_for_log(ready=true)`.
 2. Exercise two to five concrete interactions, including an edge case.
 3. Compare expected and actual, with the key log lines from each probe.
-4. On a failure, call `diagnose_process`.
+4. On a failure, call `get_errors` for the grouped errors with file and line, and `diagnose_process` for the cause and who must act. For web frontends, `browser_console` makes browser errors part of the process logs.
 
 ## Health checks and restarts
 

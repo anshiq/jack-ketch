@@ -711,7 +711,7 @@ func TestStdioServerDaemonMode(t *testing.T) {
 
 	sock := paths.User().SocketPath()
 	stopDaemon := func() {
-		_ = rtclient.New(sock, "test").SystemService().Shutdown(ctx, false)
+		_ = rtclient.New(sock, "test").SystemService().Shutdown(ctx)
 	}
 	defer stopDaemon()
 

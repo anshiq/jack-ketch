@@ -10,7 +10,6 @@ callers of the API.
 | Secrets in logs/env in the web UI | Redaction on by default; reveal is policy-gated and audited |
 | Agent escapes the project | `restricted` mode per project; workdir confinement against the workspace path |
 | Client/harness environment leaking into supervised processes | The daemon sanitises the spawn environment, dropping `CLAUDECODE`, `CLAUDE_CODE_*`, `CODEX_*`, `GEMINI_CLI`, `CURSOR_*`, `VSCODE_*`, `MCP_*` and similar client variables |
-| Tampered shim bundle | Bundle dir `0700`; shim validates spec owner uid |
 | DB/log files readable by others | Data dir `0700`, files `0600`; `doctor` checks and fixes |
 | Agent reads test credentials | Secrets live in the daemon, never in config, env files or MCP results; see Credential profiles |
 

@@ -48,6 +48,9 @@ func newProjectCmd(loaded *config.Loaded, logger *slog.Logger) *cobra.Command {
 					res, err := cl.ProjectService().Resolve(ctx, root)
 					if err == nil {
 						fmt.Printf("project %s\nworkspace %s\nroot %s\n", res.ProjectID, res.WorkspaceID, root)
+						if res.AttachedSubpath != "" {
+							fmt.Printf("attached to enclosing workspace at subpath %s\n", res.AttachedSubpath)
+						}
 						return nil
 					}
 					logger.Warn("daemon resolve failed, falling back to local store", "error", err.Error())
@@ -232,6 +235,36 @@ func newProjectCmd(loaded *config.Loaded, logger *slog.Logger) *cobra.Command {
 			},
 		},
 		&cobra.Command{
+			Use:   "nested",
+			Short: "List projects nested inside another project that already defines their apps",
+			RunE: func(c *cobra.Command, args []string) error {
+				cl, err := client.EnsureDaemon(paths.User().SocketPath())
+				if err != nil {
+					return err
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				list, err := cl.ProjectService().Nested(ctx)
+				if err != nil {
+					return err
+				}
+				if len(list) == 0 {
+					fmt.Println("no nested projects")
+					return nil
+				}
+				for _, n := range list {
+					fmt.Printf("%s (%s) is inside %s (%s)\n  merge: jack-ketch project merge %s --into %s\n",
+						n.Child.ProjectName, n.Child.ProjectID, n.Parent.ProjectName, n.Parent.ProjectID, n.Child.ProjectID, n.Parent.ProjectID)
+					printNestedApps(n.Apps)
+					if n.Running > 0 {
+						fmt.Printf("  %d running process(es) in the nested project must be stopped before merging\n", n.Running)
+					}
+				}
+				return nil
+			},
+		},
+		newProjectMergeCmd(),
+		&cobra.Command{
 			Use:   "forget <project-id>",
 			Short: "Forget a project (soft delete, 30-day trash)",
 			Args:  cobra.ExactArgs(1),
@@ -272,4 +305,65 @@ func toAbs(dir string) (string, error) {
 		return dir, err
 	}
 	return cwd + "/" + dir, nil
+}
+
+func printNestedApps(apps []client.NestedApp) {
+	for _, a := range apps {
+		line := fmt.Sprintf("  - %-10s %s  %s", a.Status, a.Name, a.Workdir)
+		if a.ParentApp != "" && a.ParentApp != a.Name {
+			line += "  -> " + a.ParentApp
+		}
+		if a.Detail != "" {
+			line += "  (" + a.Detail + ")"
+		}
+		fmt.Println(line)
+	}
+}
+
+func newProjectMergeCmd() *cobra.Command {
+	var into string
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "merge <child-project-id> --into <parent-project-id>",
+		Short: "Merge a nested project into the project that encloses it",
+		Long:  "Copies the child's apps, modes and checks into the parent config (parent values win on conflict), moves the child's credential profiles, then forgets the child project. The folder then resolves to the parent project. Stop the child's running processes first.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			if into == "" {
+				return fmt.Errorf("--into <parent-project-id> is required")
+			}
+			cl, err := client.EnsureDaemon(paths.User().SocketPath())
+			if err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			rep, err := cl.ProjectService().MergeNested(ctx, args[0], into, dryRun)
+			if err != nil {
+				return err
+			}
+			verb := "will merge"
+			if rep.Applied {
+				verb = "merged"
+			}
+			fmt.Printf("%s %s (%s) into %s (%s)\n", verb, rep.Child.ProjectName, rep.Child.ProjectID, rep.Parent.ProjectName, rep.Parent.ProjectID)
+			printNestedApps(rep.Apps)
+			if rep.Credentials > 0 {
+				fmt.Printf("  credential profiles: %d", rep.Credentials)
+				if rep.Applied {
+					fmt.Printf(" (%d moved, %d skipped because the name exists in the parent)", rep.Moved, rep.Skipped)
+				}
+				fmt.Println()
+			}
+			if rep.Applied {
+				fmt.Printf("parent config revision %d\n", rep.Revision)
+			} else if dryRun {
+				fmt.Println("dry run: nothing changed")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&into, "into", "", "parent project id")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show what would change without applying")
+	return cmd
 }

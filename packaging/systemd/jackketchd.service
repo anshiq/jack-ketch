@@ -5,11 +5,8 @@ Requires=jackketchd.socket
 After=jackketchd.socket
 
 [Service]
-# KillMode=process is CRITICAL: systemd must not kill shims when jackketchd
-# restarts. Shims are setsid'd into their own sessions; the new daemon
-# re-attaches via shim.sock (§2.3, §R2).
 Type=notify
-KillMode=process
+KillMode=mixed
 Delegate=yes
 Restart=on-failure
 RestartSec=1s

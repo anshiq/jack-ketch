@@ -21,6 +21,12 @@ func (c *ProcessServiceClient) Diagnose(ctx context.Context, processID string) (
 	return &out, err
 }
 
+func (c *ProcessServiceClient) Errors(ctx context.Context, req api.GetErrorsRequest) (*api.GetErrorsResult, error) {
+	var out api.GetErrorsResult
+	err := c.client.call(ctx, "ProcessService", "GetErrors", req, &out)
+	return &out, err
+}
+
 func (c *ProcessServiceClient) Outcome(ctx context.Context, processID string) (*api.RunOutcome, error) {
 	var out api.RunOutcome
 	err := c.client.call(ctx, "ProcessService", "Outcome", map[string]any{"processId": processID}, &out)
@@ -91,4 +97,76 @@ func (c *ConfigServiceClient) UpdateGitignore(ctx context.Context, workspaceID s
 	var out map[string]any
 	err := c.client.call(ctx, "ConfigService", "UpdateGitignore", map[string]any{"workspaceId": workspaceID, "entries": entries, "action": action}, &out)
 	return out, err
+}
+
+type StackRequest struct {
+	WorkspaceID string            `json:"workspaceId"`
+	Apps        []string          `json:"apps,omitempty"`
+	Modes       map[string]string `json:"modes,omitempty"`
+	TimeoutMs   int               `json:"timeoutMs,omitempty"`
+	NoReuse     bool              `json:"noReuse,omitempty"`
+}
+
+type StackApp struct {
+	App        string `json:"app"`
+	ProcessID  string `json:"processId"`
+	InstanceID string `json:"instanceId,omitempty"`
+	Mode       string `json:"mode,omitempty"`
+	Ready      bool   `json:"ready"`
+	Reused     bool   `json:"reused,omitempty"`
+}
+
+type StackResult struct {
+	Started         []StackApp `json:"started"`
+	Order           []string   `json:"order"`
+	PulledIn        []string   `json:"pulledIn,omitempty"`
+	Failed          string     `json:"failed,omitempty"`
+	FailedProcessID string     `json:"failedProcessId,omitempty"`
+	Error           string     `json:"error,omitempty"`
+}
+
+func (c *ProcessServiceClient) StartStack(ctx context.Context, req StackRequest) (*StackResult, error) {
+	var out StackResult
+	err := c.client.call(ctx, "ProcessService", "StartStack", req, &out)
+	return &out, err
+}
+
+type BrowserProxy struct {
+	ID          string `json:"id"`
+	ProcessID   string `json:"processId"`
+	WorkspaceID string `json:"workspaceId"`
+	Upstream    string `json:"upstream"`
+	URL         string `json:"url"`
+	Warnings    bool   `json:"warnings"`
+	CreatedAt   int64  `json:"createdAt"`
+	ExpiresAt   int64  `json:"expiresAt"`
+	Requests    int64  `json:"requests"`
+	Reports     int64  `json:"reports"`
+	Pages       int64  `json:"pagesInstrumented"`
+}
+
+type BrowserProxyRequest struct {
+	ProcessID  string `json:"processId"`
+	URL        string `json:"url,omitempty"`
+	Port       int    `json:"port,omitempty"`
+	TTLMinutes int    `json:"ttlMinutes,omitempty"`
+	Warnings   bool   `json:"warnings,omitempty"`
+}
+
+func (c *ProcessServiceClient) StartBrowserProxy(ctx context.Context, req BrowserProxyRequest) (*BrowserProxy, error) {
+	var out BrowserProxy
+	err := c.client.call(ctx, "ProcessService", "StartBrowserProxy", req, &out)
+	return &out, err
+}
+
+func (c *ProcessServiceClient) ListBrowserProxies(ctx context.Context, workspaceID string) ([]BrowserProxy, error) {
+	var out struct {
+		Proxies []BrowserProxy `json:"proxies"`
+	}
+	err := c.client.call(ctx, "ProcessService", "ListBrowserProxies", map[string]any{"workspaceId": workspaceID}, &out)
+	return out.Proxies, err
+}
+
+func (c *ProcessServiceClient) StopBrowserProxy(ctx context.Context, workspaceID, id string) error {
+	return c.client.call(ctx, "ProcessService", "StopBrowserProxy", map[string]any{"workspaceId": workspaceID, "id": id}, nil)
 }

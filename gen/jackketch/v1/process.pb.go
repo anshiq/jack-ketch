@@ -35,6 +35,7 @@ type StartRequest struct {
 	Lifetime      string                 `protobuf:"bytes,8,opt,name=lifetime,proto3" json:"lifetime,omitempty"` // persistent | session
 	RestartPolicy string                 `protobuf:"bytes,9,opt,name=restart_policy,json=restartPolicy,proto3" json:"restart_policy,omitempty"`
 	SessionId     string                 `protobuf:"bytes,10,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Force         bool                   `protobuf:"varint,11,opt,name=force,proto3" json:"force,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,6 +138,13 @@ func (x *StartRequest) GetSessionId() string {
 		return x.SessionId
 	}
 	return ""
+}
+
+func (x *StartRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
 }
 
 type StartResponse struct {
@@ -2381,7 +2389,7 @@ var File_jackketch_v1_process_proto protoreflect.FileDescriptor
 
 const file_jackketch_v1_process_proto_rawDesc = "" +
 	"\n" +
-	"\x1ajackketch/v1/process.proto\x12\fjackketch.v1\x1a\x19jackketch/v1/common.proto\"\xfd\x02\n" +
+	"\x1ajackketch/v1/process.proto\x12\fjackketch.v1\x1a\x19jackketch/v1/common.proto\"\x93\x03\n" +
 	"\fStartRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x10\n" +
 	"\x03app\x18\x02 \x01(\tR\x03app\x12\x18\n" +
@@ -2394,7 +2402,8 @@ const file_jackketch_v1_process_proto_rawDesc = "" +
 	"\x0erestart_policy\x18\t \x01(\tR\rrestartPolicy\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\n" +
-	" \x01(\tR\tsessionId\x1a6\n" +
+	" \x01(\tR\tsessionId\x12\x14\n" +
+	"\x05force\x18\v \x01(\bR\x05force\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xea\x01\n" +

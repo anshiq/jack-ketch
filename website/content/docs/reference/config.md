@@ -37,6 +37,27 @@ version: 3
 | `restart` | `policy` (`never`, `on-failure`, `always`), `max_restarts`, `backoff` |
 | `checks` | Saved runtime checks. See below |
 | `default_mode`, `modes` | Named ways to run the app. A mode overrides only what differs |
+| `depends_on` | Apps that must be running first. `start_stack` starts them in this order |
+| `autostart` | Start the app when the daemon loads the project |
+| `reload` | What happens to running processes when this app's config changes: `manual` (default) marks them stale until you restart; `restart` restarts them automatically |
+| `watch` | Restart the app's processes when files change. See below |
+
+## `watch`
+
+```yaml
+apps:
+  api:
+    command: [go, run, ./cmd/api]
+    watch: [cmd, internal, go.mod]
+  web:
+    command: [node, server.js]
+    watch:
+      paths: [src]
+      ignore: ["*.test.js", "src/generated/**"]
+      debounce: 500ms
+```
+
+`watch` takes a path, a list of paths, or a mapping. Paths are relative to the app's `workdir`; directories are watched recursively, including directories created later. When a watched file changes, the app's running processes and its crashed or exited ones are restarted once after `debounce` (default `300ms`, between `50ms` and `1m`) of quiet; processes you stopped stay stopped. `.git`, `node_modules`, `vendor`, `dist`, `build`, `target`, `bin`, `obj`, `__pycache__`, `.venv`, framework caches and editor temp files (`*.swp`, `*~`, `*.log`, ...) are always ignored. `ignore` patterns match the file name, or the path relative to the workdir when they contain a `/`. Each automatic restart is recorded as a `process.auto_restarted` event and in the audit log. Leave `watch` off for dev servers that already hot-reload.
 
 ## `env_sources`
 

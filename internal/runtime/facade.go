@@ -37,6 +37,7 @@ type Facade interface {
 	RuntimeStats() (*api.RuntimeStats, error)
 	GetAuditLog(lines int, contains string) (*api.AuditLogResult, error)
 	Diagnose(id string) (*api.Diagnosis, error)
+	Errors(req api.GetErrorsRequest) (*api.GetErrorsResult, error)
 	Probe(ctx context.Context, req api.ProbeRequest) (*api.ProbeResult, error)
 	RunChecks(ctx context.Context, req api.RunChecksRequest) (*api.RunChecksResult, error)
 }

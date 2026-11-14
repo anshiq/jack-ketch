@@ -27,6 +27,14 @@ For a one-shot command such as a build, test or migration, pass a raw command an
 start_process(command="go", args=["test", "./..."], timeout_ms=120000)
 ```
 
+For a test run, `wait_for_exit` returns `tests` with passed, failed and skipped counts and the failing test names; `get_errors` gives their file and line.
+
+To bring up an app together with what it `depends_on` (a database, a cache, an API), use one call. Dependencies start first, each is awaited until ready, and apps already running are reused:
+
+```text
+start_stack(apps=["web"])
+```
+
 ### Read logs on demand
 
 ```text
@@ -37,14 +45,32 @@ search_logs(query="panic|fatal", regex=true, level="error")
 
 `get_logs` reads one process. `search_logs` searches every process in the project, history and live buffers. Never poll `get_logs` in a loop. Block with `wait_for_log` instead.
 
+Each `get_logs` result carries a `cursor`; `get_logs(process_id, since=cursor)` later returns only what was printed in between. `compact=true` folds repeated lines and dependency stack frames. For errors, `get_errors(process_id)` is usually better than paging logs: it groups compile errors, exceptions, panics, test failures and browser errors with their file and line.
+
 ### Restart after a change
 
 ```text
-restart_process(process_id)
-wait_for_log(process_id, ready=true)
+verify_change(process_id)
 ```
 
-The `process_id` and its log history are kept.
+`verify_change` restarts the process, waits until it is ready, runs the app's saved checks and reports only the errors that appeared since the call, with a `pass` or `fail` verdict. The `process_id` and its log history are kept. Step by step, the same is `restart_process` then `wait_for_log(process_id, ready=true)`.
+
+For a dev server that hot-reloads on its own, do not restart it. Wait for its rebuild line instead, ignoring lines printed before the edit:
+
+```text
+verify_change(process_id, restart=false, wait_contains="compiled", fail_pattern="(?i)error")
+wait_for_log(process_id, contains="compiled", since="now", fail_pattern="(?i)error")
+```
+
+An app with `watch:` in its config restarts by itself when watched files change. See the [config reference](../../reference/config/#watch).
+
+### See frontend errors
+
+```text
+browser_console(process_id)
+```
+
+Opens a local proxy in front of the dev server. Load the app through the returned URL (yourself or in Playwright) and browser console errors, uncaught exceptions and failed requests land in that process's logs as `[browser] error: ...` lines, so `get_errors` and `verify_change` report them. Hot-module reload keeps working.
 
 ### Stop and clean up
 

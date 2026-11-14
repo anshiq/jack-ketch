@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type DetailTab = 'logs' | 'info' | 'env' | 'diagnose' | 'probe' | 'resources' | 'terminal';
+  export type DetailTab = 'logs' | 'errors' | 'info' | 'env' | 'diagnose' | 'probe' | 'resources' | 'terminal';
 </script>
 
 <script lang="ts">
@@ -20,10 +20,12 @@
   import BookmarkPlus from '@lucide/svelte/icons/bookmark-plus';
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Bug from '@lucide/svelte/icons/bug';
   import { AssistService } from '../lib/api';
   import type { Diagnosis, SaveSuggestion } from '../lib/api/types';
   import DiagnosePanel from './assist/DiagnosePanel.svelte';
   import ProbePanel from './assist/ProbePanel.svelte';
+  import ErrorsPanel from './assist/ErrorsPanel.svelte';
   import SaveRunDialog from './assist/SaveRunDialog.svelte';
   import { actorInfo, isFailing, isHealthyRun } from './assist/assistView';
   import { toasts, toastError } from '../lib/toasts.svelte';
@@ -84,6 +86,7 @@
   });
   const tabs: { id: DetailTab; label: string; icon: Component<{ size?: number | string }> }[] = [
     { id: 'logs', label: 'Logs', icon: ScrollText },
+    { id: 'errors', label: 'Errors', icon: Bug },
     { id: 'info', label: 'Overview', icon: Info },
     { id: 'env', label: 'Env', icon: KeyRound },
     { id: 'diagnose', label: 'Diagnose', icon: Stethoscope },
@@ -292,6 +295,8 @@
       {/if}
     {:else if tab === 'logs'}
       <ProcessLogs processId={processId} {live} workspaceId={process?.workspaceId ?? ''} />
+    {:else if tab === 'errors'}
+      <ErrorsPanel {processId} workspaceId={process?.workspaceId ?? ''} {live} instanceKey={process?.instanceId ?? ''} />
     {:else if tab === 'info'}
       <ProcessInfo {process} />
     {:else if tab === 'env'}

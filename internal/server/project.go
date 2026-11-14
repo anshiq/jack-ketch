@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"jack-ketch/internal/core"
 	"jack-ketch/internal/project"
 )
 
@@ -21,6 +22,8 @@ func (s *Server) routeProject(mux *http.ServeMux) {
 	mux.HandleFunc(p+"LinkWorkspace", s.wrap(s.projLink))
 	mux.HandleFunc(p+"ForgetProject", s.wrap(s.projForget))
 	mux.HandleFunc(p+"GC", s.wrap(s.projGC))
+	mux.HandleFunc(p+"ListNestedProjects", s.wrap(s.projNested))
+	mux.HandleFunc(p+"MergeNestedProject", s.wrap(s.projMergeNested))
 }
 
 func (s *Server) projResolve(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -45,6 +48,7 @@ func (s *Server) projResolve(w http.ResponseWriter, r *http.Request) (any, error
 	return map[string]any{
 		"projectId": string(pid), "workspaceId": string(wid),
 		"projectName": name, "newlyCreated": res.NewlyCreated,
+		"attachedSubpath": res.AttachedSubpath,
 	}, nil
 }
 
@@ -201,4 +205,33 @@ func mustListWorkspaces(s *Server, pid string) []storeWorkspace {
 		out = append(out, storeWorkspace{ID: w.ID, Path: w.Path})
 	}
 	return out
+}
+
+func (s *Server) projNested(w http.ResponseWriter, r *http.Request) (any, error) {
+	list, err := s.engine.NestedProjects()
+	if err != nil {
+		return nil, err
+	}
+	if list == nil {
+		list = []core.NestedProject{}
+	}
+	return map[string]any{"nested": list}, nil
+}
+
+func (s *Server) projMergeNested(w http.ResponseWriter, r *http.Request) (any, error) {
+	var req struct {
+		ChildProjectID  string `json:"childProjectId"`
+		ParentProjectID string `json:"parentProjectId"`
+		DryRun          bool   `json:"dryRun"`
+	}
+	if err := decode(r, &req); err != nil {
+		return nil, err
+	}
+	noteScope(r, "", req.ParentProjectID)
+	noteArgs(r, map[string]any{"childProjectId": req.ChildProjectID, "parentProjectId": req.ParentProjectID, "dryRun": req.DryRun})
+	if req.DryRun {
+		return s.engine.PreviewNestedMerge(req.ChildProjectID, req.ParentProjectID)
+	}
+	sessionID, _ := s.sessionOf(r)
+	return s.engine.MergeNestedProject(req.ChildProjectID, req.ParentProjectID, sessionID)
 }

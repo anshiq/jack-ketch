@@ -18,6 +18,8 @@
   import Radio from '@lucide/svelte/icons/radio';
   import Repeat from '@lucide/svelte/icons/repeat';
   import Zap from '@lucide/svelte/icons/zap';
+  import Eye from '@lucide/svelte/icons/eye';
+  import RefreshCcwDot from '@lucide/svelte/icons/refresh-ccw-dot';
   import Timer from '@lucide/svelte/icons/timer';
   import Link2 from '@lucide/svelte/icons/link-2';
   import X from '@lucide/svelte/icons/x';
@@ -29,11 +31,13 @@
   import CircleX from '@lucide/svelte/icons/circle-x';
   import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Spinner from '../../lib/ui/Spinner.svelte';
+  import NestedProjectsBanner from '../../features/projects/NestedProjectsBanner.svelte';
   import WorkspacePicker from '../../components/WorkspacePicker.svelte';
   import { AssistService, ConfigService, ProcessService } from '../../lib/api';
   import { realtime } from '../../lib/realtime/index.svelte';
   import type { ChecksResult, Process } from '../../lib/api/types';
   import { router } from '../../lib/router.svelte';
+  import { startGuarded } from '../../lib/startGuard';
   import { scopeState } from '../../lib/state/scope.svelte';
   import { processes } from '../../lib/state/processes.svelte';
   import { clock } from '../../lib/state/clock.svelte';
@@ -205,8 +209,8 @@
   async function act(name: string, fn: () => Promise<unknown>, done: string) {
     setBusy(name, true);
     try {
-      await fn();
-      toasts.ok(done);
+      const r = await fn();
+      if (r !== false) toasts.ok(done);
     } catch (err) {
       toastError(err);
     } finally {
@@ -231,7 +235,7 @@
 
   const start = (r: Row) => {
     const mode = selectedMode(r);
-    return act(r.app.name, () => ProcessService.start({ workspaceId: wsId, app: r.app.name, mode: mode || undefined }), `Started ${label(r.app.name, mode)}`);
+    return act(r.app.name, async () => (await startGuarded({ workspaceId: wsId, app: r.app.name, mode: mode || undefined })) !== null, `Started ${label(r.app.name, mode)}`);
   };
 
   const switchMode = (r: Row) => {
@@ -241,7 +245,7 @@
       r.app.name,
       async () => {
         if (current) await ProcessService.stop(current.id);
-        await ProcessService.start({ workspaceId: wsId, app: r.app.name, mode: mode || undefined });
+        return (await startGuarded({ workspaceId: wsId, app: r.app.name, mode: mode || undefined })) !== null;
       },
       `Switched ${r.app.name} to ${mode || 'its base command'}`
     );
@@ -379,6 +383,8 @@
         <button class="btn" onclick={() => void router.navigate('/config')}><FileCog size={14} />Edit config</button>
       </div>
     </div>
+
+    <NestedProjectsBanner projectId={scopeState.projectId} />
 
     {#if loadError}
       <div class="banner err" role="alert">
@@ -563,6 +569,8 @@
                   <span class="badge" title="Restart policy"><Repeat size={12} />{r.app.restartPolicy}</span>
                 {/if}
                 {#if r.app.autostart}<span class="badge accent"><Zap size={12} />autostart</span>{/if}
+                {#if r.app.watchPaths.length > 0}<span class="badge accent" title={`Restarts when files change in: ${r.app.watchPaths.join(', ')}`}><Eye size={12} />watching {r.app.watchPaths.length > 2 ? `${r.app.watchPaths.slice(0, 2).join(', ')} +${r.app.watchPaths.length - 2}` : r.app.watchPaths.join(', ')}</span>{/if}
+                {#if r.app.reload === 'restart'}<span class="badge" title="Running processes restart automatically when this app's config changes"><RefreshCcwDot size={12} />restarts on config change</span>{/if}
                 {#if r.app.lifetime === 'session'}<span class="badge"><Timer size={12} />session</span>{/if}
                 {#if r.primary?.stale}<span class="badge warn" title="Config changed since this process started">restart needed</span>{/if}
                 {#if view.checks.length > 0}<span class="badge" title={view.checks.map((c) => c.name).join(', ')}><ListChecks size={12} />{view.checks.length} check{view.checks.length === 1 ? '' : 's'}</span>{/if}

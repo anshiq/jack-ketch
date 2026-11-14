@@ -44,18 +44,10 @@ func (d *Daemon) TCPWantPath() string      { return "" }
 func (d *Daemon) WriteTCPWant(_ string) error {
 	return fmt.Errorf("jackketchd: not supported on Windows yet")
 }
-func (d *Daemon) Stop(bool) error  { return fmt.Errorf("jackketchd: not supported on Windows yet") }
+func (d *Daemon) Stop() error      { return fmt.Errorf("jackketchd: not supported on Windows yet") }
 func (d *Daemon) Restart() error   { return fmt.Errorf("jackketchd: not supported on Windows yet") }
 func (d *Daemon) Install() error   { return fmt.Errorf("jackketchd: not supported on Windows yet") }
 func (d *Daemon) Uninstall() error { return fmt.Errorf("jackketchd: not supported on Windows yet") }
 
-type LiveInstance struct {
-	InstanceID string
-	ShimDir    string
-}
-
-type ReconnectReport struct{}
-
-func (d *Daemon) ReconnectShims(_ string, _ []LiveInstance) ReconnectReport { return ReconnectReport{} }
-func NotifyReady()                                                          {}
-func WaitForSignal() any                                                    { return nil }
+func NotifyReady()       {}
+func WaitForSignal() any { return nil }

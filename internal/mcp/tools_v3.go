@@ -364,5 +364,6 @@ func (b *Bridge) ListScoped(scope string) (*api.ListResult, error) {
 			out.Processes = append(out.Processes, s)
 		}
 	}
+	out.UpdateNotice = b.updateNotice(ctx)
 	return out, nil
 }

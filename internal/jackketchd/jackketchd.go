@@ -20,17 +20,22 @@ import (
 
 func Main(args []string, version string) error {
 	fs := flag.NewFlagSet("jackketchd", flag.ContinueOnError)
-	var foreground bool
+	var foreground, showVersion bool
 	var socketOverride, dataOverride, tcpAddr, tokenFile string
 	fs.BoolVar(&foreground, "foreground", false, "run in foreground (no double-fork)")
 	fs.StringVar(&socketOverride, "socket", "", "override daemon socket path")
 	fs.StringVar(&dataOverride, "data", "", "override data dir")
 	fs.StringVar(&tcpAddr, "tcp", "", "also serve authenticated loopback TCP (e.g. 127.0.0.1:7350) for the web UI")
 	fs.StringVar(&tokenFile, "token-file", "", "bearer token file (default $XDG_CONFIG_HOME/jack-ketch/token)")
+	fs.BoolVar(&showVersion, "version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	_ = foreground
+	if showVersion {
+		fmt.Println(version)
+		return nil
+	}
 
 	level := new(slog.LevelVar)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
@@ -84,22 +89,23 @@ func Main(args []string, version string) error {
 	defer engine.Close()
 	engine.ApplySettings()
 
-	rep := engine.ReconnectShims(p.Runtime)
-	logger.Info("reconnected shims",
-		"reconnected", len(rep.Reconnected), "exited", len(rep.Exited), "orphaned", len(rep.Orphaned))
+	if n := engine.CloseStaleInstances(); n > 0 {
+		logger.Info("marked processes from the previous daemon as exited", "count", n)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	srv, err := server.NewWithOptions(engine, socketPath, version, func(keep bool) {
-		logger.Info("shutdown requested via API", "keepProcesses", keep)
-		if !keep {
-			for _, pr := range engine.LoadedRuntimes() {
-				if rt, err := pr.Runtime(); err == nil {
-					_ = rt.Shutdown()
-				}
+	stopAll := func() {
+		for _, pr := range engine.LoadedRuntimes() {
+			if rt, err := pr.Runtime(); err == nil {
+				_ = rt.Shutdown()
 			}
 		}
+	}
+	srv, err := server.NewWithOptions(engine, socketPath, version, func() {
+		logger.Info("shutdown requested via API; stopping managed processes")
+		stopAll()
 		cancel()
 	})
 	if err != nil {
@@ -166,16 +172,9 @@ func Main(args []string, version string) error {
 			switch sig {
 			case syscall.SIGHUP:
 				logger.Info("reload (SIGHUP): config watcher picks up changes; nothing to do")
-			case syscall.SIGQUIT:
-				logger.Info("jackketchd draining with --all: stopping managed processes")
-				for _, pr := range engine.LoadedRuntimes() {
-					if rt, err := pr.Runtime(); err == nil {
-						_ = rt.Shutdown()
-					}
-				}
-				return nil
 			default:
-				logger.Info("jackketchd stopping", "signal", sig.String())
+				logger.Info("jackketchd stopping managed processes", "signal", sig.String())
+				stopAll()
 				return nil
 			}
 		}

@@ -40,6 +40,29 @@ type processOrigin struct {
 	envFiles []string
 }
 
+type forceKey struct{}
+
+func WithForce(ctx context.Context) context.Context {
+	return context.WithValue(ctx, forceKey{}, true)
+}
+
+func Forced(ctx context.Context) bool {
+	v, _ := ctx.Value(forceKey{}).(bool)
+	return v
+}
+
+func (r *Runtime) SetStartGuard(fn func(ctx context.Context, spec process.StartSpec) error) {
+	r.portOwnerMu.Lock()
+	r.startGuard = fn
+	r.portOwnerMu.Unlock()
+}
+
+func (r *Runtime) guard() func(ctx context.Context, spec process.StartSpec) error {
+	r.portOwnerMu.Lock()
+	defer r.portOwnerMu.Unlock()
+	return r.startGuard
+}
+
 func (r *Runtime) SetPortOwner(fn func(port int) string) {
 	r.portOwnerMu.Lock()
 	r.portOwner = fn
@@ -701,4 +724,132 @@ func DescribeApp(app config.AppConfig, info *api.AppInfo) {
 			info.DefaultMode = base.Mode
 		}
 	}
+}
+
+func (r *Runtime) Errors(req api.GetErrorsRequest) (*api.GetErrorsResult, error) {
+	proc, ok := r.manager.Get(req.ProcessID)
+	if !ok {
+		return nil, fmt.Errorf("unknown process %q", req.ProcessID)
+	}
+	since := req.Since
+	if since == "" {
+		since = "instance"
+	}
+	fromID, err := resolveSince(since, proc, false)
+	if err != nil {
+		return nil, err
+	}
+	next := proc.Logs.NextID()
+	entries := proc.Logs.From(fromID)
+	toLines := func(in []logs.Entry) []diagnose.ErrLine {
+		out := make([]diagnose.ErrLine, len(in))
+		for i, e := range in {
+			out[i] = diagnose.ErrLine{ID: e.ID, Time: e.Timestamp, Stream: string(e.Stream), Text: e.Line}
+		}
+		return out
+	}
+	info := proc.Info()
+	root := r.getCfg().ProjectDir
+	if root == "" {
+		root = info.WorkDir
+	}
+	scan := diagnose.ErrorScan{Lines: toLines(entries), Root: root, WorkDir: info.WorkDir, Limit: req.Limit}
+	if scan.Limit <= 0 {
+		scan.Limit = 20
+	}
+	if req.Baseline != "" {
+		baseID, err := resolveSince(req.Baseline, proc, false)
+		if err != nil {
+			return nil, fmt.Errorf("baseline: %w", err)
+		}
+		var before []logs.Entry
+		for _, e := range proc.Logs.From(0) {
+			if e.ID >= baseID {
+				break
+			}
+			before = append(before, e)
+		}
+		scan.Baseline = diagnose.Fingerprints(diagnose.ErrorScan{Lines: toLines(before), Root: root, WorkDir: info.WorkDir})
+	}
+	full := scan
+	full.Limit = 0
+	all := diagnose.ExtractErrors(full)
+	groups := all
+	if len(groups) > scan.Limit {
+		groups = groups[:scan.Limit]
+	}
+	if n := len(entries); n > 0 && entries[n-1].ID+1 > next {
+		next = entries[n-1].ID + 1
+	}
+	res := &api.GetErrorsResult{
+		ProcessID:   info.ID,
+		InstanceID:  info.InstanceID,
+		Groups:      groups,
+		ScannedFrom: strconv.FormatUint(fromID, 10),
+		Cursor:      strconv.FormatUint(next, 10),
+		Truncated:   len(all) > len(groups),
+	}
+	if res.Groups == nil {
+		res.Groups = []api.ErrorGroup{}
+	}
+	for _, g := range all {
+		res.TotalErrors += g.Count
+		if g.New {
+			res.NewGroups++
+		}
+	}
+	return res, nil
+}
+
+func (r *Runtime) BaseURL(id string, port int) (string, error) {
+	proc, ok := r.manager.Get(id)
+	if !ok {
+		return "", fmt.Errorf("unknown process %q", id)
+	}
+	base, _, err := r.probeBase(proc, port)
+	return base, err
+}
+
+func (r *Runtime) AppendLog(id string, stream logs.Stream, line string) error {
+	proc, ok := r.manager.Get(id)
+	if !ok {
+		return fmt.Errorf("unknown process %q", id)
+	}
+	proc.Logs.Append(stream, line)
+	return nil
+}
+
+var errorLineRe = regexp.MustCompile(`(?i)\b(error|exception|traceback|panic|fatal)\b|^\s*\[browser\] error:`)
+
+func IsErrorLine(stream logs.Stream, line string) bool {
+	switch logs.ParseLevel(line) {
+	case "error":
+		return true
+	case "debug", "info", "warn":
+		return false
+	}
+	return errorLineRe.MatchString(line) && (stream == logs.StreamStderr || strings.HasPrefix(strings.TrimSpace(line), "[browser]"))
+}
+
+func (r *Runtime) ErrorBuckets(id string, from time.Time, width time.Duration, n int) ([]int, int, error) {
+	proc, ok := r.manager.Get(id)
+	if !ok {
+		return nil, 0, fmt.Errorf("unknown process %q", id)
+	}
+	out := make([]int, n)
+	total := 0
+	for _, e := range proc.Logs.From(0) {
+		if e.Timestamp.Before(from) {
+			continue
+		}
+		i := int(e.Timestamp.Sub(from) / width)
+		if i < 0 || i >= n {
+			continue
+		}
+		if IsErrorLine(e.Stream, e.Line) {
+			out[i]++
+			total++
+		}
+	}
+	return out, total, nil
 }

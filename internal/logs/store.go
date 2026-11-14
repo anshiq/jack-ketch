@@ -79,6 +79,7 @@ type Query struct {
 	Lines    int          // max entries to return (tail), 0 -> all
 	Contains string       // substring filter; "" disables
 	BeforeID uint64       // return only entries with ID < BeforeID; 0 disables
+	FromID   uint64
 }
 
 // Result is the outcome of a Query.
@@ -109,6 +110,9 @@ func (p *ProcessLogs) Query(q Query) Result {
 	filtered := make([]Entry, 0, len(all))
 	for _, e := range all {
 		if q.BeforeID > 0 && e.ID >= q.BeforeID {
+			continue
+		}
+		if q.FromID > 0 && e.ID < q.FromID {
 			continue
 		}
 		switch q.Stream {

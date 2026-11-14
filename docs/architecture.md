@@ -43,7 +43,7 @@ jack-ketch v3 transforms the system from a per-project, session-scoped MCP super
 ## Key Design Decisions
 
 1. **Per-user daemon** — one daemon hosts all projects
-2. **Daemon-owned processes** — managed processes are children of `jackketchd`: they outlive agent sessions (so a later session re-attaches), but they stop when the daemon stops. `jack-ketch-shim` exists for a future upgrade-survival path but is not wired yet
+2. **Daemon-owned processes** — managed processes are children of `jackketchd`: they outlive agent sessions (so a later session re-attaches), but they stop when the daemon stops. Stopping, restarting or updating the daemon stops every managed process; the daemon detects when its binary is replaced and warns first (CLI confirmation, web UI banner, MCP `update_notice`)
 3. **MCP bridge** — `jack-ketch serve` (stdio or `--http`) is a thin client: it connects to the daemon lazily on the first tool call, binds the session to a workspace (`--project`, the working directory, or `set_workspace`), and re-registers automatically if the daemon restarts
 4. **Locator chain** — workspace resolution via path, dev/inode, git
 5. **Connect-RPC** — versioned API over Unix sockets
@@ -67,7 +67,6 @@ $XDG_RUNTIME_DIR/jack-ketch/
 ├── jackketchd.sock
 ├── jackketchd.pid
 ├── jackketchd.lock
-├── shims/<instance_id>/
 └── jackketchd.log (in $XDG_STATE_HOME)
 ```
 
@@ -75,10 +74,10 @@ $XDG_RUNTIME_DIR/jack-ketch/
 
 | Service | RPCs | Purpose |
 |---------|------|---------|
-| SystemService | GetVersion, Health, GetStats, Shutdown | Daemon info |
-| ProjectService | Resolve, ListProjects, LinkWorkspace, ForgetProject, GC | Project identity |
+| SystemService | GetVersion, GetUpdateStatus, Health, GetStats, Shutdown | Daemon info, pending-update detection, shutdown (stops all processes) |
+| ProjectService | Resolve, ListProjects, LinkWorkspace, ForgetProject, GC, ListNestedProjects, MergeNestedProject | Project identity, nested-project merge |
 | ConfigService | GetConfig, Plan, Apply, ListRevisions, Rollback, ResolveProposal, WatchConfig | DB-backed config with auto-sync |
-| ProcessService | Start, Stop, Restart, Signal, List, WatchProcesses, Attach | Process lifecycle |
+| ProcessService | Start, Stop, Restart, Signal, List, WatchProcesses, Attach, StartStack, GetErrors, StartBrowserProxy | Process lifecycle, dependency-ordered stacks, grouped errors, browser console capture |
 | LogService | GetLogs, SearchLogs, TailLogs, ExportLogs | Log access |
 | EventService | WatchEvents, ListEvents | Event streaming |
 | SessionService | Register, Heartbeat, ListSessions | Session management |
@@ -92,7 +91,7 @@ v2 → v3 migration is automatic:
 1. Resolve → new project + workspace
 2. Import legacy `logs.db` and `audit.log`
 3. Adopt v2 daemon processes via the legacy adopt path
-4. v3 daemon reconnects all shims on boot
+4. On boot the daemon marks runs whose pid is gone as exited and adopts processes that are still alive
 
 ## Performance Budgets
 

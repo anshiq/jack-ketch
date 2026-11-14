@@ -30,6 +30,7 @@
   import Skeleton from '../../lib/ui/Skeleton.svelte';
   import EmptyState from '../../lib/ui/EmptyState.svelte';
   import RelativeTime from '../../lib/ui/RelativeTime.svelte';
+  import NestedProjectsBanner from '../../features/projects/NestedProjectsBanner.svelte';
 
   let expanded = $state<Record<string, boolean>>({});
   let filter = $state('');
@@ -220,6 +221,8 @@
       <Button variant="primary" onclick={openOpenDialog}><FolderPlus size={14} />Open workspace</Button>
     </div>
   </div>
+
+  <NestedProjectsBanner />
 
   {#if loadError}
     <Banner tone="err" title="Couldn’t load projects" message={loadError}>

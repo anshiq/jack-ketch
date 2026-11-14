@@ -240,7 +240,6 @@ CREATE TABLE IF NOT EXISTS instances (
   process_id   TEXT NOT NULL REFERENCES processes(id) ON DELETE CASCADE,
   pid          INTEGER,
   pgid         INTEGER,
-  shim_dir     TEXT,
   cgroup       TEXT,
   status       TEXT NOT NULL,
   started_at   INTEGER NOT NULL,
@@ -380,7 +379,7 @@ func shaHex(data []byte) string {
 
 // ResolveWorkspace returns the workspace for a canonical path.
 func (d *DB) ResolveWorkspace(path string) (*Workspace, error) {
-	row := d.db.QueryRow("SELECT id, project_id, path, dev, ino, git_common_dir, git_worktree, branch_hint, confirmed, created_at, last_seen_at, missing_since FROM workspaces WHERE path = ? AND missing_since IS NULL", path)
+	row := d.db.QueryRow("SELECT id, project_id, path, dev, ino, git_common_dir, git_worktree, branch_hint, confirmed, created_at, last_seen_at, missing_since FROM workspaces WHERE path = ? AND missing_since IS NULL AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)", path)
 	return scanWorkspace(row)
 }
 
@@ -425,6 +424,8 @@ func (d *DB) CreateWorkspaceFull(projectID, path string, dev, ino uint64, gitCom
 	if worktree {
 		wt = 1
 	}
+	_, _ = d.db.Exec(`UPDATE workspaces SET path = path || '#stale:' || id WHERE path = ?
+		AND (missing_since IS NOT NULL OR project_id IN (SELECT id FROM projects WHERE deleted_at IS NOT NULL))`, path)
 	_, err := d.db.Exec(`INSERT INTO workspaces
 		(id, project_id, path, dev, ino, git_common_dir, git_worktree, branch_hint, confirmed, created_at, last_seen_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
@@ -637,7 +638,7 @@ func projectHasRemote(projectID string, d *DB) bool {
 func (d *DB) FindWorkspaceByDevIno(dev, ino uint64) (*Workspace, error) {
 	row := d.db.QueryRow(`SELECT id, project_id, path, dev, ino, git_common_dir, git_worktree,
 		branch_hint, confirmed, created_at, last_seen_at, missing_since
-		FROM workspaces WHERE dev=? AND ino=? AND missing_since IS NULL LIMIT 1`, int64(dev), int64(ino))
+		FROM workspaces WHERE dev=? AND ino=? AND missing_since IS NULL AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL) LIMIT 1`, int64(dev), int64(ino))
 	return scanWorkspace(row)
 }
 
@@ -649,7 +650,7 @@ func (d *DB) FindWorkspacesByGitCommon(common string) ([]*Workspace, error) {
 	}
 	rows, err := d.db.Query(`SELECT id, project_id, path, dev, ino, git_common_dir, git_worktree,
 		branch_hint, confirmed, created_at, last_seen_at, missing_since
-		FROM workspaces WHERE git_common_dir=? AND missing_since IS NULL`, common)
+		FROM workspaces WHERE git_common_dir=? AND missing_since IS NULL AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)`, common)
 	if err != nil {
 		return nil, err
 	}
@@ -894,7 +895,7 @@ func (d *DB) ListOpenSessions(workspace string) ([]*SessionRow, error) {
 }
 
 // ProcessRow mirrors the processes table (spec stored redacted-hash only;
-// real env lives in the shim bundle per §12).
+// real env is never persisted).
 type ProcessRow struct {
 	ID          string
 	WorkspaceID string
@@ -940,45 +941,31 @@ type InstanceRow struct {
 	ProcessID string
 	PID       int64
 	PGID      int64
-	ShimDir   string
 	Status    string
 	StartedAt int64
 }
 
 // CreateInstance inserts a run row.
-func (d *DB) CreateInstance(processID string, pid, pgid int64, shimDir, status string) (*InstanceRow, error) {
+func (d *DB) CreateInstance(processID string, pid, pgid int64, status string) (*InstanceRow, error) {
 	id := "run_" + newULID()
 	now := time.Now().Unix()
-	_, err := d.db.Exec(`INSERT INTO instances (id, process_id, pid, pgid, shim_dir, status, started_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, id, processID, pid, pgid, shimDir, status, now)
+	_, err := d.db.Exec(`INSERT INTO instances (id, process_id, pid, pgid, status, started_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, id, processID, pid, pgid, status, now)
 	if err != nil {
 		return nil, err
 	}
-	return &InstanceRow{ID: id, ProcessID: processID, PID: pid, PGID: pgid, ShimDir: shimDir, Status: status, StartedAt: now}, nil
+	return &InstanceRow{ID: id, ProcessID: processID, PID: pid, PGID: pgid, Status: status, StartedAt: now}, nil
 }
 
-// UpdateInstanceExit records an exit (code/signal/oom) observed via the shim.
-func (d *DB) UpdateInstanceExit(id string, code int64, signal string, oom bool, reason string) error {
-	oomV := 0
-	if oom {
-		oomV = 1
-	}
-	_, err := d.db.Exec(`UPDATE instances SET exited_at=?, exit_code=?, exit_signal=?, oom_killed=?, exit_reason=?,
-		status=CASE WHEN status IN ('starting','running','ready') THEN 'exited' ELSE status END WHERE id=?`,
-		time.Now().Unix(), code, signal, oomV, reason, id)
+func (d *DB) MarkInstanceExited(id, reason string) error {
+	_, err := d.db.Exec(`UPDATE instances SET exited_at=?, exit_reason=?,
+		status=CASE WHEN status IN ('starting','running','ready','orphaned') THEN 'exited' ELSE status END
+		WHERE id=? AND exited_at IS NULL`, time.Now().Unix(), reason, id)
 	return err
 }
 
-// UpdateInstanceStatus sets the status of an instance (e.g. orphaned when
-// its shim socket is dead and only pid-poll adoption remains).
-func (d *DB) UpdateInstanceStatus(id, status string) error {
-	_, err := d.db.Exec(`UPDATE instances SET status=? WHERE id=? AND exited_at IS NULL`, status, id)
-	return err
-}
-
-// LiveInstances returns non-exited instances (for reconnect on boot).
 func (d *DB) LiveInstances() ([]*InstanceRow, error) {
-	rows, err := d.db.Query(`SELECT id, process_id, pid, pgid, shim_dir, status, started_at
+	rows, err := d.db.Query(`SELECT id, process_id, pid, pgid, status, started_at
 		FROM instances WHERE exited_at IS NULL ORDER BY started_at DESC`)
 	if err != nil {
 		return nil, err
@@ -988,8 +975,7 @@ func (d *DB) LiveInstances() ([]*InstanceRow, error) {
 	for rows.Next() {
 		var r InstanceRow
 		var pid, pgid sql.NullInt64
-		var shim sql.NullString
-		if err := rows.Scan(&r.ID, &r.ProcessID, &pid, &pgid, &shim, &r.Status, &r.StartedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ProcessID, &pid, &pgid, &r.Status, &r.StartedAt); err != nil {
 			return nil, err
 		}
 		if pid.Valid {
@@ -998,7 +984,6 @@ func (d *DB) LiveInstances() ([]*InstanceRow, error) {
 		if pgid.Valid {
 			r.PGID = pgid.Int64
 		}
-		r.ShimDir = shim.String
 		out = append(out, &r)
 	}
 	return out, rows.Err()

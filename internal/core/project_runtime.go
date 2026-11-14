@@ -8,6 +8,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"jack-ketch/internal/config"
 	"jack-ketch/internal/credentials"
 	"jack-ketch/internal/events"
+	"jack-ketch/internal/process"
 	iruntime "jack-ketch/internal/runtime"
 	"jack-ketch/internal/store"
 	"jack-ketch/pkg/api"
@@ -30,6 +32,7 @@ type ProjectRuntime struct {
 	logger    *slog.Logger
 	allocPort func(workspaceID, name string, def int) (int, error)
 	portOwner func(port int) string
+	dupOwner  func(wsID, command string, args []string, workdir string) string
 	store     *store.DB
 
 	credentials *credentials.Service
@@ -44,6 +47,8 @@ type ProjectRuntime struct {
 	rt       *iruntime.Runtime
 	resolved *config.Resolved
 	stale    map[string]bool
+
+	watch watchSet
 }
 
 func (p *ProjectRuntime) Store() *store.DB { return p.store }
@@ -153,6 +158,9 @@ func (p *ProjectRuntime) loadLocked() error {
 	if p.portOwner != nil {
 		rt.SetPortOwner(p.portOwner)
 	}
+	if p.dupOwner != nil {
+		rt.SetStartGuard(p.startGuard)
+	}
 	p.rt = rt
 	p.resolved = resolved
 	p.expandPortsLocked()
@@ -162,6 +170,8 @@ func (p *ProjectRuntime) loadLocked() error {
 		p.stale = map[string]bool{}
 	}
 	p.autostart()
+	p.openWatchers()
+	go p.syncWatchers()
 	// Re-resolve the hosted config so starts see expanded ports.
 	if p.rt != nil {
 		p.rt.ReloadConfig(p.loadedFor(p.resolved))
@@ -225,6 +235,14 @@ func (p *ProjectRuntime) autostart() {
 }
 
 func (p *ProjectRuntime) reloadFromDB() {
+	restart := p.reloadLocked()
+	go p.syncWatchers()
+	for _, app := range restart {
+		go p.restartApp(app, false, "config", nil)
+	}
+}
+
+func (p *ProjectRuntime) reloadLocked() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	oldApps := map[string]config.V3App{}
@@ -233,8 +251,9 @@ func (p *ProjectRuntime) reloadFromDB() {
 	}
 	resolved, errs := config.Resolve(p.ConfigSource(), p.projectID, p.wsID, p.wsPath, nil)
 	if errs != nil {
-		return
+		return nil
 	}
+	var restart []string
 	changes := config.Plan(oldApps, resolved.Apps, map[string][]string{})
 	for _, c := range changes {
 		if c.Kind == config.ChangeRestartRequired {
@@ -242,6 +261,9 @@ func (p *ProjectRuntime) reloadFromDB() {
 				p.stale = map[string]bool{}
 			}
 			p.stale[c.App] = true
+			if resolved.Apps[c.App].Reload == "restart" {
+				restart = append(restart, c.App)
+			}
 		}
 	}
 	p.resolved = resolved
@@ -249,7 +271,10 @@ func (p *ProjectRuntime) reloadFromDB() {
 	p.expandPortsLocked()
 	if p.rt != nil {
 		p.rt.ReloadConfig(p.loadedFor(resolved))
+	} else {
+		restart = nil
 	}
+	return restart
 }
 
 // LoadedRuntime returns the hosted runtime, or nil before first load.
@@ -261,6 +286,7 @@ func (p *ProjectRuntime) LoadedRuntime() *iruntime.Runtime {
 
 // shutdown stops the hosted runtime.
 func (p *ProjectRuntime) shutdown() {
+	p.stopWatchers()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.rt != nil {
@@ -279,4 +305,15 @@ func (p *ProjectRuntime) ManagerBus() *events.Bus {
 		return nil
 	}
 	return p.rt.Manager().Events()
+}
+
+func (p *ProjectRuntime) startGuard(ctx context.Context, spec process.StartSpec) error {
+	if iruntime.Forced(ctx) || p.dupOwner == nil {
+		return nil
+	}
+	owner := p.dupOwner(p.wsID, spec.Command, spec.Args, spec.WorkDir)
+	if owner == "" {
+		return nil
+	}
+	return fmt.Errorf("failed_precondition: %s is already running in %s with the same command and workdir; stop it first or merge the duplicate projects", spec.Command, owner)
 }

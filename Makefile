@@ -8,7 +8,6 @@ build:
 	@if [ -d ui/dist-web ]; then $(MAKE) ui-web-embed; fi
 	go build -o $(BIN_DIR)/$(BINARY) ./cmd/jack-ketch
 	go build -o $(BIN_DIR)/jackketchd ./cmd/jackketchd
-	go build -o $(BIN_DIR)/jack-ketch-shim ./cmd/jack-ketch-shim
 
 # ui builds the web frontend (embedded by jackketchd in internal/webui/dist).
 ui:
@@ -56,7 +55,6 @@ clean:
 install:
 	go install ./cmd/jack-ketch
 	go install ./cmd/jackketchd
-	go install ./cmd/jack-ketch-shim
 
 snapshot:
 	goreleaser release --snapshot --clean

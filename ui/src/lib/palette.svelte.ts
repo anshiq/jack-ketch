@@ -3,6 +3,8 @@ import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 import Terminal from '@lucide/svelte/icons/terminal';
 import ScrollText from '@lucide/svelte/icons/scroll-text';
 import Boxes from '@lucide/svelte/icons/boxes';
+import Network from '@lucide/svelte/icons/network';
+import ChartGantt from '@lucide/svelte/icons/chart-gantt';
 import FileCog from '@lucide/svelte/icons/file-cog';
 import KeyRound from '@lucide/svelte/icons/key-round';
 import History from '@lucide/svelte/icons/history';
@@ -54,9 +56,11 @@ const ROUTES: { path: string; title: string; icon: Icon; keys?: string; keywords
   { path: '/processes', title: 'Processes', icon: Terminal, keys: 'g p', keywords: 'running apps' },
   { path: '/logs', title: 'Logs', icon: ScrollText, keys: 'g l', keywords: 'output stdout stderr' },
   { path: '/apps', title: 'Apps', icon: Boxes, keys: 'g a', keywords: 'definitions' },
+  { path: '/ports', title: 'Ports', icon: Network, keys: 'g n', keywords: 'listening address in use conflict free port kill' },
   { path: '/config', title: 'Config', icon: FileCog, keys: 'g c', keywords: 'yaml project config' },
   { path: '/credentials', title: 'Credentials', icon: KeyRound, keys: 'g r', keywords: 'secrets tokens jwt cookie auth login tenant' },
   { path: '/config/revisions', title: 'Config Revisions', icon: History, keywords: 'history rollback' },
+  { path: '/timeline', title: 'Timeline', icon: ChartGantt, keys: 'g m', keywords: 'history errors spikes crashes correlate what happened' },
   { path: '/events', title: 'Events', icon: Activity, keys: 'g e', keywords: 'activity stream' },
   { path: '/sessions', title: 'Sessions', icon: Users, keys: 'g s', keywords: 'clients agents' },
   { path: '/audit', title: 'Audit', icon: ShieldCheck, keys: 'g u', keywords: 'log trail' },

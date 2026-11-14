@@ -4,13 +4,12 @@ description: "The daemon, the MCP bridge, project identity and where state lives
 weight: 30
 ---
 
-## Three components
+## Two components
 
 | Component | Role |
 |---|---|
 | **`jackketchd`** | The always-on daemon, one per OS user. Owns the project registry, process supervision, the log pipeline with FTS5 search and a global event bus, all backed by a single-writer SQLite `state.db`. |
 | **`jack-ketch`** | The CLI and MCP bridge. `jack-ketch serve` is a thin client that connects to the daemon lazily on the first tool call. Bare `jack-ketch` prints the command help; `jack-ketch web` opens the web UI. |
-| **`jack-ketch-shim`** | A tiny, dependency-free process shim (at most 4 MB RSS) designed to stay put under a running process across a daemon upgrade. It is not wired into the upgrade path yet. |
 
 ```
 agent ──MCP──▶ jack-ketch serve ──unix socket──▶ jackketchd ──▶ your processes
@@ -23,7 +22,7 @@ web UI ──────────── authenticated loopback TCP ───
 Managed processes are children of `jackketchd`. They outlive agent sessions, which is what lets a later session re-attach, but they stop when the daemon stops. That is why the first thing an agent does is `list_processes`.
 
 > [!WARNING]
-> Because processes are the daemon's children, stopping or restarting the daemon can stop them. Run `jack-ketch ps` afterwards and restart anything that went away before you ask an agent to continue.
+> Because processes are the daemon's children, stopping, restarting or updating the daemon stops all of them. `jack-ketch daemon stop` and `daemon restart` list what will stop and ask first. After you install a new version, the daemon keeps running the old one and tells you (web UI banner, `jack-ketch daemon status`, and `update_notice` for agents) how many processes a restart will stop, so you can finish the update when it suits you. Afterwards, `start_stack` brings a stack back in one call.
 
 ## Projects and workspaces
 

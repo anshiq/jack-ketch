@@ -16,11 +16,12 @@ jack-ketch runs and supervises this project's development processes. Use its MCP
 
 1. Call list_processes first; re-attach to a running instance instead of starting a duplicate.
 2. Call list_apps, then start_process(app=..., mode=...); keep the returned process_id.
-3. Confirm readiness with wait_for_log(process_id, ready=true) or start_process(..., timeout_ms=...).
-4. On failure use process_status, get_logs, search_logs and diagnose_process; restart with restart_process.
-5. After a change use probe or run_checks to verify the running behaviour.
+3. Confirm readiness with wait_for_log(process_id, ready=true) or start_process(..., timeout_ms=...). Use start_stack(apps=[...]) when an app needs its depends_on apps running.
+4. On failure use get_errors (grouped errors with file and line), process_status and diagnose_process before paging get_logs. Results carry a cursor; pass it as since to read only new lines.
+5. After a code change call verify_change(process_id): it restarts (or, with restart=false, waits for a hot reload), runs saved checks and reports only new errors. For hot-reloading dev servers wait with since="now" so an old line cannot match. Use probe or run_checks for specific behaviour, and browser_console to see frontend errors.
 6. When a result carries save_suggestion, ask the user before saving it as an app mode.
 7. For authenticated endpoints call list_credentials and use probe (the default profile is attached automatically, or credential=<name>); never ask for or look for secret values. If a result carries credential_hint, tell the user to update the profile on the web UI's Credentials page.
+8. If a result carries update_notice, tell the user before anything restarts the daemon: restarting stops every managed process.
 
 Do not use jack-ketch for one-off shell commands (ls, cat, grep, git, docker, kubectl, package managers); use your own tools for those.`
 )

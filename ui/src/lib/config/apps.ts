@@ -20,6 +20,7 @@ export interface ConfigApp {
   autostart: boolean;
   lifetime: string;
   reload: string;
+  watchPaths: string[];
   pty: boolean;
   readiness: string[];
   healthHttp: string;
@@ -37,6 +38,18 @@ export interface ConfigApp {
 }
 
 type Rec = Record<string, unknown>;
+
+function watchPathsOf(v: unknown): string[] {
+  if (typeof v === 'string') return v ? [v] : [];
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+  if (v && typeof v === 'object') {
+    const o = v as Rec;
+    const paths = o['Paths'] ?? o['paths'];
+    if (typeof paths === 'string') return [paths];
+    if (Array.isArray(paths)) return paths.filter((x): x is string => typeof x === 'string');
+  }
+  return [];
+}
 
 function pick(o: Rec, ...keys: string[]): unknown {
   for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k];
@@ -114,6 +127,7 @@ export function toConfigApp(name: string, raw: unknown, provenance = '', auto = 
     autostart: pick(o, 'Autostart', 'autostart') === true,
     lifetime: String(pick(o, 'Lifetime', 'lifetime') ?? 'persistent'),
     reload: String(pick(o, 'Reload', 'reload') ?? 'manual'),
+    watchPaths: watchPathsOf(pick(o, 'Watch', 'watch')),
     pty: pick(o, 'Pty', 'pty') === true,
     readiness: strs(pick(o, 'Readiness', 'readiness')),
     healthHttp: String(pick(health, 'HTTP', 'http') ?? ''),

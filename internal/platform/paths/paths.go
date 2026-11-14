@@ -92,16 +92,6 @@ func (p *Paths) SegmentDir(workspaceID, instanceID string) string {
 	return filepath.Join(p.WorkspaceDir(workspaceID), "segments", instanceID)
 }
 
-// ShimDir returns the runtime directory for a shim instance.
-func (p *Paths) ShimDir(instanceID string) string {
-	return filepath.Join(p.Runtime, "shims", instanceID)
-}
-
-// ShimSocket returns the control socket for a shim instance.
-func (p *Paths) ShimSocket(instanceID string) string {
-	return filepath.Join(p.ShimDir(instanceID), "shim.sock")
-}
-
 // TrashDir returns the directory for forgotten projects.
 func (p *Paths) TrashDir() string {
 	return filepath.Join(p.Data, "trash")

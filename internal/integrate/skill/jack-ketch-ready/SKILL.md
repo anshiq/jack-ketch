@@ -1,8 +1,8 @@
 ---
 name: jack-ketch-ready
-description: Use when scaffolding, creating, or modifying any runnable application (web server, worker, CLI, backend service), or when starting, checking, debugging, verifying, or restarting one, so it works with the jack-ketch MCP process supervisor. Covers the app-side contract (readiness line, clean streams, graceful shutdown, env-only config), which MCP tool to use in which situation (start_process with app modes, wait_for_log, get_logs, search_logs, diagnose_process, probe, run_checks, restart_process, signal_process, open_shell, subscribe_events), and the ask-the-user flows for saving working runs, fixing failures, verifying changes at runtime and keeping jack-ketch files out of git.
+description: Use when scaffolding, creating, or modifying any runnable application (web server, worker, CLI, backend service), or when starting, checking, debugging, verifying, or restarting one, so it works with the jack-ketch MCP process supervisor. Covers the app-side contract (readiness line, clean streams, graceful shutdown, env-only config), which MCP tool to use in which situation (start_process with app modes, start_stack, wait_for_log, get_logs, get_errors, search_logs, diagnose_process, verify_change, probe, run_checks, browser_console, restart_process, signal_process, open_shell, subscribe_events), and the ask-the-user flows for saving working runs, fixing failures, verifying changes at runtime and keeping jack-ketch files out of git.
 metadata:
-  version: "9"
+  version: "10"
 ---
 
 # jack-ketch-ready
@@ -20,22 +20,27 @@ Never launch a dev server from your own shell. Never start a second copy to see 
 |---|---|
 | Session start, or before starting anything | `list_processes` to re-attach to what earlier sessions started. `list_sessions` shows who else is attached. `list_apps` shows declared apps and their modes |
 | Start a server | `start_process(app="<name>", mode="<mode>", timeout_ms=30000)` blocks until ready, or `start_process(app="<name>")` then `wait_for_log(process_id, ready=true)`. Omit `mode` for the app's `default_mode` |
+| Start an app that needs others (db, cache, API, worker) | `start_stack(apps=["web"], modes={...})` starts its `depends_on` apps first, waits for each, reuses running ones; on failure it names the app and includes its `diagnosis` |
 | App runs several ways (dev, prod, headless, test, staging) | Each way is a mode of the app with its own command and env; pick it with `mode=`. Never rebuild a command line when a saved mode exists |
-| Run a one-shot command (build, test, migration) | `start_process(command=..., timeout_ms=120000)` blocks until exit, read `wait.exit_code` |
+| Run a one-shot command (build, test, migration) | `start_process(command=..., timeout_ms=120000)` blocks until exit, read `wait.exit_code`. For tests, `wait_for_exit` returns `tests` (passed, failed, skipped, failing names) |
 | Lost a `process_id` | `list_processes`, never restart blindly |
 | Is it up or crashed | `process_status(process_id)`: state, pid, exit code, `health`, `restart_policy`, plus `diagnosis` when failing |
 | Startup hung | `wait_for_log` timed out with process running means buffered output or a mismatched readiness line, check stdout. Process exited means startup crash, read the `diagnosis` |
-| Something is failing | Read `diagnosis` from the start/wait/status result, or call `diagnose_process(process_id)`; then `get_logs(stream="stderr", lines=50)` narrowed with `contains=` or `pattern=` |
+| Something is failing | Read `diagnosis` from the start/wait/status result, or call `diagnose_process(process_id)`. `get_errors(process_id)` groups compile errors, exceptions, panics, test, lint and browser errors with file, line and count; only then `get_logs(stream="stderr", lines=50)` narrowed with `contains=` or `pattern=` |
+| Read only what is new | `get_logs`, `wait_for_log` and `get_errors` return `cursor`; pass it as `since` next time. `get_logs(compact=true)` folds repeats and dependency stack frames |
 | A run worked and was started by hand (raw command, or app with extra env) | The result carries `save_suggestion`: ask the user, then `save_run_config` (or `action="dismiss"`) |
 | Show a fix or feature working | `probe(process_id, url="/path", method=..., body=...)`: response + the logs that request produced |
 | Call an authenticated endpoint | `list_credentials` shows the profiles the user configured; `probe` attaches the default profile automatically, or pass `credential=<name>`. Secrets are never shown to you |
 | Drive curl, Playwright or e2e as a user | `credential_proxy(action="start", profile=..., process_id=...)` (needs the user's approval) returns a local URL that attaches the profile |
-| Re-verify after a change | `run_checks(app=..., mode=...)` runs the saved checks in one call |
+| Re-verify after a change | `verify_change(process_id)` restarts, waits until live, runs saved checks and lists only `new_errors`, with `verdict` pass/fail. `run_checks(app=..., mode=...)` runs just the checks |
+| Frontend (browser) errors | `browser_console(process_id)` returns a proxy URL; pages loaded through it put console errors, uncaught exceptions and failed requests into the process logs as `[browser] error:` lines, seen by `get_errors` and `verify_change`. HMR keeps working |
 | Find an error across processes | `search_logs` searches the whole workspace (history + live) with optional `stream=`, `level=`, `context=`; `get_logs` reads one process |
 | Trace one request | `get_logs(contains="request_id=<id>")` |
 | Slow paths | `get_logs(pattern="duration_ms=[0-9]{4,}", contains="path=...")` |
 | Client has no project folder | `set_workspace("/abs/path")` once per conversation, or pass `workspace=` on calls; `list_projects` lists known projects |
-| Code or config changed | `restart_process(process_id)`, then `wait_for_log(ready=true)`. Same `process_id`, history kept |
+| Code or config changed | `verify_change(process_id)`, or `restart_process(process_id)` then `wait_for_log(ready=true)`. Same `process_id`, history kept. Apps with `watch:` restart themselves on file changes |
+| Hot-reloading dev server rebuilt after your edit | Do not restart. `verify_change(process_id, restart=false, wait_contains="compiled", fail_pattern="(?i)error")`, or `wait_for_log(contains=..., since="now", fail_pattern=...)` so an old line cannot match |
+| Result carries `update_notice` | A new jack-ketch version is installed. Tell the user; restarting the daemon to finish it stops every managed process. Never restart the daemon without their go-ahead |
 | Need the exit result | `wait_for_exit(process_id, timeout_ms=...)` |
 | Wrong PATH, venv, or port | `get_process_env(process_id)`, redacted by default |
 | Run a command inside the app's environment | `open_shell(app="api")`, `send_stdin("...")`, `get_logs`, then `stop_process` on the shell |
@@ -49,7 +54,7 @@ Never launch a dev server from your own shell. Never start a second copy to see 
 | Runtime itself looks slow or lossy | `runtime_stats` |
 | Pending auto-detect proposal | surface `get_project_info.pendingProposal` to the user, then `resolve_config_proposal` approve/dismiss (never auto-approve) |
 
-`start_process` without `timeout_ms` and `restart_process` never block, `wait_for_log` and `wait_for_exit` block up to `timeout_ms`. Every wait is capped per call for your client: when a result has `clamped=true` and `still_running=true`, call the wait tool again to keep waiting. With `timeout_ms`, `start_process` fills `wait`: `ready` for a matched readiness line, `exited` plus `exit_code` for a finished process, `timeout` when neither happened and the process is still running. Confirm errors on stderr before stdout. A vague bug report means gather input first: failing action, endpoint, expected versus actual, then reproduce against the port and filter on the ids that run produces. One targeted filter beats a blind dump.
+`start_process` without `timeout_ms` and `restart_process` never block, `wait_for_log` and `wait_for_exit` block up to `timeout_ms`. Every wait is capped per call for your client: when a result has `clamped=true` and `still_running=true`, call the wait tool again to keep waiting (for `wait_for_log`, pass `since=<cursor>` from the result so nothing is skipped). With `timeout_ms`, `start_process` fills `wait`: `ready` for a matched readiness line, `exited` plus `exit_code` for a finished process, `timeout` when neither happened and the process is still running. Confirm errors on stderr before stdout. A vague bug report means gather input first: failing action, endpoint, expected versus actual, then reproduce against the port and filter on the ids that run produces. One targeted filter beats a blind dump.
 
 Clients that expose MCP prompts and resources also offer `/start_app`, `/diagnose`, `/verify` and `/status`, plus the resource `jack-ketch://processes/{process_id}/logs` with the last 200 lines.
 
@@ -80,9 +85,9 @@ Once it runs, the result carries `save_suggestion`: offer to save the working se
 
 After you finish a fix or feature and its tests pass, ask the user whether they want to see it working at runtime. If yes:
 
-1. Reuse or start the affected app (`list_processes`, `start_process(app, mode)` or `restart_process`), `wait_for_log(ready=true)`.
+1. Reuse or start the affected app (`list_processes`, `start_process(app, mode)`), then `verify_change(process_id)` (or `restart_process` and `wait_for_log(ready=true)`). For web frontends open the app through `browser_console` so browser errors are captured.
 2. Exercise the changed behaviour with 2-5 concrete interactions including an edge case: `probe` for HTTP (path, method, headers, body, `expect_status`, `expect_contains`), a one-shot `start_process(command=..., timeout_ms=...)` for CLIs and scripts, trigger + `wait_for_log` for workers and jobs.
-3. Report expected vs actual with the key log lines from each probe. On failure call `diagnose_process`.
+3. Report expected vs actual with the key log lines from each probe. On failure call `get_errors` and `diagnose_process`.
 4. Offer to save the useful probes as checks: `save_run_config(process_id, app, mode, checks=[probe.check, ...])`. Later `run_checks(app, mode)` repeats them in one call.
 
 ## Authenticated calls
@@ -120,6 +125,7 @@ On failure: read `diagnosis` (or `diagnose_process`), then `get_logs(stream="std
 - Supervised apps auto-restart per `restart_policy`. An exhausted budget shows `crashed`, a manual `restart_process` resets it.
 - Event subscriptions are capped at 8 per client and 256 events each. `get_events` drains immediately and reports `dropped`.
 - Processes are shared per project. Re-attach with `list_processes` instead of starting again.
+- Processes are children of the jack-ketch daemon: stopping, restarting or updating the daemon stops all of them.
 - Throwaway processes (a shell, a scratch server) can pass `lifetime: "session"` to `start_process`: they are stopped about 30 seconds after your session ends (the default, `persistent`, outlives the session).
 
 ## Purpose

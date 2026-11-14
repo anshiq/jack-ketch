@@ -57,6 +57,12 @@ const (
 	ProjectServiceForgetProjectProcedure = "/jackketch.v1.ProjectService/ForgetProject"
 	// ProjectServiceGCProcedure is the fully-qualified name of the ProjectService's GC RPC.
 	ProjectServiceGCProcedure = "/jackketch.v1.ProjectService/GC"
+	// ProjectServiceListNestedProjectsProcedure is the fully-qualified name of the ProjectService's
+	// ListNestedProjects RPC.
+	ProjectServiceListNestedProjectsProcedure = "/jackketch.v1.ProjectService/ListNestedProjects"
+	// ProjectServiceMergeNestedProjectProcedure is the fully-qualified name of the ProjectService's
+	// MergeNestedProject RPC.
+	ProjectServiceMergeNestedProjectProcedure = "/jackketch.v1.ProjectService/MergeNestedProject"
 )
 
 // ProjectServiceClient is a client for the jackketch.v1.ProjectService service.
@@ -69,6 +75,8 @@ type ProjectServiceClient interface {
 	LinkWorkspace(context.Context, *connect.Request[v1.LinkWorkspaceRequest]) (*connect.Response[v1.LinkWorkspaceResponse], error)
 	ForgetProject(context.Context, *connect.Request[v1.ForgetProjectRequest]) (*connect.Response[v1.ForgetProjectResponse], error)
 	GC(context.Context, *connect.Request[v1.GCRequest]) (*connect.Response[v1.GCResponse], error)
+	ListNestedProjects(context.Context, *connect.Request[v1.ListNestedProjectsRequest]) (*connect.Response[v1.ListNestedProjectsResponse], error)
+	MergeNestedProject(context.Context, *connect.Request[v1.MergeNestedProjectRequest]) (*connect.Response[v1.MergeNestedProjectResponse], error)
 }
 
 // NewProjectServiceClient constructs a client for the jackketch.v1.ProjectService service. By
@@ -130,19 +138,33 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("GC")),
 			connect.WithClientOptions(opts...),
 		),
+		listNestedProjects: connect.NewClient[v1.ListNestedProjectsRequest, v1.ListNestedProjectsResponse](
+			httpClient,
+			baseURL+ProjectServiceListNestedProjectsProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("ListNestedProjects")),
+			connect.WithClientOptions(opts...),
+		),
+		mergeNestedProject: connect.NewClient[v1.MergeNestedProjectRequest, v1.MergeNestedProjectResponse](
+			httpClient,
+			baseURL+ProjectServiceMergeNestedProjectProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("MergeNestedProject")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // projectServiceClient implements ProjectServiceClient.
 type projectServiceClient struct {
-	resolve        *connect.Client[v1.ResolveRequest, v1.ResolveResponse]
-	listProjects   *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
-	getProject     *connect.Client[v1.GetProjectRequest, v1.GetProjectResponse]
-	updateProject  *connect.Client[v1.UpdateProjectRequest, v1.UpdateProjectResponse]
-	listWorkspaces *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
-	linkWorkspace  *connect.Client[v1.LinkWorkspaceRequest, v1.LinkWorkspaceResponse]
-	forgetProject  *connect.Client[v1.ForgetProjectRequest, v1.ForgetProjectResponse]
-	gC             *connect.Client[v1.GCRequest, v1.GCResponse]
+	resolve            *connect.Client[v1.ResolveRequest, v1.ResolveResponse]
+	listProjects       *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
+	getProject         *connect.Client[v1.GetProjectRequest, v1.GetProjectResponse]
+	updateProject      *connect.Client[v1.UpdateProjectRequest, v1.UpdateProjectResponse]
+	listWorkspaces     *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
+	linkWorkspace      *connect.Client[v1.LinkWorkspaceRequest, v1.LinkWorkspaceResponse]
+	forgetProject      *connect.Client[v1.ForgetProjectRequest, v1.ForgetProjectResponse]
+	gC                 *connect.Client[v1.GCRequest, v1.GCResponse]
+	listNestedProjects *connect.Client[v1.ListNestedProjectsRequest, v1.ListNestedProjectsResponse]
+	mergeNestedProject *connect.Client[v1.MergeNestedProjectRequest, v1.MergeNestedProjectResponse]
 }
 
 // Resolve calls jackketch.v1.ProjectService.Resolve.
@@ -185,6 +207,16 @@ func (c *projectServiceClient) GC(ctx context.Context, req *connect.Request[v1.G
 	return c.gC.CallUnary(ctx, req)
 }
 
+// ListNestedProjects calls jackketch.v1.ProjectService.ListNestedProjects.
+func (c *projectServiceClient) ListNestedProjects(ctx context.Context, req *connect.Request[v1.ListNestedProjectsRequest]) (*connect.Response[v1.ListNestedProjectsResponse], error) {
+	return c.listNestedProjects.CallUnary(ctx, req)
+}
+
+// MergeNestedProject calls jackketch.v1.ProjectService.MergeNestedProject.
+func (c *projectServiceClient) MergeNestedProject(ctx context.Context, req *connect.Request[v1.MergeNestedProjectRequest]) (*connect.Response[v1.MergeNestedProjectResponse], error) {
+	return c.mergeNestedProject.CallUnary(ctx, req)
+}
+
 // ProjectServiceHandler is an implementation of the jackketch.v1.ProjectService service.
 type ProjectServiceHandler interface {
 	Resolve(context.Context, *connect.Request[v1.ResolveRequest]) (*connect.Response[v1.ResolveResponse], error)
@@ -195,6 +227,8 @@ type ProjectServiceHandler interface {
 	LinkWorkspace(context.Context, *connect.Request[v1.LinkWorkspaceRequest]) (*connect.Response[v1.LinkWorkspaceResponse], error)
 	ForgetProject(context.Context, *connect.Request[v1.ForgetProjectRequest]) (*connect.Response[v1.ForgetProjectResponse], error)
 	GC(context.Context, *connect.Request[v1.GCRequest]) (*connect.Response[v1.GCResponse], error)
+	ListNestedProjects(context.Context, *connect.Request[v1.ListNestedProjectsRequest]) (*connect.Response[v1.ListNestedProjectsResponse], error)
+	MergeNestedProject(context.Context, *connect.Request[v1.MergeNestedProjectRequest]) (*connect.Response[v1.MergeNestedProjectResponse], error)
 }
 
 // NewProjectServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -252,6 +286,18 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("GC")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceListNestedProjectsHandler := connect.NewUnaryHandler(
+		ProjectServiceListNestedProjectsProcedure,
+		svc.ListNestedProjects,
+		connect.WithSchema(projectServiceMethods.ByName("ListNestedProjects")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectServiceMergeNestedProjectHandler := connect.NewUnaryHandler(
+		ProjectServiceMergeNestedProjectProcedure,
+		svc.MergeNestedProject,
+		connect.WithSchema(projectServiceMethods.ByName("MergeNestedProject")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/jackketch.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectServiceResolveProcedure:
@@ -270,6 +316,10 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceForgetProjectHandler.ServeHTTP(w, r)
 		case ProjectServiceGCProcedure:
 			projectServiceGCHandler.ServeHTTP(w, r)
+		case ProjectServiceListNestedProjectsProcedure:
+			projectServiceListNestedProjectsHandler.ServeHTTP(w, r)
+		case ProjectServiceMergeNestedProjectProcedure:
+			projectServiceMergeNestedProjectHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -309,4 +359,12 @@ func (UnimplementedProjectServiceHandler) ForgetProject(context.Context, *connec
 
 func (UnimplementedProjectServiceHandler) GC(context.Context, *connect.Request[v1.GCRequest]) (*connect.Response[v1.GCResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("jackketch.v1.ProjectService.GC is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) ListNestedProjects(context.Context, *connect.Request[v1.ListNestedProjectsRequest]) (*connect.Response[v1.ListNestedProjectsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("jackketch.v1.ProjectService.ListNestedProjects is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) MergeNestedProject(context.Context, *connect.Request[v1.MergeNestedProjectRequest]) (*connect.Response[v1.MergeNestedProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("jackketch.v1.ProjectService.MergeNestedProject is not implemented"))
 }

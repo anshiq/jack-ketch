@@ -85,6 +85,8 @@ type getLogsIn struct {
 	Contains  string `json:"contains,omitempty" jsonschema:"Only lines containing this substring."`
 	Pattern   string `json:"pattern,omitempty" jsonschema:"Only lines matching this regular expression."`
 	Level     string `json:"level,omitempty" jsonschema:"Only lines at this level parsed from level=... or \"level\":...: debug, info, warn or error."`
+	Since     string `json:"since,omitempty" jsonschema:"Only lines after this point: the cursor returned by an earlier get_logs, wait_for_log or get_errors call (reads only what is new since then), \"instance\" for the current run only, or \"all\" (default)."`
+	Compact   bool   `json:"compact,omitempty" jsonschema:"Fold repeated lines into one entry with count and collapse dependency stack frames, to read more history in fewer tokens."`
 }
 
 type clearLogsIn struct {
@@ -98,11 +100,14 @@ type sendStdinIn struct {
 }
 
 type waitForLogIn struct {
-	ProcessID string `json:"process_id" jsonschema:"The process_id returned by start_process."`
-	Contains  string `json:"contains,omitempty" jsonschema:"Wait for a line containing this substring. One of contains/pattern/ready is required."`
-	Pattern   string `json:"pattern,omitempty" jsonschema:"Wait for a line matching this regular expression."`
-	Ready     bool   `json:"ready,omitempty" jsonschema:"Wait for the app's readiness line, using the detected profile's readiness patterns."`
-	TimeoutMS int    `json:"timeout_ms,omitempty" jsonschema:"Timeout in milliseconds (default 30000, max 600000)."`
+	ProcessID    string `json:"process_id" jsonschema:"The process_id returned by start_process."`
+	Contains     string `json:"contains,omitempty" jsonschema:"Wait for a line containing this substring. One of contains/pattern/ready is required."`
+	Pattern      string `json:"pattern,omitempty" jsonschema:"Wait for a line matching this regular expression."`
+	Ready        bool   `json:"ready,omitempty" jsonschema:"Wait for the app's readiness line, using the detected profile's readiness patterns."`
+	TimeoutMS    int    `json:"timeout_ms,omitempty" jsonschema:"Timeout in milliseconds (default 30000, max 600000)."`
+	Since        string `json:"since,omitempty" jsonschema:"Where to start matching: \"instance\" (default, the current run including lines already printed), \"now\" (only lines printed after this call; use it after editing code a hot-reloading dev server rebuilds), or a cursor from an earlier result (use it when calling again after clamped=true)."`
+	FailContains string `json:"fail_contains,omitempty" jsonschema:"Stop early with failed=true when a line contains this substring (for example \"error\" while waiting for \"compiled\")."`
+	FailPattern  string `json:"fail_pattern,omitempty" jsonschema:"Stop early with failed=true when a line matches this regular expression (for example \"(?i)error|failed to compile\")."`
 }
 
 type waitForExitIn struct {
@@ -256,7 +261,7 @@ func registerTools(server *mcp.Server, h *handlers) {
 		})
 
 	addTool(server, h,
-		&mcp.Tool{Name: "get_logs", Title: "Get logs", Annotations: readOnly("Get logs"), Description: "Read captured stdout/stderr of a process. Bounded by lines (default 100); filter with stream (stdout or stderr), contains (substring), pattern (regex) and level (debug, info, warn, error). Start with stream=stderr when diagnosing. Do not poll in a loop; use wait_for_log to wait."},
+		&mcp.Tool{Name: "get_logs", Title: "Get logs", Annotations: readOnly("Get logs"), Description: "Read captured stdout/stderr of a process. Bounded by lines (default 100); filter with stream (stdout or stderr), contains (substring), pattern (regex) and level (debug, info, warn, error). The result carries cursor: pass it back as since to read only lines printed after this call instead of re-reading the same tail. compact=true folds repeated lines and dependency stack frames. For errors prefer get_errors. Start with stream=stderr when diagnosing. Do not poll in a loop; use wait_for_log to wait."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in getLogsIn) (*mcp.CallToolResult, *api.GetLogsResult, error) {
 			rt, err := h.facade(ctx)
 			if err != nil {
@@ -264,7 +269,7 @@ func registerTools(server *mcp.Server, h *handlers) {
 			}
 			res, err := rt.GetLogs(api.GetLogsRequest{
 				ProcessID: in.ProcessID, Stream: in.Stream, Lines: in.Lines, Contains: in.Contains,
-				Pattern: in.Pattern, Level: in.Level,
+				Pattern: in.Pattern, Level: in.Level, Since: in.Since, Compact: in.Compact,
 			})
 			if err != nil {
 				return nil, nil, err
@@ -301,7 +306,7 @@ func registerTools(server *mcp.Server, h *handlers) {
 		})
 
 	addTool(server, h,
-		&mcp.Tool{Name: "wait_for_log", Title: "Wait for log line", Annotations: readOnly("Wait for log line"), Description: "Block until a log line matches (contains, pattern, or the app's readiness line with ready=true), the process exits, or the timeout elapses. Matches existing and future lines. Each call is capped for this client; if the result has clamped=true and still_running=true, call it again."},
+		&mcp.Tool{Name: "wait_for_log", Title: "Wait for log line", Annotations: readOnly("Wait for log line"), Description: "Block until a log line matches (contains, pattern, or the app's readiness line with ready=true), a fail_contains/fail_pattern line appears (failed=true), the process exits, or the timeout elapses. By default it matches lines of the current run, including ones already printed; after a code change that a hot-reloading server rebuilds without restarting, pass since=\"now\" so an old line cannot match. Results carry cursor: pass it as since to call again after clamped=true without missing lines, or to get_logs/get_errors to read what was printed after the match. Each call is capped for this client."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in waitForLogIn) (*mcp.CallToolResult, *api.WaitForLogResult, error) {
 			rt, err := h.facade(ctx)
 			if err != nil {
@@ -310,7 +315,7 @@ func registerTools(server *mcp.Server, h *handlers) {
 			eff, clamped := h.clampWait(in.TimeoutMS)
 			stop := h.progress(ctx, req, time.Duration(eff)*time.Millisecond, "waiting for a log line from "+in.ProcessID)
 			start := time.Now()
-			res, err := rt.WaitForLog(ctx, api.WaitForLogRequest{ProcessID: in.ProcessID, Contains: in.Contains, Pattern: in.Pattern, Ready: in.Ready, TimeoutMS: eff})
+			res, err := rt.WaitForLog(ctx, api.WaitForLogRequest{ProcessID: in.ProcessID, Contains: in.Contains, Pattern: in.Pattern, Ready: in.Ready, TimeoutMS: eff, Since: in.Since, FailContains: in.FailContains, FailPattern: in.FailPattern})
 			stop()
 			if err != nil {
 				return nil, nil, err
@@ -319,7 +324,10 @@ func registerTools(server *mcp.Server, h *handlers) {
 			res.StillRunning = res.Timeout && !res.Exited
 			if res.Timeout && clamped {
 				res.Clamped = true
-				res.Hint = fmt.Sprintf(clampHint, eff, "wait_for_log")
+				res.Hint = fmt.Sprintf(clampHint, eff, "wait_for_log") + " Pass since=\"" + res.Cursor + "\" so no line printed in between is skipped."
+			}
+			if res.Failed {
+				res.Hint = "A fail line appeared before the expected one. Call get_errors(process_id, since=\"" + res.StartCursor + "\") for the grouped errors with file and line."
 			}
 			switch {
 			case res.Exited && !res.Matched:
@@ -335,7 +343,7 @@ func registerTools(server *mcp.Server, h *handlers) {
 		})
 
 	addTool(server, h,
-		&mcp.Tool{Name: "wait_for_exit", Title: "Wait for exit", Annotations: readOnly("Wait for exit"), Description: "Block until a process exits and return its exit code. Each call is capped for this client; call again when clamped=true."},
+		&mcp.Tool{Name: "wait_for_exit", Title: "Wait for exit", Annotations: readOnly("Wait for exit"), Description: "Block until a process exits and return its exit code. For test runs (go test, pytest, jest, vitest, cargo, dotnet, rspec, mocha, phpunit) the result also carries tests: passed, failed, skipped, total and the failing test names; call get_errors for their file and line. Each call is capped for this client; call again when clamped=true."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in waitForExitIn) (*mcp.CallToolResult, *api.WaitForExitResult, error) {
 			rt, err := h.facade(ctx)
 			if err != nil {

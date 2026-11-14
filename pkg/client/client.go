@@ -30,8 +30,6 @@ const (
 	DefaultAPIVersion = "v1"
 	// MinClientVersion is the minimum client version accepted.
 	MinClientVersion = "v1"
-	// ShimProtocolVersion is the current shim protocol version.
-	ShimProtocolVersion = 1
 	// ClientHeader identifies the caller per §5.2.
 	ClientHeader = "X-Jack-Ketch-Client"
 	// SessionHeader identifies the daemon session this client attached to.
@@ -308,10 +306,29 @@ func (c *Client) SessionService() *SessionServiceClient {
 
 // VersionResponse is the response from GetVersion.
 type VersionResponse struct {
-	DaemonVersion    string `json:"daemonVersion"`
-	APIVersion       string `json:"apiVersion"`
-	MinClientVersion string `json:"minClientVersion"`
-	ShimProtocol     int32  `json:"shimProtocol"`
+	DaemonVersion    string        `json:"daemonVersion"`
+	APIVersion       string        `json:"apiVersion"`
+	MinClientVersion string        `json:"minClientVersion"`
+	Update           *UpdateStatus `json:"update,omitempty"`
+}
+
+type RunningProcess struct {
+	ProcessID     string `json:"processId"`
+	App           string `json:"app,omitempty"`
+	Command       string `json:"command"`
+	Status        string `json:"status"`
+	WorkspaceID   string `json:"workspaceId"`
+	WorkspacePath string `json:"workspacePath"`
+}
+
+type UpdateStatus struct {
+	Pending          bool             `json:"pending"`
+	RunningVersion   string           `json:"runningVersion"`
+	InstalledVersion string           `json:"installedVersion,omitempty"`
+	Executable       string           `json:"executable,omitempty"`
+	RunningProcesses int              `json:"runningProcesses"`
+	Processes        []RunningProcess `json:"processes,omitempty"`
+	Notice           string           `json:"notice,omitempty"`
 }
 
 // SystemServiceClient is a typed client for SystemService.
@@ -321,6 +338,14 @@ type SystemServiceClient struct {
 
 func (c *SystemServiceClient) GetVersion(ctx context.Context) (*VersionResponse, error) {
 	return c.client.GetVersion(ctx)
+}
+
+func (c *SystemServiceClient) UpdateStatus(ctx context.Context) (*UpdateStatus, error) {
+	var out UpdateStatus
+	if err := c.client.call(ctx, "SystemService", "GetUpdateStatus", map[string]any{}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (c *SystemServiceClient) Health(ctx context.Context) (*HealthResponse, error) {
@@ -339,9 +364,8 @@ func (c *SystemServiceClient) GetStats(ctx context.Context) (*StatsResponse, err
 	return &out, nil
 }
 
-func (c *SystemServiceClient) Shutdown(ctx context.Context, keepProcesses bool) error {
-	return c.client.call(ctx, "SystemService", "Shutdown",
-		map[string]any{"keepProcesses": keepProcesses}, nil)
+func (c *SystemServiceClient) Shutdown(ctx context.Context) error {
+	return c.client.call(ctx, "SystemService", "Shutdown", map[string]any{}, nil)
 }
 
 // RuntimeStats returns runtime health counters for a workspace.
@@ -416,6 +440,7 @@ type ResolveResponse struct {
 	ProjectName        string   `json:"projectName"`
 	NewlyCreated       bool     `json:"newlyCreated"`
 	UnresolvedLocators []string `json:"unresolvedLocators"`
+	AttachedSubpath    string   `json:"attachedSubpath"`
 }
 
 // ProjectInfo is a project summary.

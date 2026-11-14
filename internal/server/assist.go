@@ -14,6 +14,7 @@ import (
 func (s *Server) routeAssist(mux *http.ServeMux) {
 	p := "/jackketch.v1.ProcessService/"
 	mux.HandleFunc(p+"Diagnose", s.wrap(s.handleProcDiagnose))
+	mux.HandleFunc(p+"GetErrors", s.wrap(s.handleProcErrors))
 	mux.HandleFunc(p+"Probe", s.wrap(s.handleProcProbe))
 	mux.HandleFunc(p+"RunChecks", s.wrap(s.handleProcRunChecks))
 	mux.HandleFunc(p+"SaveSuggestion", s.wrap(s.handleProcSaveSuggestion))
@@ -39,6 +40,33 @@ func (s *Server) handleProcDiagnose(w http.ResponseWriter, r *http.Request) (any
 	}
 	redactDiagnosis(d, s.redactorForWorkspace(wsID))
 	return d, nil
+}
+
+func (s *Server) handleProcErrors(w http.ResponseWriter, r *http.Request) (any, error) {
+	var req api.GetErrorsRequest
+	if err := decode(r, &req); err != nil {
+		return nil, fmt.Errorf("invalid_argument: %v", err)
+	}
+	if req.ProcessID == "" {
+		return nil, fmt.Errorf("invalid_argument: process_id required")
+	}
+	_, rt, wsID, err := s.findProcess(req.ProcessID)
+	if err != nil {
+		return nil, err
+	}
+	res, err := rt.Errors(req)
+	if err != nil {
+		return nil, err
+	}
+	if red := s.redactorForWorkspace(wsID); red != nil && !red.Empty() {
+		for i := range res.Groups {
+			res.Groups[i].Message = red.Redact(res.Groups[i].Message)
+			for j := range res.Groups[i].Sample {
+				res.Groups[i].Sample[j] = red.Redact(res.Groups[i].Sample[j])
+			}
+		}
+	}
+	return res, nil
 }
 
 func (s *Server) handleProcOutcome(w http.ResponseWriter, r *http.Request) (any, error) {

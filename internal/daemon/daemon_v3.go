@@ -2,8 +2,7 @@
 
 // Package daemon implements the v3 daemon lifecycle:
 // per-user daemon management, systemd socket activation,
-// sd_notify, drain/keep-processes, idle exit, and shim
-// reconnection on boot.
+// sd_notify, drain and idle exit.
 //
 // The v3 daemon is per OS user (not per project) and hosts
 // all project runtimes. It owns the state database, the
@@ -27,8 +26,6 @@ import (
 const (
 	// DefaultIdleExit is the default idle exit duration (never).
 	DefaultIdleExit = 0
-	// DefaultShimLinger is the default shim linger time.
-	DefaultShimLinger = 24 * time.Hour
 	// ReadyPollInterval is how often EnsureReady polls the socket.
 	ReadyPollInterval = 20 * time.Millisecond
 	// ReadyTimeout caps EnsureReady (client spawn path).
@@ -276,32 +273,21 @@ func (d *Daemon) spawn() error {
 	return d.WaitReady(ReadyTimeout)
 }
 
-// Stop stops the daemon. keepProcesses=true (default for upgrade/restart):
-// stop accepting, flush index, detach shims; children keep running and the
-// next daemon re-attaches. false: gracefully stop every process first.
-func (d *Daemon) Stop(keepProcesses bool) error {
+func (d *Daemon) Stop() error {
 	d.state = StateDraining
-	_ = keepProcesses
-	// The live daemon is signalled; Run() handles the drain.
 	pid := d.ReadPid()
 	if pid <= 0 {
 		return fmt.Errorf("daemon not running")
 	}
-	sig := syscall.SIGTERM
-	if !keepProcesses {
-		sig = syscall.SIGQUIT // convention: QUIT = stop --all
-	}
-	return unix.Kill(pid, sig)
+	return unix.Kill(pid, syscall.SIGTERM)
 }
 
-// Restart restarts the daemon (stop keep + start). Used by upgrades:
-// shims are untouched; the new daemon reconnects (§2.3).
 func (d *Daemon) Restart() error {
 	pid := d.ReadPid()
-	if err := d.Stop(true); err != nil {
+	if err := d.Stop(); err != nil {
 		return err
 	}
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if !pidAliveV3(pid) && !d.IsRunning() {
 			break
@@ -309,44 +295,6 @@ func (d *Daemon) Restart() error {
 		time.Sleep(ReadyPollInterval)
 	}
 	return d.Start()
-}
-
-// ReconnectShims scans shim dirs + live instances for running processes.
-// For each: connect shim.sock, Hello, resume ingest from the index cursor.
-// Processes that exited while down: shim holds the exit → recorded.
-// A dead shim socket → mark orphaned (legacy pid-poll fallback).
-func (d *Daemon) ReconnectShims(runtimeDir string, live []LiveInstance) ReconnectReport {
-	var rep ReconnectReport
-	shimRoot := filepath.Join(runtimeDir, "shims")
-	entries, _ := os.ReadDir(shimRoot)
-	seen := map[string]bool{}
-	for _, e := range entries {
-		seen[e.Name()] = true
-		sock := filepath.Join(shimRoot, e.Name(), "shim.sock")
-		if _, err := os.Stat(sock); err != nil {
-			rep.Orphaned = append(rep.Orphaned, e.Name())
-			continue
-		}
-		rep.Reconnected = append(rep.Reconnected, e.Name())
-	}
-	for _, inst := range live {
-		if !seen[inst.InstanceID] {
-			rep.Orphaned = append(rep.Orphaned, inst.InstanceID)
-		}
-	}
-	return rep
-}
-
-// LiveInstance is the minimal reconnect input (avoids importing store).
-type LiveInstance struct {
-	InstanceID string
-	ShimDir    string
-}
-
-// ReconnectReport summarizes boot reconnection.
-type ReconnectReport struct {
-	Reconnected []string
-	Orphaned    []string
 }
 
 // Install writes systemd user units (socket + service) and enables linger

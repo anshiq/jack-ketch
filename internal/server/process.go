@@ -303,6 +303,7 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 		Lifetime    string          `json:"lifetime"`
 		Pty         bool            `json:"pty"`
 		SessionID   string          `json:"sessionId"`
+		Force       bool            `json:"force"`
 	}
 	if err := decode(r, &req); err != nil {
 		return nil, err
@@ -353,6 +354,9 @@ func (s *Server) handleProcStart(w http.ResponseWriter, r *http.Request) (any, e
 	noteArgs(r, map[string]any{"app": req.App, "mode": req.Mode, "command": req.Command, "workdir": req.Workdir, "lifetime": req.Lifetime})
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+	if req.Force {
+		ctx = iruntime.WithForce(ctx)
+	}
 	origin := core.RunOrigin{App: req.App, Command: req.Command, WorkDir: req.Workdir, Env: rawEnv, EnvFile: req.EnvFile}
 	res, pid, err := s.startAndRecord(ctx, pr, rt, req.WorkspaceID, startReq, origin, req.Lifetime, req.SessionID)
 	if err != nil {
@@ -394,7 +398,7 @@ func (s *Server) startAndRecord(ctx context.Context, pr *corePR, rt *coreRT, wsI
 	if st, err := rt.Status(res.ProcessID); err == nil {
 		pid = st.PID
 		if prow != nil {
-			_, _ = s.engine.Store().CreateInstance(prow.ID, int64(pid), 0, "", st.Status)
+			_, _ = s.engine.Store().CreateInstance(prow.ID, int64(pid), 0, st.Status)
 		}
 	}
 	return res, pid, nil
@@ -477,6 +481,9 @@ func (s *Server) handleProcRestart(w http.ResponseWriter, r *http.Request) (any,
 	}
 	out := map[string]any{"processId": req.ProcessID}
 	if st, err := rt.Status(req.ProcessID); err == nil {
+		if st.App != "" {
+			pr.ClearStale(st.App)
+		}
 		out["newInstanceId"] = st.InstanceID
 		out["process"] = s.processInfo(pr, st)
 	}
@@ -541,6 +548,7 @@ func (s *Server) handleProcRemove(w http.ResponseWriter, r *http.Request) (any, 
 		return nil, err
 	}
 	_ = s.engine.Store().RemoveProcess(req.ProcessID)
+	s.engine.BrowserProxies().StopProcess(req.ProcessID)
 	out := structToMap(res)
 	out["removed"] = true
 	return out, nil
@@ -719,7 +727,7 @@ func (s *Server) processInfo(pr *corePR, st *api.StatusResult) map[string]any {
 		"health": st.Health, "startedAt": st.StartedAt, "exitedAt": st.ExitedAt,
 		"exitCode": st.ExitCode, "exitSignal": "", "restartPolicy": st.RestartPolicy,
 		"stdoutLines": st.StdoutLines, "stderrLines": st.StderrLines,
-		"ports": ports, "stale": pr.IsStale(""), "loaded": true,
+		"ports": ports, "stale": app != "" && pr.IsStale(app), "loaded": true,
 		"lifetime": lifetime, "sessionId": sessionID,
 		"mode": mode, "saveable": saveable,
 	}

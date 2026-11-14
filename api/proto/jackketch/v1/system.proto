@@ -21,7 +21,8 @@ message GetVersionResponse {
   string daemon_version = 1;
   string api_version = 2;
   string min_client_version = 3;
-  int32 shim_protocol = 4;
+  reserved 4;
+  reserved "shim_protocol";
 }
 
 message HealthRequest {}
@@ -69,6 +70,7 @@ message ListDirectoryResponse {
 }
 
 message ShutdownRequest {
-  bool keep_processes = 1;
+  reserved 1;
+  reserved "keep_processes";
 }
 message ShutdownResponse {}
