@@ -37,15 +37,6 @@ func IsDenial(err error) bool {
 	return errors.As(err, &d)
 }
 
-// AsDenial unwraps a *Denial from err, reporting whether it was found.
-func AsDenial(err error) (*Denial, bool) {
-	var d *Denial
-	if errors.As(err, &d) {
-		return d, true
-	}
-	return nil, false
-}
-
 // Rule identifiers used as Denial.Rule values. They mirror the config knob
 // that fired so operators can map a refusal straight back to the yaml.
 const (

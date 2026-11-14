@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"jack-ketch/internal/core"
-	"jack-ketch/internal/logpipe"
+	"jack-ketch/internal/logindex"
 
 	_ "modernc.org/sqlite"
 )
@@ -95,12 +95,12 @@ func importLegacyLogs(eng *core.Engine, dataDir, workspaceID, root string, opts 
 		return 0, err
 	}
 	defer rows.Close()
-	idx, err := logpipe.OpenWorkspaceIndex(filepath.Join(dataDir, "logs", workspaceID, "index.db"))
+	idx, err := logindex.OpenWorkspaceIndex(filepath.Join(dataDir, "logs", workspaceID, "index.db"))
 	if err != nil {
 		return 0, err
 	}
 	defer idx.Close()
-	var batch []logpipe.IndexedLine
+	var batch []logindex.IndexedLine
 	var total int64
 	flush := func() error {
 		if len(batch) == 0 {
@@ -121,7 +121,7 @@ func importLegacyLogs(eng *core.Engine, dataDir, workspaceID, root string, opts 
 		if err := rows.Scan(&e.processID, &e.id, &e.ts, &e.stream, &e.line); err != nil {
 			break
 		}
-		batch = append(batch, logpipe.IndexedLine{
+		batch = append(batch, logindex.IndexedLine{
 			ProcessID: e.processID, InstanceID: "legacy", Seq: uint64(e.id),
 			TS: e.ts, Stream: streamNum(e.stream), Line: e.line,
 		})

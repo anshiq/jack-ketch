@@ -28,10 +28,6 @@ import (
 	"jack-ketch/internal/runtime"
 )
 
-func Serve(loaded *config.Loaded, logger *slog.Logger) error {
-	return serveStdio(loaded, logger, serveOptions{})
-}
-
 type serveOptions struct {
 	embedded    bool
 	project     string

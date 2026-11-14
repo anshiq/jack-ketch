@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -41,20 +40,6 @@ const (
 	StateReady
 	StateDraining
 )
-
-func (s DaemonState) String() string {
-	switch s {
-	case StateNone:
-		return "none"
-	case StateBooting:
-		return "booting"
-	case StateReady:
-		return "ready"
-	case StateDraining:
-		return "draining"
-	}
-	return "unknown"
-}
 
 // Daemon manages the daemon lifecycle.
 type Daemon struct {
@@ -297,17 +282,6 @@ func (d *Daemon) Restart() error {
 	return d.Start()
 }
 
-// Install writes systemd user units (socket + service) and enables linger
-// guidance. Never enables linger silently (§3.3.1).
-func (d *Daemon) Install() error {
-	return fmt.Errorf("not implemented: units ship in packaging/systemd; wire `daemon install` in Phase 8")
-}
-
-// Uninstall removes the systemd user service.
-func (d *Daemon) Uninstall() error {
-	return fmt.Errorf("not implemented")
-}
-
 // NotifyReady sends sd_notify READY=1 when running under systemd
 // (Type=notify). No-op elsewhere.
 func NotifyReady() {
@@ -324,15 +298,6 @@ func NotifyReady() {
 			conn.Close()
 		}
 	}
-}
-
-// WaitForSignal blocks until SIGTERM/SIGINT/SIGQUIT/SIGHUP. It returns the
-// signal so Run() can distinguish keep-processes (TERM/INT) from stop-all
-// (QUIT) and reload (HUP).
-func WaitForSignal() os.Signal {
-	ch := make(chan os.Signal, 4)
-	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGHUP)
-	return <-ch
 }
 
 // IsSystemdUser returns true if systemd --user is available.

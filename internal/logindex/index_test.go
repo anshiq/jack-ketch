@@ -1,4 +1,4 @@
-package logpipe
+package logindex
 
 import (
 	"path/filepath"
@@ -19,7 +19,6 @@ func TestWorkspaceIndexRoundtrip(t *testing.T) {
 	if err := idx.AppendBatch(lines); err != nil {
 		t.Fatalf("append: %v", err)
 	}
-	// Idempotent re-import.
 	if err := idx.AppendBatch(lines); err != nil {
 		t.Fatalf("re-append: %v", err)
 	}
@@ -32,11 +31,5 @@ func TestWorkspaceIndexRoundtrip(t *testing.T) {
 	}
 	if hits[0].ProcessID != "proc_1" {
 		t.Fatalf("hit = %+v", hits[0])
-	}
-	if err := idx.SetCursor("run_1", 2); err != nil {
-		t.Fatalf("cursor: %v", err)
-	}
-	if got := idx.Cursor("run_1"); got != 2 {
-		t.Fatalf("cursor = %d", got)
 	}
 }

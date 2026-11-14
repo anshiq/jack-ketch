@@ -206,14 +206,6 @@ func (e *Engine) markDegraded(workspaceID, reason, stack string) {
 	}
 }
 
-// IsDegraded reports whether a workspace runtime is degraded.
-func (e *Engine) IsDegraded(workspaceID string) (bool, string) {
-	if v, ok := e.degraded.Load(workspaceID); ok {
-		return true, v.(*degradedInfo).reason
-	}
-	return false, ""
-}
-
 // GetOrCreateRuntime returns or creates a ProjectRuntime for the
 // given workspace. Lazy-initialized; double-checked under lock.
 func (e *Engine) GetOrCreateRuntime(workspaceID string) (*ProjectRuntime, error) {

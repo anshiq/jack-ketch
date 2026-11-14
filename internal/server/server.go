@@ -164,13 +164,6 @@ func SessionAttr(next http.Handler) http.Handler {
 	})
 }
 
-// AuditInterceptor records all RPC calls to the audit table.
-func AuditInterceptor(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-	})
-}
-
 var streamingRoutes = map[string]bool{
 	"/jackketch.v1.ProcessService/WatchProcesses":     true,
 	"/jackketch.v1.ProcessService/Attach":             true,

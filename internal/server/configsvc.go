@@ -501,12 +501,3 @@ func revisionJSON(rev *storeRevision) map[string]any {
 		"message": rev.Message, "createdAt": rev.CreatedAt,
 	}
 }
-
-func mustWorkspacesByProject(s *Server, projectID string) []string {
-	wss, _ := s.engine.Store().ListWorkspaces(projectID)
-	var out []string
-	for _, w := range wss {
-		out = append(out, w.ID)
-	}
-	return out
-}

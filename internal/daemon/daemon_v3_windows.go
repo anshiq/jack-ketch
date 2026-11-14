@@ -20,8 +20,6 @@ const (
 	StateDraining
 )
 
-func (s DaemonState) String() string { return "unsupported" }
-
 type Daemon struct{}
 
 func New(_, _ string) *Daemon { return &Daemon{} }
@@ -44,10 +42,7 @@ func (d *Daemon) TCPWantPath() string      { return "" }
 func (d *Daemon) WriteTCPWant(_ string) error {
 	return fmt.Errorf("jackketchd: not supported on Windows yet")
 }
-func (d *Daemon) Stop() error      { return fmt.Errorf("jackketchd: not supported on Windows yet") }
-func (d *Daemon) Restart() error   { return fmt.Errorf("jackketchd: not supported on Windows yet") }
-func (d *Daemon) Install() error   { return fmt.Errorf("jackketchd: not supported on Windows yet") }
-func (d *Daemon) Uninstall() error { return fmt.Errorf("jackketchd: not supported on Windows yet") }
+func (d *Daemon) Stop() error    { return fmt.Errorf("jackketchd: not supported on Windows yet") }
+func (d *Daemon) Restart() error { return fmt.Errorf("jackketchd: not supported on Windows yet") }
 
-func NotifyReady()       {}
-func WaitForSignal() any { return nil }
+func NotifyReady() {}

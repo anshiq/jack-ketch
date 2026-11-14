@@ -194,15 +194,6 @@ func writeTCPPortFile(addr string) {
 	_ = os.WriteFile(p.TCPAddrPath(), []byte(addr+"\n"), 0o600)
 }
 
-// TCPAddrFromFile returns the recorded TCP listener address, or "".
-func TCPAddrFromFile() string {
-	data, err := os.ReadFile(paths.User().TCPAddrPath())
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
-}
-
 // RemoveTCPAddrFile deletes the recorded TCP listener address.
 func RemoveTCPAddrFile() {
 	_ = os.Remove(paths.User().TCPAddrPath())

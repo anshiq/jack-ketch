@@ -5,49 +5,11 @@
 package ipc
 
 import (
-	"context"
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
-
-// SocketMode is the file mode for the daemon socket (0600).
-const SocketMode = 0o600
-
-// DirMode is the directory mode for the runtime dir (0700).
-const DirMode = 0o700
-
-// Listen creates a Unix domain socket listener at addr.
-func Listen(addr string) (net.Listener, error) {
-	dir := filepath.Dir(addr)
-	if err := os.MkdirAll(dir, DirMode); err != nil {
-		return nil, fmt.Errorf("ipc: create runtime dir: %w", err)
-	}
-	_ = os.Chmod(dir, DirMode)
-	_ = os.Remove(addr)
-	l, err := net.Listen("unix", addr)
-	if err != nil {
-		return nil, fmt.Errorf("ipc: listen %s: %w", addr, err)
-	}
-	if err := os.Chmod(addr, SocketMode); err != nil {
-		l.Close()
-		return nil, fmt.Errorf("ipc: chmod socket: %w", err)
-	}
-	return l, nil
-}
-
-// Dial connects to a Unix domain socket at addr, honouring ctx.
-func Dial(ctx context.Context, addr string) (net.Conn, error) {
-	d := net.Dialer{}
-	conn, err := d.DialContext(ctx, "unix", addr)
-	if err != nil {
-		return nil, fmt.Errorf("ipc: dial %s: %w", addr, err)
-	}
-	return conn, nil
-}
 
 // PeerUID returns the effective uid of the peer via LOCAL_PEERCRED,
 // failing closed when credentials are unreadable.

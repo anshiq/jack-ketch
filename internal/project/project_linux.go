@@ -381,10 +381,6 @@ func (r *Resolver) allWorkspacesMissing(projectID ID) bool {
 	return true
 }
 
-func allMissing(ex storeExtras, projectID ID) bool {
-	return false
-}
-
 // allMissingList is the real check used by Resolve: every workspace path
 // of the candidate project is gone from disk.
 

@@ -52,37 +52,6 @@ type Client struct {
 	recovering atomic.Bool
 }
 
-// NewTCP creates a client for the authenticated loopback TCP listener
-// (web UI, remote tooling over SSH-forwarded ports).
-func NewTCP(addr, token, agent string) *Client {
-	if agent == "" {
-		agent = "web/unknown"
-	}
-	c := &Client{
-		httpClient: &http.Client{
-			Transport: &tcpTransport{addr: addr, token: token},
-		},
-		agent:   agent,
-		version: DefaultAPIVersion,
-	}
-	c.socket = "tcp://" + addr
-	return c
-}
-
-// tcpTransport rewrites jackketchd URLs to the TCP listener with a bearer token.
-type tcpTransport struct {
-	addr  string
-	token string
-}
-
-func (t *tcpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = req.Clone(req.Context())
-	req.URL.Scheme = "http"
-	req.URL.Host = t.addr
-	req.Header.Set("Authorization", "Bearer "+t.token)
-	return http.DefaultTransport.RoundTrip(req)
-}
-
 // New creates a client for a running daemon socket.
 func New(socketPath, agent string) *Client {
 	if agent == "" {
@@ -116,28 +85,6 @@ func EnsureDaemonAs(socketPath, agent string) (*Client, error) {
 		return nil, fmt.Errorf("jackketchd not reachable at %s: %w (run `jack-ketch daemon start` or `jackketchd --foreground`)", socketPath, err)
 	}
 	return c, nil
-}
-
-// EnsureDaemonOrSpawn tries to dial; on refusal it attempts a spawn via
-// the daemon package callback to avoid an import cycle. Pass nil to
-// disable spawning.
-func EnsureDaemonOrSpawn(socketPath string, spawn func() error) (*Client, error) {
-	if c, err := EnsureDaemon(socketPath); err == nil {
-		return c, nil
-	} else if spawn == nil {
-		return nil, err
-	}
-	if err := spawn(); err != nil {
-		return nil, err
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if c, err := EnsureDaemon(socketPath); err == nil {
-			return c, nil
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	return nil, fmt.Errorf("jackketchd did not become ready at %s", socketPath)
 }
 
 func (c *Client) ping() error {

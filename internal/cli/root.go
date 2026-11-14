@@ -31,17 +31,6 @@ func Run(args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
 		return runBare(loaded, logger)
 	}
-	for _, a := range args {
-		if a == "--no-gui" {
-			return newRootCmd(nil, loaded, logger).Help()
-		}
-		if a == "--tui" || a == "-t" {
-			return errors.New("the TUI has been removed; use `jack-ketch web` for the web interface")
-		}
-		if a == "--gui" {
-			return errors.New("the desktop GUI has been removed; use `jack-ketch web` for the web interface")
-		}
-	}
 	root := newRootCmd(nil, loaded, logger)
 	root.SetArgs(args)
 	return root.Execute()

@@ -1,10 +1,4 @@
-// Per-workspace FTS5 log index (logs/<ws>/index.db, §6.3).
-//
-// Segments are authoritative; the index accelerates SearchLogs. If the
-// indexer falls behind it drops indexing, not logs, and a re-index job
-// fills the gap later. Cursors track per-instance ingest positions so
-// daemon restarts resume without gaps.
-package logpipe
+package logindex
 
 import (
 	"database/sql"
@@ -17,13 +11,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// WorkspaceIndex is the FTS5 index for one workspace.
 type WorkspaceIndex struct {
-	db   *sql.DB
-	path string
+	db *sql.DB
 }
 
-// OpenWorkspaceIndex opens (creating) the index.db for a workspace.
 func OpenWorkspaceIndex(path string) (*WorkspaceIndex, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
@@ -48,13 +39,9 @@ CREATE TABLE IF NOT EXISTS lines (
 );
 CREATE INDEX IF NOT EXISTS lines_proc_seq ON lines(process_id, seq);
 CREATE INDEX IF NOT EXISTS lines_proc_ts ON lines(process_id, ts);
--- Idempotency key for imports and re-index jobs: (process_id, seq).
 CREATE UNIQUE INDEX IF NOT EXISTS lines_proc_seq_uniq ON lines(process_id, seq);
 CREATE VIRTUAL TABLE IF NOT EXISTS lines_fts USING fts5(line, content='lines', content_rowid='rowid',
   tokenize='unicode61 remove_diacritics 2');
-CREATE TABLE IF NOT EXISTS cursors (instance_id TEXT PRIMARY KEY, seq INTEGER NOT NULL);
--- External-content FTS5 does not index content-table writes by itself;
--- these triggers keep lines_fts in step with lines.
 CREATE TRIGGER IF NOT EXISTS lines_ai AFTER INSERT ON lines BEGIN
   INSERT INTO lines_fts(rowid, line) VALUES (new.rowid, new.line);
 END;
@@ -68,26 +55,22 @@ END;
 `
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("logpipe: index schema: %w", err)
+		return nil, fmt.Errorf("logindex: index schema: %w", err)
 	}
-	// FTS5 availability check (modernc builds enable it; fail fast otherwise).
 	var fts int
 	if err := db.QueryRow("SELECT COUNT(*) FROM pragma_fts5(?)", "x").Scan(&fts); err != nil {
-		// pragma_fts5 doesn't exist as such; verify via sqlite_compileoption.
 		var used int
 		_ = db.QueryRow("SELECT COUNT(*) FROM pragma_compile_options WHERE compile_options LIKE '%FTS5%'").Scan(&used)
 		if used == 0 {
 			db.Close()
-			return nil, fmt.Errorf("logpipe: sqlite without FTS5")
+			return nil, fmt.Errorf("logindex: sqlite without FTS5")
 		}
 	}
-	return &WorkspaceIndex{db: db, path: path}, nil
+	return &WorkspaceIndex{db: db}, nil
 }
 
-// Close closes the index.
 func (x *WorkspaceIndex) Close() error { return x.db.Close() }
 
-// IndexedLine is one line to index.
 type IndexedLine struct {
 	ProcessID  string
 	InstanceID string
@@ -98,8 +81,6 @@ type IndexedLine struct {
 	Line       string
 }
 
-// AppendBatch inserts lines idempotently by (process_id, seq): re-imports
-// and re-index jobs skip rows that already exist.
 func (x *WorkspaceIndex) AppendBatch(lines []IndexedLine) error {
 	if len(lines) == 0 {
 		return nil
@@ -132,24 +113,6 @@ func (x *WorkspaceIndex) AppendBatch(lines []IndexedLine) error {
 	return tx.Commit()
 }
 
-// SetCursor records the ingest cursor for an instance.
-func (x *WorkspaceIndex) SetCursor(instanceID string, seq uint64) error {
-	_, err := x.db.Exec(`INSERT INTO lines (instance_id, seq) VALUES (?, ?)
-		ON CONFLICT(instance_id) DO UPDATE SET seq=excluded.seq`, instanceID, seq)
-	_ = err
-	_, err = x.db.Exec(`INSERT INTO cursors (instance_id, seq) VALUES (?, ?)
-		ON CONFLICT(instance_id) DO UPDATE SET seq=excluded.seq`, instanceID, seq)
-	return err
-}
-
-// Cursor returns the ingest cursor (0 when unknown).
-func (x *WorkspaceIndex) Cursor(instanceID string) uint64 {
-	var seq uint64
-	_ = x.db.QueryRow("SELECT seq FROM cursors WHERE instance_id=?", instanceID).Scan(&seq)
-	return seq
-}
-
-// SearchResult is one FTS hit with highlights.
 type SearchHit struct {
 	ProcessID  string
 	InstanceID string
@@ -160,8 +123,6 @@ type SearchHit struct {
 	Rank       float64
 }
 
-// Search runs an FTS5 query with process/stream/time filters. maxRows caps
-// at 1000; the response flags truncation.
 func (x *WorkspaceIndex) Search(query string, processes []string, streams []uint8, from, to int64, maxRows int) ([]SearchHit, bool, error) {
 	if maxRows <= 0 || maxRows > 1000 {
 		maxRows = 200
@@ -194,7 +155,6 @@ func (x *WorkspaceIndex) Search(query string, processes []string, streams []uint
 	args = append(args, maxRows+1)
 	rows, err := x.db.Query(q, args...)
 	if err != nil {
-		// FTS syntax errors (unbalanced quotes) degrade to a LIKE scan.
 		if strings.Contains(err.Error(), "syntax error") {
 			return x.likeSearch(query, processes, maxRows)
 		}
@@ -261,11 +221,4 @@ func placeholders(n int) string {
 		s += "?"
 	}
 	return s
-}
-
-// DeleteBeforeSeq drops index rows below the first retained segment seq
-// (retention janitor keeps index and segments in step).
-func (x *WorkspaceIndex) DeleteBeforeSeq(processID string, seq uint64) error {
-	_, err := x.db.Exec("DELETE FROM lines WHERE process_id=? AND seq < ?", processID, seq)
-	return err
 }

@@ -64,14 +64,6 @@ func (p *projectFiles) find(name string) string {
 
 func (p *projectFiles) has(name string) bool { return p.find(name) != "" }
 
-func (p *projectFiles) inWorkDir(name string) bool {
-	if p.workDir == "" {
-		return false
-	}
-	_, err := os.Stat(filepath.Join(p.workDir, name))
-	return err == nil
-}
-
 func (p *projectFiles) rel(name string) string {
 	abs := p.find(name)
 	if abs == "" {

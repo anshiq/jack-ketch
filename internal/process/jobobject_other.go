@@ -11,9 +11,3 @@ import "os/exec"
 func setupJob(cmd *exec.Cmd) (func(), error) {
 	return func() {}, nil
 }
-
-// terminateJobTree is a no-op on non-Windows platforms: the Unix signalGroup /
-// sigTerm / sigKill helpers already terminate the whole process group.
-func terminateJobTree(pid uint32) error {
-	return nil
-}

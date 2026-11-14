@@ -235,12 +235,6 @@ func (p *ProcessLogs) Len() int {
 	return p.stdout.size + p.stderr.size
 }
 
-// allLocked returns every retained entry merged into chronological (ID) order.
-// Caller must hold the read lock.
-func (p *ProcessLogs) allLocked() []Entry {
-	return mergeLocked(p.stdout.entries(), p.stderr.entries())
-}
-
 // mergeLocked merges two ID-ordered entry slices into one ID-ordered slice in
 // O(n) without sorting. IDs are unique (assigned from a shared counter), so
 // ties cannot occur. When either input is empty the other is returned as-is;

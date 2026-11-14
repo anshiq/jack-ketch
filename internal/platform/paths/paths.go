@@ -8,7 +8,6 @@ package paths
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 // Paths holds all the directory paths used by jack-ketch for a
@@ -62,11 +61,6 @@ func (p *Paths) StateDBPath() string {
 	return filepath.Join(p.Data, "state.db")
 }
 
-// JackKetchdConfigPath returns the daemon-wide settings file path.
-func (p *Paths) JackKetchdConfigPath() string {
-	return filepath.Join(p.Config, "jackketchd.yaml")
-}
-
 // TokenPath returns the bearer-token file for the TCP listener.
 func (p *Paths) TokenPath() string {
 	return filepath.Join(p.Config, "token")
@@ -80,16 +74,6 @@ func (p *Paths) TCPAddrPath() string {
 // WorkspaceDir returns the directory for a specific workspace's logs.
 func (p *Paths) WorkspaceDir(workspaceID string) string {
 	return filepath.Join(p.Data, "logs", workspaceID)
-}
-
-// IndexDBPath returns the FTS5 log index for a workspace.
-func (p *Paths) IndexDBPath(workspaceID string) string {
-	return filepath.Join(p.WorkspaceDir(workspaceID), "index.db")
-}
-
-// SegmentDir returns the directory for an instance's log segments.
-func (p *Paths) SegmentDir(workspaceID, instanceID string) string {
-	return filepath.Join(p.WorkspaceDir(workspaceID), "segments", instanceID)
 }
 
 // TrashDir returns the directory for forgotten projects.
@@ -126,8 +110,4 @@ func (p *Paths) EnsureDirs() error {
 		_ = os.Chmod(dir, 0o700)
 	}
 	return nil
-}
-
-func currentUID() string {
-	return strconv.Itoa(os.Getuid())
 }

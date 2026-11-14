@@ -7,56 +7,11 @@
 package ipc
 
 import (
-	"context"
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
-
-const (
-	// SocketMode is the file mode for the daemon socket (0600).
-	SocketMode = 0o600
-	// DirMode is the directory mode for the runtime dir (0700).
-	DirMode = 0o700
-)
-
-// Listen creates a Unix domain socket listener at addr with 0700
-// directory and 0600 socket. The directory is created if needed.
-// A stale socket file is removed first; the listener repairs modes
-// on existing directories.
-func Listen(addr string) (net.Listener, error) {
-	dir := filepath.Dir(addr)
-	if err := os.MkdirAll(dir, DirMode); err != nil {
-		return nil, fmt.Errorf("ipc: create runtime dir: %w", err)
-	}
-	_ = os.Chmod(dir, DirMode)
-	// Remove any stale socket file.
-	_ = os.Remove(addr)
-
-	lc := net.ListenConfig{}
-	l, err := lc.Listen(context.Background(), "unix", addr)
-	if err != nil {
-		return nil, fmt.Errorf("ipc: listen %s: %w", addr, err)
-	}
-	if err := os.Chmod(addr, SocketMode); err != nil {
-		l.Close()
-		return nil, fmt.Errorf("ipc: chmod socket: %w", err)
-	}
-	return l, nil
-}
-
-// Dial connects to a Unix domain socket at addr, honouring ctx.
-func Dial(ctx context.Context, addr string) (net.Conn, error) {
-	d := net.Dialer{}
-	conn, err := d.DialContext(ctx, "unix", addr)
-	if err != nil {
-		return nil, fmt.Errorf("ipc: dial %s: %w", addr, err)
-	}
-	return conn, nil
-}
 
 // PeerUID returns the OS user ID of the peer connected to conn
 // using SO_PEERCRED. It errors when the credential cannot be read

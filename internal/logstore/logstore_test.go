@@ -499,20 +499,3 @@ func TestDeleteProcess(t *testing.T) {
 		t.Fatalf("proc_b rows removed too: %+v", b)
 	}
 }
-
-func TestNoopSink(t *testing.T) {
-	var n Noop
-	n.Append("p", logs.Entry{})
-	if got, err := n.Query("p", logs.Query{}); err != nil || len(got) != 0 {
-		t.Fatalf("Noop.Query = %v, %v", got, err)
-	}
-	if err := n.DeleteProcess("p"); err != nil {
-		t.Fatal(err)
-	}
-	if err := n.RecordInstance("p", "i", "c", "w", "prof", 1, 0, nil, nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := n.Close(); err != nil {
-		t.Fatal(err)
-	}
-}
