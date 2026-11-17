@@ -7,6 +7,7 @@
     <article class="prose">
       <h1>{{ .Title }}</h1>
       {{ with .Description }}<p class="lede">{{ . }}</p>{{ end }}
+      {{ partial "doc-points.html" . }}
       {{ .Content }}
     </article>
     <div class="doc-foot">{{ partial "doc-meta.html" . }}</div>

@@ -1,0 +1,21 @@
+{{ $key := strings.Trim .RelPermalink "/" }}
+{{ with index hugo.Data.highlights $key }}
+{{ $tools := 0 }}{{ range hugo.Data.tools }}{{ $tools = add $tools (len .tools) }}{{ end }}
+{{ $agents := string (len hugo.Data.agents) }}
+{{ $toolsText := string $tools }}
+<aside class="impact" aria-label="{{ .label | default "Key points" }}">
+  <p class="impact-label">{{ .label | default "Key points" }}</p>
+  {{ with .lead }}<p class="impact-lead">{{ markdownify (replace (replace . "{agents}" $agents) "{tools}" $toolsText) }}</p>{{ end }}
+  <ul class="impact-grid">
+    {{ range $i, $p := .points }}
+    <li>
+      <span class="impact-n">{{ add $i 1 }}</span>
+      <div>
+        <b class="impact-t">{{ replace (replace $p.t "{agents}" $agents) "{tools}" $toolsText }}</b>
+        <p>{{ markdownify (replace (replace $p.d "{agents}" $agents) "{tools}" $toolsText) }}</p>
+      </div>
+    </li>
+    {{ end }}
+  </ul>
+</aside>
+{{ end }}

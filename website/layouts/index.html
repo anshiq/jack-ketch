@@ -5,8 +5,13 @@
   <div class="wrap hero-grid">
     <div class="hero-copy">
       <a class="pill" href="{{ "/docs/reference/security/" | relURL }}"><i></i>Local-first. Your machine, your processes, your secrets.</a>
-      <h1>Let your agent start the server, <em>walk away</em>, and come back.</h1>
-      <p class="sub">jack-ketch is a per-user background daemon that starts, watches and signals long-running dev processes for AI coding agents over MCP. No more sessions frozen on a foreground command.</p>
+      <h1>Give your agent the runtime: <em>start, monitor and understand every process</em>, like a real developer.</h1>
+      <p class="sub">jack-ketch is a per-user MCP daemon that starts, monitors and restarts multiple dev processes for AI coding agents.</p>
+      <ul class="ticks hero-points">
+        <li>Every log line, health check and failure streams back to the agent.</li>
+        <li>The agent understands how your app behaves at runtime.</li>
+        <li>No more sessions frozen on a foreground command.</li>
+      </ul>
       <div class="cta">
         <a class="btn primary" href="{{ "/docs/getting-started/quick-start/" | relURL }}">Get started</a>
         <a class="btn" href="{{ "/docs/" | relURL }}">Read the docs</a>
@@ -18,19 +23,45 @@
         <button type="button" aria-label="Copy install command">Copy</button>
       </div>
     </div>
-    <div class="term" aria-label="Example agent session">
-      <div class="term-bar"><i></i><i></i><i></i><span>agent session · api</span></div>
-      <div class="term-body">
-        <p class="l" style="--d:0"><b class="a">agent</b> list_processes <span class="mut">→ none running</span></p>
-        <p class="l" style="--d:1"><b class="a">agent</b> start_process app=api mode=dev timeout_ms=60000</p>
-        <p class="l" style="--d:2"><b class="j">jack-ketch</b> <span class="ok">ready</span> <span class="mut">"listening on :3000" · pid 48213 · 1.8s</span></p>
-        <p class="l" style="--d:3"><b class="a">agent</b> probe GET /health</p>
-        <p class="l" style="--d:4"><b class="j">jack-ketch</b> <span class="err">500</span> <span class="mut">+ 3 log lines the request produced</span></p>
-        <p class="l" style="--d:5"><b class="a">agent</b> diagnose_process</p>
-        <p class="l" style="--d:6"><b class="j">jack-ketch</b> <span class="warn">missing_env</span> DATABASE_URL <span class="mut">· add to .env · actor: you</span></p>
-        <p class="l" style="--d:7"><b class="a">agent</b> <span class="mut">asks you for the value, then</span> restart_process</p>
-        <p class="l" style="--d:8"><b class="j">jack-ketch</b> <span class="ok">healthy</span> <span class="mut">· GET /health 200 · check passed</span></p>
-        <p class="l cur" style="--d:9"><span class="caret"></span></p>
+    <div class="mesh" aria-label="jack-ketch supervising a five-process project: requests flow from ui through api to ai, auth and mail while every log line streams to the agent">
+      <div class="mesh-graph">
+        <svg viewBox="0 0 520 292" role="presentation" focusable="false">
+          <defs><linearGradient id="agentGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+          <path class="e" d="M126 152 C 156 170, 158 200, 146 216"/>
+          <path class="e" d="M232 242 C 238 248, 240 256, 246 258"/>
+          <path class="e" d="M232 228 C 280 222, 318 216, 352 212"/>
+          <path class="e" d="M220 216 C 300 200, 362 132, 398 120"/>
+          <path class="tap" d="M74 132 C 74 100, 156 76, 216 60"/>
+          <path class="tap" d="M176 216 C 176 150, 220 96, 238 60"/>
+          <path class="tap" d="M302 240 C 302 160, 270 100, 260 60"/>
+          <path class="tap" d="M408 192 C 398 112, 320 78, 282 60"/>
+          <path class="tap" d="M454 100 C 454 78, 360 68, 300 60"/>
+          <circle r="3" fill="#e6e8eb"><animateMotion dur="1.8s" repeatCount="indefinite" path="M126 152 C 156 170, 158 200, 146 216"/></circle>
+          <circle r="3" fill="#bc8cff"><animateMotion dur="1.6s" begin="-0.8s" repeatCount="indefinite" path="M232 242 C 238 248, 240 256, 246 258"/></circle>
+          <circle r="3" fill="#f0883e"><animateMotion dur="2s" begin="-0.6s" repeatCount="indefinite" path="M232 228 C 280 222, 318 216, 352 212"/></circle>
+          <circle r="3" fill="#ff7b72"><animateMotion dur="2.4s" begin="-1.4s" repeatCount="indefinite" path="M220 216 C 300 200, 362 132, 398 120"/></circle>
+          <circle r="2.3" fill="#39c5cf"><animateMotion dur="3.2s" repeatCount="indefinite" path="M74 132 C 74 100, 156 76, 216 60"/></circle>
+          <circle r="2.3" fill="#39c5cf"><animateMotion dur="3.2s" begin="-1.6s" repeatCount="indefinite" path="M74 132 C 74 100, 156 76, 216 60"/></circle>
+          <circle r="2.3" fill="#58a6ff"><animateMotion dur="2.6s" repeatCount="indefinite" path="M176 216 C 176 150, 220 96, 238 60"/></circle>
+          <circle r="2.3" fill="#58a6ff"><animateMotion dur="2.6s" begin="-1.3s" repeatCount="indefinite" path="M176 216 C 176 150, 220 96, 238 60"/></circle>
+          <circle r="2.3" fill="#bc8cff"><animateMotion dur="3.2s" begin="-0.8s" repeatCount="indefinite" path="M302 240 C 302 160, 270 100, 260 60"/></circle>
+          <circle r="2.3" fill="#bc8cff"><animateMotion dur="3.2s" begin="-2.4s" repeatCount="indefinite" path="M302 240 C 302 160, 270 100, 260 60"/></circle>
+          <circle r="2.3" fill="#f0883e"><animateMotion dur="3.4s" begin="-1.1s" repeatCount="indefinite" path="M408 192 C 398 112, 320 78, 282 60"/></circle>
+          <circle r="2.3" fill="#f0883e"><animateMotion dur="3.4s" begin="-2.8s" repeatCount="indefinite" path="M408 192 C 398 112, 320 78, 282 60"/></circle>
+          <circle r="2.3" fill="#ff7b72"><animateMotion dur="3s" begin="-0.5s" repeatCount="indefinite" path="M454 100 C 454 78, 360 68, 300 60"/></circle>
+          <circle r="2.3" fill="#ff7b72"><animateMotion dur="3s" begin="-2s" repeatCount="indefinite" path="M454 100 C 454 78, 360 68, 300 60"/></circle>
+          <text class="cap" x="150" y="142">logs</text>
+          <g class="n agent"><rect x="200" y="14" width="120" height="46" rx="10"/><circle class="st pulse" cx="220" cy="37" r="4"/><text class="name" x="232" y="33">agent</text><text class="sub" x="232" y="47">sees all logs</text></g>
+          <g class="n" data-svc="ui"><rect x="14" y="132" width="112" height="40" rx="9"/><circle class="st" cx="36" cy="152" r="4"/><text class="name" x="48" y="149">ui</text><text class="sub" x="48" y="163">vite :5173</text></g>
+          <g class="n" data-svc="api"><rect x="120" y="216" width="112" height="44" rx="9"/><circle class="st pulse" cx="142" cy="238" r="4"/><text class="name" x="154" y="235">api</text><text class="sub" x="154" y="250">node :3000</text></g>
+          <g class="n" data-svc="ai"><rect x="246" y="240" width="112" height="40" rx="9"/><circle class="st" cx="268" cy="260" r="4"/><text class="name" x="280" y="257">ai</text><text class="sub" x="280" y="271">python :8000</text></g>
+          <g class="n" data-svc="auth"><rect x="352" y="192" width="112" height="40" rx="9"/><circle class="st" cx="374" cy="212" r="4"/><text class="name" x="386" y="209">auth</text><text class="sub" x="386" y="223">go :8081</text></g>
+          <g class="n" data-svc="mail"><rect x="398" y="100" width="112" height="40" rx="9"/><circle class="st" cx="420" cy="120" r="4"/><text class="name" x="432" y="117">mail</text><text class="sub" x="432" y="131">worker</text></g>
+        </svg>
+      </div>
+      <div class="mesh-logs">
+        <div class="mesh-head"><span>stdout + stderr · all 5 processes</span><span>visible to the agent</span></div>
+        <div class="mesh-feed" data-feed aria-hidden="true"></div>
       </div>
     </div>
   </div>
@@ -48,17 +79,79 @@
 <section class="sec">
   <div class="wrap">
     <div class="sec-head">
-      <p class="eyebrow">The problem</p>
-      <h2>Agents block on foreground commands. Dev servers never return.</h2>
-      <p>Run <code>npm run dev</code> in an agent's shell and the session hangs. Detach it and the logs are gone, the port is orphaned and nobody knows whether it started. jack-ketch owns the process so the agent can ask questions instead of babysitting.</p>
+      <p class="eyebrow">Problem and solution</p>
+      <h2>Problems agents and you face</h2>
     </div>
-    <div class="grid3">
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></span><h3>Daemon-owned processes</h3><p>One daemon per OS user hosts every project. Processes outlive agent sessions, so a later session re-attaches with <code>list_processes</code> instead of starting a duplicate.</p></div>
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span><h3>Logs you can search</h3><p>stdout and stderr are captured to a ring buffer and an FTS5 index. Filter by stream, level, substring or regex, across every process in the project.</p></div>
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span><h3>Readiness, not guessing</h3><p>Readiness patterns, HTTP and TCP health checks and restart policies. <code>wait_for_log</code> returns when the server says it is up, capped per client so no tool call times out.</p></div>
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><h3>Failures explained</h3><p><code>diagnose_process</code> names the category, shows evidence and says who has to act: you for missing env, the agent for code errors, the agent after your approval for installs and migrations.</p></div>
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span><h3>Probe and verify</h3><p><code>probe</code> sends a request to the running app and returns the response plus the log lines it produced. Save the useful ones as checks and re-run them with <code>run_checks</code>.</p></div>
-      <div class="feat"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><h3>Credentials without secrets</h3><p>Store test JWTs, cookies and API keys in the web UI. The agent calls your API as a real user by profile name and never sees a value. Encrypted at rest, scrubbed from every result and log.</p></div>
+    <div class="ps">
+      <div class="ps-cols" aria-hidden="true"><span>The problem</span><span>How jack-ketch solves it</span></div>
+      <div class="ps-row">
+        <div class="ps-side ps-bad">
+          <span class="ps-n">1</span>
+          <p>Agents run the application in a shell and can read its output only after it has finished. If the shell is detached, all logs are lost and the port is orphaned.</p>
+        </div>
+        <div class="ps-side ps-good">
+          <p>One daemon per OS user owns every process. Logs are captured live into a searchable index and processes outlive agent sessions, so a later session re-attaches with <code>list_processes</code> instead of starting a duplicate.</p>
+        </div>
+      </div>
+      <div class="ps-row">
+        <div class="ps-side ps-bad">
+          <span class="ps-n">2</span>
+          <p>In a typical workflow, your agent works while you keep the application running in a separate terminal for testing. After the agent finishes the implementation, you restart the application again, and if any error occurs, you manually copy and paste it back to get a solution.</p>
+        </div>
+        <div class="ps-side ps-good">
+          <p>The agent starts, restarts and watches the app itself. It reads the logs and the failure diagnosis directly, fixes the error and restarts, so nothing gets copy-pasted between terminal and chat.</p>
+        </div>
+      </div>
+      <div class="ps-row">
+        <div class="ps-side ps-bad">
+          <span class="ps-n">3</span>
+          <p>Today, agents rely on unit tests to verify the application's implementation. Sometimes all methods pass their tests and behave correctly on their own, but an endpoint touches many methods and the pipeline can break at any point. The methods work correctly, yet their combination gives a wrong result and the endpoint responds incorrectly. This is skipped in almost every case, and the user ends up verifying this behaviour in production.</p>
+        </div>
+        <div class="ps-side ps-good">
+          <p>Since the application is running and accessible to the agent, the agent can simulate real requests and responses with <code>probe</code> alongside the unit tests, and see the log lines each request produced. Useful probes are saved as checks and re-run with <code>run_checks</code>.</p>
+        </div>
+      </div>
+      <div class="ps-row">
+        <div class="ps-side ps-bad">
+          <span class="ps-n">4</span>
+          <p>To check endpoints, you have to manually paste curl commands that contain a secret token, which exposes it to the agents.</p>
+        </div>
+        <div class="ps-side ps-good">
+          <p>Test JWTs, cookies and API keys live encrypted in the web UI. The agent calls your API as a real user by profile name and never sees a value, which is scrubbed from every result and log.</p>
+        </div>
+      </div>
+      <div class="ps-row">
+        <div class="ps-side ps-bad">
+          <span class="ps-n">5</span>
+          <p>It can't verify behaviour — did that endpoint really work, and what did the app log while serving it?</p>
+        </div>
+        <div class="ps-side ps-good">
+          <p><code>probe</code> sends a request to the running app and returns the response plus the log lines it produced. Save the useful ones as checks and re-run them with <code>run_checks</code>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec flow">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Development workflow</p>
+      <h2>Same change. You leave the loop.</h2>
+      <p>One feature, from the first run to a verified endpoint. Every problem above happens somewhere on the left and is gone on the right.</p>
+    </div>
+    <div class="flow-steps" aria-hidden="true"><span style="--i:0"><b>1</b>Logs and port</span><span style="--i:1"><b>2</b>Restart loop</span><span style="--i:2"><b>3</b>Unit tests</span><span style="--i:3"><b>4</b>Secrets</span><span style="--i:4"><b>5</b>Verification</span></div>
+    <div class="flow-grid">
+      <article class="flow-card before">
+        <header><span class="flow-tag">Before</span><h3>Manual, fragmented workflow</h3></header>
+        <div class="flow-svg"><svg viewBox="0 0 560 440" role="img" aria-label="Before: in one feature the agent runs the app in a shell that is detached and loses logs, you restart the app and copy-paste errors, unit tests pass while the endpoint is wrong, you paste a curl with your secret token, and the agent can only guess from a status code."><defs><marker id="fb-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow warn"/></marker><marker id="fb-acc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow acc"/></marker><marker id="fb-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow ok"/></marker><marker id="fb-err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow err"/></marker><marker id="fb-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow dim"/></marker></defs><path class="f-line dim" d="M65 160V76H190" marker-end="url(#fb-dim)"/><path class="f-line dim" d="M360 76H460V160" marker-end="url(#fb-dim)"/><path class="f-line dim" d="M120 190H190" marker-end="url(#fb-dim)"/><path class="f-line dim" d="M360 190H440" marker-end="url(#fb-dim)"/><path class="f-line dim" d="M120 345H190" marker-end="url(#fb-dim)"/><path class="f-line dim" d="M360 330H460V250" marker-end="url(#fb-dim)"/><path class="f-line warn" d="M65 310V250" marker-end="url(#fb-warn)"/><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M65 160V76H190H360H460V160" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0000;0.1000;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.0000;0.0005;0.0995;0.1000;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 345H190" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2000;0.2500;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2000;0.2005;0.2495;0.2500;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M360 330H460V250" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2500;0.3000;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2500;0.2505;0.2995;0.3000;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot err" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M190 345H120" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3100;0.3500;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3100;0.3105;0.3495;0.3500;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M65 310V250" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3500;0.4000;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3500;0.3505;0.3995;0.4000;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 190H190" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4000;0.4500;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4000;0.4005;0.4495;0.4500;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M360 190H440" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4750;0.5250;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4750;0.4755;0.5245;0.5250;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot err" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M190 345H120" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6250;0.6650;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6250;0.6255;0.6645;0.6650;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot err" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M65 310V250" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6650;0.7150;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6650;0.6655;0.7145;0.7150;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot warn" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 190H440" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8000;0.8600;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.8000;0.8005;0.8595;0.8600;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot err" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M440 205H120" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8600;0.9200;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.8600;0.8605;0.9195;0.9200;1" dur="20s" repeatCount="indefinite"/></circle><g class="f-node "><rect x="10" y="160" width="110" height="90" rx="10"/><text class="t" x="65.0" y="201.0">Agent</text><text class="s" x="65.0" y="221.0">writes · tests</text></g><rect class="f-daemon" x="190" y="20" width="170" height="112" rx="14"/><text class="f-dtitle" x="275" y="42">agent's shell</text><text class="f-mono dim v0-2" x="202" y="66">$ npm run dev</text><text class="f-mono dim v0-2" x="202" y="84">ready on :3000</text><text class="f-mono dim v0-2" x="202" y="102">GET / 200 · 12ms</text><text class="f-mono dim v0-2" x="202" y="120">WARN cache miss</text><rect class="f-ghost v2-4" x="190" y="20" width="170" height="112" rx="14"/><text class="f-mono err mid v2-4" x="275" y="80">stdout · stderr gone</text><g class="f-pill err v2-4"><rect x="225" y="98" width="100" height="26" rx="13.0"/><text x="275.0" y="115.4">✕ detached</text></g><g class="f-node "><rect x="190" y="150" width="170" height="64" rx="10"/><text class="t" x="275.0" y="187.0">Unit tests</text></g><g class="f-pill ok v8_4-12"><rect x="225" y="222" width="100" height="26" rx="13.0"/><text x="275.0" y="239.4">✓ 24 passed</text></g><rect class="f-glow ok v8_4-12" x="190" y="150" width="170" height="64" rx="10"/><g class="f-node "><rect x="440" y="160" width="110" height="90" rx="10"/><text class="t" x="495.0" y="201.0">App</text><text class="s" x="495.0" y="221.0">port :3000</text></g><text class="f-mono err mid v2_4-4" x="495" y="238">orphaned ✕</text><text class="f-mono err mid v10-12" x="495" y="238">total: 0 ✕</text><text class="f-mono err mid v17_2-20" x="495" y="238">500 ✕</text><rect class="f-glow err v2_4-4" x="440" y="160" width="110" height="90" rx="10"/><rect class="f-glow err v10-12" x="440" y="160" width="110" height="90" rx="10"/><rect class="f-glow err v17_2-20" x="440" y="160" width="110" height="90" rx="10"/><rect class="f-term" x="190" y="270" width="170" height="120" rx="10"/><text class="f-dtitle" x="275" y="262">your terminal</text><text class="f-mono dim v4-5_5" x="202" y="296">$ npm run dev</text><text class="f-mono err v5_5-8" x="202" y="316">✕ EADDRINUSE :3000</text><text class="f-mono dim v12-16" x="202" y="296">$ curl -H "Bearer</text><text class="f-mono err v12-16" x="202" y="316">eyJhbGciOiJIUzI1…</text><text class="f-mono err v16-20" x="202" y="296">ERR db timeout</text><text class="f-mono warn v16-20" x="202" y="316">pool exhausted 10/10</text><text class="f-mono err v16-20" x="202" y="336">GET /orders 500</text><rect class="f-glow warn v4-8" x="190" y="270" width="170" height="120" rx="10"/><rect class="f-glow err v12-14" x="190" y="270" width="170" height="120" rx="10"/><g class="f-pill err v17-20"><rect x="205" y="398" width="150" height="26" rx="13.0"/><text x="280.0" y="415.4">✕ agent can’t read</text></g><g class="f-node "><rect x="10" y="310" width="110" height="70" rx="10"/><text class="t" x="65.0" y="341.0">You</text><text class="s" x="65.0" y="361.0">restart · paste</text></g><rect class="f-glow warn v4-8" x="10" y="310" width="110" height="70" rx="10"/><rect class="f-glow warn v12-14_5" x="10" y="310" width="110" height="70" rx="10"/><g class="f-pill warn v6_5-8"><rect x="5" y="392" width="160" height="26" rx="13.0"/><text x="85.0" y="409.4">you copy-paste the error</text></g><g class="f-pill err v13-16"><rect x="5" y="392" width="160" height="26" rx="13.0"/><text x="85.0" y="409.4">you paste the curl</text></g><text class="f-mono err mid v14-16" x="65" y="238">Bearer eyJhb…</text><text class="f-mono warn mid v18-20" x="65" y="238">guessing…</text><rect class="f-glow err v14-16" x="10" y="160" width="110" height="90" rx="10"/><g class="f-pill err v18_6-20"><rect x="375" y="398" width="185" height="26" rx="13.0"/><text x="467.5" y="415.4">✕ you find it in production</text></g></svg></div>
+        <div class="flow-cap" aria-hidden="true"><span style="--i:0">The agent runs the app in its own shell. The shell is detached, the logs are lost and the port stays bound.</span><span style="--i:1">You restart the app in your own terminal, hit the error and copy-paste it back to the agent.</span><span style="--i:2">The agent trusts unit tests. Every method passes, yet the endpoint returns a wrong combined result.</span><span style="--i:3">To check the endpoint you paste a curl command with your secret token, which exposes it to the agent.</span><span style="--i:4">The agent only sees a status code and cannot read the app’s logs, so it guesses and you find the bug in production.</span></div>
+      </article>
+      <article class="flow-card after">
+        <header><span class="flow-tag">After</span><h3>One supervised workflow</h3></header>
+        <div class="flow-svg"><svg viewBox="0 0 560 440" role="img" aria-label="After: in one feature the daemon owns the app and its logs, the agent restarts it itself, runs unit tests plus a real request through the endpoint, calls your API by profile name without seeing the token, and reads the response and logs together to find and fix the cause."><defs><marker id="fa-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow warn"/></marker><marker id="fa-acc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow acc"/></marker><marker id="fa-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow ok"/></marker><marker id="fa-err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow err"/></marker><marker id="fa-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" class="f-arrow dim"/></marker></defs><path class="f-line acc" d="M120 195H150"/><path class="f-line dim" d="M150 71V312"/><path class="f-line acc" d="M150 71H185" marker-end="url(#fa-acc)"/><path class="f-line acc" d="M150 149H185" marker-end="url(#fa-acc)"/><path class="f-line acc" d="M150 227H185" marker-end="url(#fa-acc)"/><path class="f-line acc" d="M150 312H185" marker-end="url(#fa-acc)"/><path class="f-flow" d="M425 71H510V170"/><g class="v2-20"><path class="f-flow" d="M480 170V149H425"/></g><path class="f-line acc" d="M425 227H490V260" marker-end="url(#fa-acc)"/><path class="f-line acc" d="M425 312H540V260" marker-end="url(#fa-acc)"/><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 195H150V71H185" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0000;0.0700;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.0000;0.0005;0.0695;0.0700;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M425 71H510V170" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0700;0.1300;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.0700;0.0705;0.1295;0.1300;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 195H150V71H185" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2000;0.2600;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2000;0.2005;0.2595;0.2600;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M425 71H510V170" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2600;0.3000;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2600;0.2605;0.2995;0.3000;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 195H150V312H185" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4400;0.4900;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4400;0.4405;0.4895;0.4900;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M425 312H540V260" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4900;0.5300;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4900;0.4905;0.5295;0.5300;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 195H150V227H185" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6500;0.6900;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6500;0.6505;0.6895;0.6900;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M425 227H490V260" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6900;0.7400;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6900;0.6905;0.7395;0.7400;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M120 195H150V312H185" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8000;0.8400;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.8000;0.8005;0.8395;0.8400;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot acc" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M425 312H540V260" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8400;0.8700;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.8400;0.8405;0.8695;0.8700;1" dur="20s" repeatCount="indefinite"/></circle><circle class="f-dot ok" r="6" opacity="0"><animateMotion dur="20s" repeatCount="indefinite" path="M185 312H150V195H120" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8800;0.9400;1"/><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.8800;0.8805;0.9395;0.9400;1" dur="20s" repeatCount="indefinite"/></circle><rect class="f-daemon" x="170" y="14" width="270" height="372" rx="14"/><text class="f-dtitle" x="305" y="34">jackketchd</text><g class="f-node sm"><rect x="185" y="44" width="240" height="54" rx="10"/><text class="t" x="305.0" y="67.0">Supervisor</text><text class="s" x="305.0" y="87.0">owns pid · port :3000 · restarts</text></g><rect class="f-inner" x="185" y="110" width="240" height="78" rx="9"/><text class="f-mono dim" x="197" y="128">Log index · FTS5</text><text class="f-mono  v2-20" x="197" y="146">ready on :3000</text><text class="f-mono  v3-20" x="197" y="162">GET /orders 200 · 12ms</text><text class="f-mono err v17-20" x="197" y="178">ERR db timeout 3.0s</text><g class="f-node sm"><rect x="185" y="200" width="240" height="54" rx="10"/><text class="t" x="305.0" y="223.0">Vault · inject header</text><text class="s" x="305.0" y="243.0">AES-GCM · token never leaves</text></g><rect class="f-inner" x="185" y="266" width="240" height="92" rx="9"/><text class="f-mono dim" x="197" y="284">probe · real request + logs</text><text class="f-mono err v10_6-16" x="197" y="304">→ 200 · total: 0 ✕ expected 42</text><text class="f-mono err v17_4-20" x="197" y="304">→ 500 Internal Server Error</text><text class="f-mono err v17_4-20" x="197" y="324">log ERR db timeout 3.0s</text><text class="f-mono warn v17_4-20" x="197" y="344">log WARN pool exhausted 10/10</text><text class="f-mono ok mid" x="305" y="377">secrets never reach the agent</text><rect class="f-glow acc v0_8-2_6" x="185" y="44" width="240" height="54" rx="10"/><rect class="f-glow acc v4_2-6" x="185" y="44" width="240" height="54" rx="10"/><rect class="f-glow ok v17-19" x="185" y="110" width="240" height="78" rx="10"/><rect class="f-glow acc v13-15" x="185" y="200" width="240" height="54" rx="10"/><rect class="f-glow acc v9-12" x="185" y="266" width="240" height="92" rx="10"/><rect class="f-glow acc v16-18_6" x="185" y="266" width="240" height="92" rx="10"/><g class="f-node "><rect x="10" y="150" width="110" height="90" rx="10"/><text class="t" x="65.0" y="191.0">Agent</text><text class="s" x="65.0" y="211.0">tests · probes</text></g><rect class="f-glow acc v18-20" x="10" y="150" width="110" height="90" rx="10"/><g class="f-node "><rect x="460" y="170" width="100" height="90" rx="10"/><text class="t" x="510.0" y="211.0">App</text><text class="s" x="510.0" y="231.0">port :3000</text></g><text class="f-mono ok mid v2_6-4" x="510" y="248">● running</text><text class="f-mono warn mid v4-6" x="510" y="248">restarting…</text><text class="f-mono ok mid v6-10" x="510" y="248">● ready</text><text class="f-mono err mid v10-12" x="510" y="248">total: 0 ✕</text><text class="f-mono ok mid v12-16" x="510" y="248">● ready</text><text class="f-mono err mid v16-17_6" x="510" y="248">500 ✕</text><text class="f-mono ok mid v17_6-20" x="510" y="248">● fixed ✓</text><g class="f-node dimmed"><rect x="10" y="330" width="110" height="70" rx="10"/><text class="t" x="65.0" y="361.0">You</text><text class="s" x="65.0" y="381.0">reviews the result</text></g><rect class="f-glow ok v19-20" x="10" y="330" width="110" height="70" rx="10"/><g class="f-pill acc v12-14_5"><rect x="5" y="406" width="160" height="26" rx="13.0"/><text x="85.0" y="423.4">saved once in web UI</text></g><g class="f-pill ok v2_5-4"><rect x="5" y="252" width="160" height="26" rx="13.0"/><text x="85.0" y="269.4">✓ logs survive</text></g><g class="f-pill acc v4_5-8"><rect x="5" y="252" width="160" height="26" rx="13.0"/><text x="85.0" y="269.4">restart_process</text></g><g class="f-pill ok v8_4-12"><rect x="5" y="252" width="160" height="26" rx="13.0"/><text x="85.0" y="269.4">✓ 24 unit tests</text></g><g class="f-pill acc v13_5-16"><rect x="5" y="252" width="160" height="26" rx="13.0"/><text x="85.0" y="269.4">by name: admin</text></g><g class="f-pill ok v18-20"><rect x="5" y="252" width="160" height="26" rx="13.0"/><text x="85.0" y="269.4">✓ cause found, fixed</text></g><g class="f-pill ok v6_2-8"><rect x="5" y="282" width="160" height="26" rx="13.0"/><text x="85.0" y="299.4">wait_for_log ✓</text></g><g class="f-pill err v10-12"><rect x="5" y="282" width="160" height="26" rx="13.0"/><text x="85.0" y="299.4">✕ real request: 0</text></g><g class="f-pill ok v14_5-16"><rect x="5" y="282" width="160" height="26" rx="13.0"/><text x="85.0" y="299.4">✓ never sees token</text></g><g class="f-pill ok v19-20"><rect x="5" y="282" width="160" height="26" rx="13.0"/><text x="85.0" y="299.4">✓ run_checks passes</text></g></svg></div>
+        <div class="flow-cap" aria-hidden="true"><span style="--i:0">The daemon owns the app, its logs and its port. If the agent’s shell detaches, nothing is lost.</span><span style="--i:1">On every change the agent restarts the app itself and waits for it to be ready. You never touch a terminal.</span><span style="--i:2">Unit tests pass and the agent also sends a real request through the whole endpoint, so a wrong result shows up now.</span><span style="--i:3">Your API is called by profile name. The daemon injects the token, so the agent never sees it.</span><span style="--i:4"><code>probe</code> returns the response and the logs it produced. The agent fixes the cause and re-runs the saved check.</span></div>
+      </article>
     </div>
   </div>
 </section>
@@ -68,33 +161,53 @@
     <div class="sec-head left">
       <p class="eyebrow">How it fits together</p>
       <h2>A thin MCP bridge in front of one always-on daemon.</h2>
-      <p>Your agent talks to <code>jack-ketch serve</code>, a thin stdio or HTTP bridge. The bridge calls <code>jackketchd</code> over a <code>0600</code> Unix socket. The web UI uses the same API over an authenticated loopback listener. State lives in a single SQLite database.</p>
-      <ul class="ticks">
-        <li>Socket directory <code>0700</code>, peer-credential uid check, fail closed</li>
-        <li>TCP listener off by default, bearer token, strict Host and Origin checks</li>
-        <li>Every mutating call and policy denial is audited for 90 days</li>
-      </ul>
+      <ol class="hops">
+        <li><span class="hop-n">1</span><p>Your agent talks to <code>jack-ketch serve</code>, a thin stdio or HTTP bridge.</p></li>
+        <li><span class="hop-n">2</span><p>The bridge calls <code>jackketchd</code> over a <code>0600</code> Unix socket.</p></li>
+        <li><span class="hop-n">3</span><p>The web UI uses the same API over an authenticated loopback listener.</p></li>
+        <li><span class="hop-n">4</span><p>State lives in a single SQLite database.</p></li>
+      </ol>
+      <div class="guards">
+        <div class="guard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <div><h4>Local socket</h4><p>Socket directory <code>0700</code>, peer-credential uid check, fail closed</p></div>
+        </div>
+        <div class="guard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <div><h4>TCP off by default</h4><p>TCP listener off by default, bearer token, strict Host and Origin checks</p></div>
+        </div>
+        <div class="guard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h4"/></svg>
+          <div><h4>Audited</h4><p>Every mutating call and policy denial is audited for 90 days</p></div>
+        </div>
+      </div>
       <p><a class="more" href="{{ "/docs/reference/architecture/" | relURL }}">Read the architecture</a></p>
     </div>
     <figure class="diagram">
-      <svg viewBox="0 0 560 420" role="img" aria-label="Agents connect through MCP to jack-ketch serve, which calls jackketchd, which supervises project processes and stores state in SQLite. The web UI also talks to jackketchd.">
+      <svg viewBox="0 0 560 420" role="img" aria-label="Agents connect through MCP to jack-ketch serve, which calls jackketchd over a Unix socket. jackketchd supervises project runtimes, runs the log pipeline and event bus, and stores state in SQLite. The web UI also talks to jackketchd over an authenticated loopback listener.">
         <g class="d-box"><rect x="10" y="20" width="150" height="46" rx="8"/><text x="85" y="48">Claude Code</text></g>
         <g class="d-box"><rect x="10" y="80" width="150" height="46" rx="8"/><text x="85" y="108">Codex · Gemini · Cursor</text></g>
         <g class="d-box"><rect x="10" y="140" width="150" height="46" rx="8"/><text x="85" y="168">+ 19 more clients</text></g>
-        <g class="d-box web"><rect x="10" y="330" width="150" height="46" rx="8"/><text x="85" y="358">Web UI</text></g>
-        <g class="d-box accent"><rect x="215" y="80" width="130" height="46" rx="8"/><text x="280" y="108">jack-ketch serve</text></g>
-        <text class="d-cap" x="190" y="72" text-anchor="middle">MCP</text>
-        <path class="d-line" d="M160 43h25v60h30M160 103h55M160 163h25v-60h30"/>
-        <path class="d-line" d="M160 353h120V250"/>
-        <path class="d-line" d="M280 126v44"/>
+        <g class="d-box web"><rect x="10" y="240" width="150" height="46" rx="8"/><text x="85" y="268">Web UI</text></g>
+        <path class="d-line" d="M160 43H185V103H215M160 103H215M160 163H185V103H215"/>
+        <path class="d-line" d="M160 263H190"/>
+        <path class="d-line" d="M280 126V170"/>
+        <path class="d-line" d="M285 254V268M455 254V268M285 310V326M455 310V326"/>
         <rect class="d-daemon" x="190" y="170" width="360" height="230" rx="12"/>
         <text class="d-title" x="210" y="196">jackketchd · one per OS user</text>
+        <g class="d-box accent"><rect x="215" y="80" width="130" height="46" rx="8"/><text x="280" y="108">jack-ketch serve</text></g>
         <g class="d-box"><rect x="210" y="212" width="150" height="42" rx="8"/><text x="285" y="238">Project runtime A</text></g>
         <g class="d-box"><rect x="380" y="212" width="150" height="42" rx="8"/><text x="455" y="238">Project runtime B</text></g>
         <g class="d-box"><rect x="210" y="268" width="150" height="42" rx="8"/><text x="285" y="294">Log pipeline · FTS5</text></g>
         <g class="d-box"><rect x="380" y="268" width="150" height="42" rx="8"/><text x="455" y="294">Event bus · audit</text></g>
         <g class="d-box store"><rect x="210" y="326" width="320" height="50" rx="8"/><text x="370" y="355">state.db · SQLite WAL · single writer</text></g>
-        <circle class="d-pulse" cx="280" cy="148" r="4"/>
+        <text class="d-cap" x="190" y="72" text-anchor="middle">MCP</text>
+        <text class="d-cap" x="296" y="152">Unix socket · 0600</text>
+        <text class="d-cap" x="85" y="306" text-anchor="middle">loopback · bearer token</text>
+        <g class="d-badge"><circle cx="215" cy="80" r="10"/><text x="215" y="84">1</text></g>
+        <g class="d-badge"><circle cx="280" cy="148" r="10"/><text x="280" y="152">2</text></g>
+        <g class="d-badge"><circle cx="175" cy="263" r="10"/><text x="175" y="267">3</text></g>
+        <g class="d-badge"><circle cx="530" cy="326" r="10"/><text x="530" y="330">4</text></g>
       </svg>
     </figure>
   </div>
@@ -109,7 +222,7 @@
     </div>
     <div class="codes">
       <div class="code-card">
-        <div class="code-head">project config · apps.api</div>
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>project config · apps.api</span><em>YAML</em></div>
 {{ highlight `version: 3
 apps:
   api:
@@ -132,14 +245,34 @@ apps:
           - vars: {NODE_ENV: production}` "yaml" "" }}
       </div>
       <div class="code-card">
-        <div class="code-head">what the agent calls</div>
-{{ highlight `start_process(app="api", mode="prod", timeout_ms=60000)
-wait_for_log(process_id, ready=true)
-probe(process_id, url="/health")
-get_logs(process_id, stream="stderr", lines=100)
-run_checks(process_id)
-restart_process(process_id)` "text" "" }}
-        <p class="code-note">Later <code>env_sources</code> win, and <code>get_process_env</code> shows which source set each key.</p>
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>what the agent calls</span><em>MCP</em></div>
+        <ol class="calls">
+        <li style="--i:0"><code><b>start_process</b>(app="api", mode="prod", timeout_ms=60000)</code><span>starts the prod mode</span></li>
+        <li style="--i:1"><code><b>wait_for_log</b>(process_id, ready=true)</code><span>returns when the app says it is ready</span></li>
+        <li style="--i:2"><code><b>probe</b>(process_id, url="/health")</code><span>hits the running app and returns its logs too</span></li>
+        <li style="--i:3"><code><b>get_logs</b>(process_id, stream="stderr", lines=100)</code><span>reads the last 100 stderr lines</span></li>
+        <li style="--i:4"><code><b>run_checks</b>(process_id)</code><span>re-runs every saved check</span></li>
+        <li style="--i:5"><code><b>restart_process</b>(process_id)</code><span>restarts after a change</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="env-card">
+      <div class="env-copy">
+        <p class="eyebrow">Ordered env</p>
+        <p>Later <code>env_sources</code> win, and <code>get_process_env</code> shows which source set each key.</p>
+      </div>
+      <ol class="env-stack" aria-label="env_sources in order, later ones win">
+        <li><b>.env</b><span>PORT=3000<br>NODE_ENV=development</span></li>
+        <li><b>.env.local</b><em>optional</em><span>API_URL=http://localhost:4000</span></li>
+        <li class="win"><b>prod mode vars</b><span>NODE_ENV=production</span></li>
+      </ol>
+      <div class="env-out">
+        <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>get_process_env(process_id)</span></div>
+        <table>
+          <tr><td>PORT</td><td>3000</td><td><i>.env</i></td></tr>
+          <tr><td>API_URL</td><td>http://localhost:4000</td><td><i>.env.local</i></td></tr>
+          <tr class="win"><td>NODE_ENV</td><td>production</td><td><i>prod mode vars</i></td></tr>
+        </table>
       </div>
     </div>
   </div>
