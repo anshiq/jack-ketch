@@ -84,6 +84,12 @@ func (p *ManagedProcess) restartPolicy() RestartPolicy {
 
 // Ready reports whether a log line satisfies any armed readiness pattern. It is
 // the exported form used by the runtime to build wait_for_log matchers.
+func (p *ManagedProcess) supervisionSnapshot() Supervision {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.supervision
+}
+
 func (s Supervision) Ready(line string) bool {
 	return s.matchReady(line)
 }
