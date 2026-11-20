@@ -40,11 +40,14 @@ func TestVerifyChangeRestartDetectsCrash(t *testing.T) {
 	srv := NewServer(surfaceRuntime(t), nil)
 	session := surfaceSession(t, srv, nil, nil)
 	dir := t.TempDir()
-	start, ok := surfaceCall(t, session, "start_process", map[string]any{"command": "sh", "args": []string{"-c", "if [ -f crash ]; then echo 'panic: boom' >&2; exit 2; fi; sleep 30"}, "workdir": dir})
+	start, ok := surfaceCall(t, session, "start_process", map[string]any{"command": "sh", "args": []string{"-c", "if [ -f crash ]; then echo 'panic: boom' >&2; exit 2; fi; echo up; sleep 30"}, "workdir": dir})
 	if !ok {
 		t.Fatal("start_process failed")
 	}
 	pid := start["process_id"].(string)
+	if _, ok := surfaceCall(t, session, "wait_for_log", map[string]any{"process_id": pid, "contains": "up", "timeout_ms": 5000}); !ok {
+		t.Fatal("first instance never came up")
+	}
 	writeFile(t, dir, "crash")
 	out, _ := surfaceCall(t, session, "verify_change", map[string]any{"process_id": pid, "settle_ms": 1500})
 	if out["verdict"] != "fail" {

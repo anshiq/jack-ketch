@@ -77,6 +77,12 @@ nfpms:
 
 checksum:
   name_template: checksums.txt
+  extra_files:
+    - glob: ./website-dist/*.tar.gz
+
+release:
+  extra_files:
+    - glob: ./website-dist/*.tar.gz
 
 snapshot:
   version_template: "{{ incpatch .Version }}-SNAPSHOT"

@@ -76,8 +76,34 @@ jobs:
       - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
         run: CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build ./...
 
+  website:
+    runs-on: ubuntu-latest
+    env:
+      HUGO_VERSION: "0.164.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Hugo
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/hugo.tar.gz" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/hugo"
+          tar -xzf "$RUNNER_TEMP/hugo.tar.gz" -C "$RUNNER_TEMP/hugo" hugo
+          echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
+      - name: Build
+        run: make -C website check
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p website-dist
+          tar -czf "website-dist/jack-ketch-website_${GITHUB_REF_NAME#v}.tar.gz" -C website/public .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: website
+          path: website-dist/
+          if-no-files-found: error
+
   release:
-    needs: [test-go, test-ui, cross]
+    needs: [test-go, test-ui, cross, website]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +113,10 @@ jobs:
         with:
           go-version: "1.26"
           cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: website
+          path: website-dist/
       - name: Remove previous releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
