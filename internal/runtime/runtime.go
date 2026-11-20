@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,6 +23,7 @@ import (
 
 	"jack-ketch/internal/config"
 	"jack-ketch/internal/credentials"
+	"jack-ketch/internal/diagnose"
 	"jack-ketch/internal/logs"
 	"jack-ketch/internal/logstore"
 	"jack-ketch/internal/policy"
@@ -72,6 +75,7 @@ type Runtime struct {
 
 	portOwnerMu sync.RWMutex
 	portOwner   func(port int) string
+	startGuard  func(ctx context.Context, spec process.StartSpec) error
 
 	creds atomic.Pointer[credentials.Scope]
 
@@ -323,6 +327,11 @@ func (r *Runtime) Start(ctx context.Context, req api.StartRequest) (*api.StartRe
 	profileName := "generic"
 	if prof != nil {
 		profileName = prof.Name
+	}
+	if g := r.guard(); g != nil {
+		if err := g(ctx, spec); err != nil {
+			return nil, err
+		}
 	}
 	proc, err := r.manager.Start(ctx, spec, profileName, grace)
 	if err != nil {
@@ -660,6 +669,15 @@ func (r *Runtime) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
 	if lines > r.getCfg().Config.Runtime.MaxLogLines {
 		lines = r.getCfg().Config.Runtime.MaxLogLines
 	}
+	fromID, err := resolveSince(req.Since, proc, false)
+	if err != nil {
+		return nil, err
+	}
+	cursorFloor := proc.Logs.NextID()
+	want := lines
+	if req.Compact {
+		lines = min(lines*8, r.getCfg().Config.Runtime.MaxLogLines*8)
+	}
 	var res logs.Result
 	source := "memory"
 	if req.Level != "" || req.Pattern != "" {
@@ -671,7 +689,7 @@ func (r *Runtime) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
 			}
 			match = re.MatchString
 		}
-		all := proc.Logs.Query(logs.Query{Stream: filter, Contains: req.Contains})
+		all := proc.Logs.Query(logs.Query{Stream: filter, Contains: req.Contains, FromID: fromID})
 		entries := all.Entries
 		if req.Level != "" {
 			entries = logs.FilterByLevel(entries, req.Level)
@@ -691,17 +709,40 @@ func (r *Runtime) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
 		}
 		res = logs.Result{Entries: entries, Available: available, Truncated: available > lines}
 	} else {
-		res = proc.Logs.Query(logs.Query{Stream: filter, Lines: lines, Contains: req.Contains})
-		if r.sink != nil && res.Available < lines && sinkCanQuery(r.sink) {
+		res = proc.Logs.Query(logs.Query{Stream: filter, Lines: lines, Contains: req.Contains, FromID: fromID})
+		if r.sink != nil && res.Available < lines && sinkCanQuery(r.sink) && (fromID == 0 || fromID < proc.Logs.OldestID()) {
 			source, res = r.backfillFromSink(req, filter, lines, res, proc)
+			if fromID > 0 {
+				res.Entries = entriesFrom(res.Entries, fromID)
+			}
 		}
 	}
 
-	entries := make([]api.LogEntry, 0, len(res.Entries))
+	var compacted []logs.Compacted
+	if req.Compact {
+		compacted = logs.Compact(res.Entries)
+		if len(compacted) > want {
+			compacted = compacted[len(compacted)-want:]
+			res.Truncated = true
+		}
+	} else {
+		compacted = make([]logs.Compacted, len(res.Entries))
+		for i, e := range res.Entries {
+			compacted[i] = logs.Compacted{Entry: e, Count: 1, LastID: e.ID}
+		}
+	}
+	rawLines := 0
+	entries := make([]api.LogEntry, 0, len(compacted))
 	var retainedBytes int
 	dropped := false
-	for _, e := range res.Entries {
-		entry := toAPIEntry(e)
+	for _, c := range compacted {
+		entry := toAPIEntry(c.Entry)
+		if c.Count > 1 {
+			entry.Count = c.Count
+			entry.LastID = c.LastID
+		}
+		entry.Folded = c.Folded
+		rawLines += max(c.Count, c.Folded, 1)
 		retainedBytes += len(entry.Line) + 64
 		entries = append(entries, entry)
 		// Drop the oldest retained entries until the response fits the byte
@@ -716,7 +757,11 @@ func (r *Runtime) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
 	}
 	truncated := res.Truncated || dropped || retainedBytes > r.getCfg().Config.Runtime.MaxLogBytes
 	info := proc.Info()
-	return &api.GetLogsResult{
+	next := cursorFloor
+	if n := len(compacted); n > 0 && compacted[n-1].LastID+1 > next {
+		next = compacted[n-1].LastID + 1
+	}
+	out := &api.GetLogsResult{
 		ProcessID:      info.ID,
 		InstanceID:     info.InstanceID,
 		Entries:        entries,
@@ -724,7 +769,38 @@ func (r *Runtime) GetLogs(req api.GetLogsRequest) (*api.GetLogsResult, error) {
 		ReturnedLines:  len(entries),
 		AvailableLines: res.Available,
 		Source:         source,
-	}, nil
+		Cursor:         strconv.FormatUint(next, 10),
+	}
+	if req.Compact && rawLines > len(entries) {
+		out.Compacted = rawLines - len(entries)
+	}
+	return out, nil
+}
+
+func entriesFrom(in []logs.Entry, from uint64) []logs.Entry {
+	i := sort.Search(len(in), func(i int) bool { return in[i].ID >= from })
+	return in[i:]
+}
+
+func resolveSince(since string, proc *process.ManagedProcess, wait bool) (uint64, error) {
+	switch strings.ToLower(strings.TrimSpace(since)) {
+	case "":
+		if wait {
+			return proc.EntryFrom(), nil
+		}
+		return 0, nil
+	case "all", "start", "beginning":
+		return 0, nil
+	case "instance", "restart", "run":
+		return proc.EntryFrom(), nil
+	case "now":
+		return proc.Logs.NextID(), nil
+	}
+	n, err := strconv.ParseUint(strings.TrimSpace(since), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid since %q: use a cursor returned by an earlier call, \"instance\", \"now\" or \"all\"", since)
+	}
+	return n, nil
 }
 
 // backfillFromSink fetches the missing tail from the durable archive: entries
@@ -831,7 +907,15 @@ func (r *Runtime) WaitForLog(ctx context.Context, req api.WaitForLogRequest) (*a
 	if err != nil {
 		return nil, err
 	}
+	fail, err := buildFailMatcher(req)
+	if err != nil {
+		return nil, err
+	}
 	timeout, err := waitDuration(req.TimeoutMS)
+	if err != nil {
+		return nil, err
+	}
+	startID, err := resolveSince(req.Since, proc, true)
 	if err != nil {
 		return nil, err
 	}
@@ -839,20 +923,30 @@ func (r *Runtime) WaitForLog(ctx context.Context, req api.WaitForLogRequest) (*a
 	subID, wake := proc.SubscribeLogs()
 	defer proc.UnsubscribeLogs(subID)
 
-	lastID := proc.EntryFrom()
-	scan := func() *logs.Entry {
+	lastID := startID
+	start := strconv.FormatUint(startID, 10)
+	scan := func() *api.WaitForLogResult {
 		for _, e := range proc.Logs.From(lastID) {
 			lastID = e.ID + 1
+			if fail != nil && fail(e.Line) {
+				cp := e
+				return &api.WaitForLogResult{Failed: true, Entry: toAPIEntryPtr(&cp)}
+			}
 			if match(e.Line) {
 				cp := e
-				return &cp
+				return &api.WaitForLogResult{Matched: true, Entry: toAPIEntryPtr(&cp)}
 			}
 		}
 		return nil
 	}
+	finish := func(res *api.WaitForLogResult) *api.WaitForLogResult {
+		res.StartCursor = start
+		res.Cursor = strconv.FormatUint(lastID, 10)
+		return res
+	}
 
-	if e := scan(); e != nil {
-		return &api.WaitForLogResult{Matched: true, Entry: toAPIEntryPtr(e)}, nil
+	if res := scan(); res != nil {
+		return finish(res), nil
 	}
 
 	timer := time.NewTimer(timeout)
@@ -860,21 +954,37 @@ func (r *Runtime) WaitForLog(ctx context.Context, req api.WaitForLogRequest) (*a
 	for {
 		select {
 		case <-wake:
-			if e := scan(); e != nil {
-				return &api.WaitForLogResult{Matched: true, Entry: toAPIEntryPtr(e)}, nil
+			if res := scan(); res != nil {
+				return finish(res), nil
 			}
 		case <-proc.Done():
-			// Final scan for lines the readers flushed just before exit.
-			if e := scan(); e != nil {
-				return &api.WaitForLogResult{Matched: true, Entry: toAPIEntryPtr(e)}, nil
+			if res := scan(); res != nil {
+				return finish(res), nil
 			}
-			return &api.WaitForLogResult{Matched: false, Exited: true}, nil
+			return finish(&api.WaitForLogResult{Matched: false, Exited: true}), nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timer.C:
-			return &api.WaitForLogResult{Matched: false, Timeout: true}, nil
+			return finish(&api.WaitForLogResult{Matched: false, Timeout: true}), nil
 		}
 	}
+}
+
+func buildFailMatcher(req api.WaitForLogRequest) (func(string) bool, error) {
+	var re *regexp.Regexp
+	if req.FailPattern != "" {
+		var err error
+		if re, err = regexp.Compile(req.FailPattern); err != nil {
+			return nil, fmt.Errorf("invalid fail_pattern: %w", err)
+		}
+	}
+	sub := req.FailContains
+	if re == nil && sub == "" {
+		return nil, nil
+	}
+	return func(line string) bool {
+		return (sub != "" && strings.Contains(line, sub)) || (re != nil && re.MatchString(line))
+	}, nil
 }
 
 // WaitForExit waits until the process exits or the timeout elapses.
@@ -892,12 +1002,21 @@ func (r *Runtime) WaitForExit(ctx context.Context, req api.WaitForExitParams) (*
 	select {
 	case <-proc.Done():
 		info := proc.Info()
-		return &api.WaitForExitResult{Exited: true, ExitCode: info.ExitCode}, nil
+		return &api.WaitForExitResult{Exited: true, ExitCode: info.ExitCode, Tests: r.testSummary(proc)}, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-timer.C:
 		return &api.WaitForExitResult{Exited: false, Timeout: true}, nil
 	}
+}
+
+func (r *Runtime) testSummary(proc *process.ManagedProcess) *api.TestSummary {
+	entries := r.instanceEntries(proc, 50000)
+	lines := make([]diagnose.ErrLine, len(entries))
+	for i, e := range entries {
+		lines[i] = diagnose.ErrLine{ID: e.ID, Stream: string(e.Stream), Text: e.Line}
+	}
+	return diagnose.SummarizeTests(lines)
 }
 
 // SubscribeEvents opens a capped event subscription for a client (Phase 2).
@@ -1080,6 +1199,7 @@ func (r *Runtime) resolveStart(req api.StartRequest) (process.StartSpec, *profil
 		}
 		spec.Readiness = readiness
 		spec.Supervision = appSupervision(app)
+		spec.Supervision.Readiness = readiness
 		spec.Limits = appLimits(app)
 
 	case req.Command != "":

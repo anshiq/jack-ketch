@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Repo = "anshiq/jack-ketch"
-$Binaries = @("jack-ketch.exe", "jackketchd.exe", "jack-ketch-shim.exe")
+$Binaries = @("jack-ketch.exe", "jackketchd.exe")
 
 if ($env:OS -ne "Windows_NT") {
   throw "This installer is for Windows. Use scripts/install.sh on Linux or macOS."
@@ -50,9 +50,11 @@ try {
   Expand-Archive -Path $zip -DestinationPath $extract -Force
 
   New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+  $daemonRunning = $null -ne (Get-Process -Name "jackketchd" -ErrorAction SilentlyContinue)
   foreach ($bin in $Binaries) {
     Copy-Item -Path (Join-Path $extract $bin) -Destination (Join-Path $InstallDir $bin) -Force
   }
+  Remove-Item -Path (Join-Path $InstallDir "jack-ketch-shim.exe") -Force -ErrorAction SilentlyContinue
 
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
   $parts = @($userPath -split ';' | Where-Object { $_ })
@@ -65,6 +67,9 @@ try {
 
   Write-Host "Installed jack-ketch $Version to $InstallDir"
   & (Join-Path $InstallDir "jack-ketch.exe") --version
+  if ($daemonRunning) {
+    Write-Warning "jackketchd is still running the previous version. The update takes effect when the daemon restarts, and restarting it stops every managed process it is running. Run 'jack-ketch daemon restart' when you are ready."
+  }
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

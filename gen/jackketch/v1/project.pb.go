@@ -74,6 +74,7 @@ type ResolveResponse struct {
 	ProjectName        string                 `protobuf:"bytes,3,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
 	NewlyCreated       bool                   `protobuf:"varint,4,opt,name=newly_created,json=newlyCreated,proto3" json:"newly_created,omitempty"`
 	UnresolvedLocators []string               `protobuf:"bytes,5,rep,name=unresolved_locators,json=unresolvedLocators,proto3" json:"unresolved_locators,omitempty"`
+	AttachedSubpath    string                 `protobuf:"bytes,6,opt,name=attached_subpath,json=attachedSubpath,proto3" json:"attached_subpath,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -141,6 +142,13 @@ func (x *ResolveResponse) GetUnresolvedLocators() []string {
 		return x.UnresolvedLocators
 	}
 	return nil
+}
+
+func (x *ResolveResponse) GetAttachedSubpath() string {
+	if x != nil {
+		return x.AttachedSubpath
+	}
+	return ""
 }
 
 type ListProjectsRequest struct {
@@ -935,20 +943,497 @@ func (x *GCResponse) GetRemovedWorkspaces() []string {
 	return nil
 }
 
+type NestedSide struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectName   string                 `protobuf:"bytes,2,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NestedSide) Reset() {
+	*x = NestedSide{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NestedSide) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NestedSide) ProtoMessage() {}
+
+func (x *NestedSide) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NestedSide.ProtoReflect.Descriptor instead.
+func (*NestedSide) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *NestedSide) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *NestedSide) GetProjectName() string {
+	if x != nil {
+		return x.ProjectName
+	}
+	return ""
+}
+
+func (x *NestedSide) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *NestedSide) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type NestedApp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Workdir       string                 `protobuf:"bytes,2,opt,name=workdir,proto3" json:"workdir,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"` // duplicate | conflict | unique | added
+	ParentApp     string                 `protobuf:"bytes,4,opt,name=parent_app,json=parentApp,proto3" json:"parent_app,omitempty"`
+	Detail        string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NestedApp) Reset() {
+	*x = NestedApp{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NestedApp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NestedApp) ProtoMessage() {}
+
+func (x *NestedApp) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NestedApp.ProtoReflect.Descriptor instead.
+func (*NestedApp) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *NestedApp) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NestedApp) GetWorkdir() string {
+	if x != nil {
+		return x.Workdir
+	}
+	return ""
+}
+
+func (x *NestedApp) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *NestedApp) GetParentApp() string {
+	if x != nil {
+		return x.ParentApp
+	}
+	return ""
+}
+
+func (x *NestedApp) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type NestedProject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Child         *NestedSide            `protobuf:"bytes,1,opt,name=child,proto3" json:"child,omitempty"`
+	Parent        *NestedSide            `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	Apps          []*NestedApp           `protobuf:"bytes,3,rep,name=apps,proto3" json:"apps,omitempty"`
+	Running       int32                  `protobuf:"varint,4,opt,name=running,proto3" json:"running,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NestedProject) Reset() {
+	*x = NestedProject{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NestedProject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NestedProject) ProtoMessage() {}
+
+func (x *NestedProject) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NestedProject.ProtoReflect.Descriptor instead.
+func (*NestedProject) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *NestedProject) GetChild() *NestedSide {
+	if x != nil {
+		return x.Child
+	}
+	return nil
+}
+
+func (x *NestedProject) GetParent() *NestedSide {
+	if x != nil {
+		return x.Parent
+	}
+	return nil
+}
+
+func (x *NestedProject) GetApps() []*NestedApp {
+	if x != nil {
+		return x.Apps
+	}
+	return nil
+}
+
+func (x *NestedProject) GetRunning() int32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+type ListNestedProjectsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNestedProjectsRequest) Reset() {
+	*x = ListNestedProjectsRequest{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNestedProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNestedProjectsRequest) ProtoMessage() {}
+
+func (x *ListNestedProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNestedProjectsRequest.ProtoReflect.Descriptor instead.
+func (*ListNestedProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{21}
+}
+
+type ListNestedProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nested        []*NestedProject       `protobuf:"bytes,1,rep,name=nested,proto3" json:"nested,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNestedProjectsResponse) Reset() {
+	*x = ListNestedProjectsResponse{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNestedProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNestedProjectsResponse) ProtoMessage() {}
+
+func (x *ListNestedProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNestedProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ListNestedProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListNestedProjectsResponse) GetNested() []*NestedProject {
+	if x != nil {
+		return x.Nested
+	}
+	return nil
+}
+
+type MergeNestedProjectRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ChildProjectId  string                 `protobuf:"bytes,1,opt,name=child_project_id,json=childProjectId,proto3" json:"child_project_id,omitempty"`
+	ParentProjectId string                 `protobuf:"bytes,2,opt,name=parent_project_id,json=parentProjectId,proto3" json:"parent_project_id,omitempty"`
+	DryRun          bool                   `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *MergeNestedProjectRequest) Reset() {
+	*x = MergeNestedProjectRequest{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeNestedProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeNestedProjectRequest) ProtoMessage() {}
+
+func (x *MergeNestedProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeNestedProjectRequest.ProtoReflect.Descriptor instead.
+func (*MergeNestedProjectRequest) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *MergeNestedProjectRequest) GetChildProjectId() string {
+	if x != nil {
+		return x.ChildProjectId
+	}
+	return ""
+}
+
+func (x *MergeNestedProjectRequest) GetParentProjectId() string {
+	if x != nil {
+		return x.ParentProjectId
+	}
+	return ""
+}
+
+func (x *MergeNestedProjectRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type MergeNestedProjectResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Child              *NestedSide            `protobuf:"bytes,1,opt,name=child,proto3" json:"child,omitempty"`
+	Parent             *NestedSide            `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	Apps               []*NestedApp           `protobuf:"bytes,3,rep,name=apps,proto3" json:"apps,omitempty"`
+	Renamed            map[string]string      `protobuf:"bytes,4,rep,name=renamed,proto3" json:"renamed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Credentials        int32                  `protobuf:"varint,5,opt,name=credentials,proto3" json:"credentials,omitempty"`
+	Running            int32                  `protobuf:"varint,6,opt,name=running,proto3" json:"running,omitempty"`
+	Applied            bool                   `protobuf:"varint,7,opt,name=applied,proto3" json:"applied,omitempty"`
+	Revision           int64                  `protobuf:"varint,8,opt,name=revision,proto3" json:"revision,omitempty"`
+	CredentialsMoved   int32                  `protobuf:"varint,9,opt,name=credentials_moved,json=credentialsMoved,proto3" json:"credentials_moved,omitempty"`
+	CredentialsSkipped int32                  `protobuf:"varint,10,opt,name=credentials_skipped,json=credentialsSkipped,proto3" json:"credentials_skipped,omitempty"`
+	Yaml               string                 `protobuf:"bytes,11,opt,name=yaml,proto3" json:"yaml,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *MergeNestedProjectResponse) Reset() {
+	*x = MergeNestedProjectResponse{}
+	mi := &file_jackketch_v1_project_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeNestedProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeNestedProjectResponse) ProtoMessage() {}
+
+func (x *MergeNestedProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_jackketch_v1_project_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeNestedProjectResponse.ProtoReflect.Descriptor instead.
+func (*MergeNestedProjectResponse) Descriptor() ([]byte, []int) {
+	return file_jackketch_v1_project_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *MergeNestedProjectResponse) GetChild() *NestedSide {
+	if x != nil {
+		return x.Child
+	}
+	return nil
+}
+
+func (x *MergeNestedProjectResponse) GetParent() *NestedSide {
+	if x != nil {
+		return x.Parent
+	}
+	return nil
+}
+
+func (x *MergeNestedProjectResponse) GetApps() []*NestedApp {
+	if x != nil {
+		return x.Apps
+	}
+	return nil
+}
+
+func (x *MergeNestedProjectResponse) GetRenamed() map[string]string {
+	if x != nil {
+		return x.Renamed
+	}
+	return nil
+}
+
+func (x *MergeNestedProjectResponse) GetCredentials() int32 {
+	if x != nil {
+		return x.Credentials
+	}
+	return 0
+}
+
+func (x *MergeNestedProjectResponse) GetRunning() int32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+func (x *MergeNestedProjectResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *MergeNestedProjectResponse) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *MergeNestedProjectResponse) GetCredentialsMoved() int32 {
+	if x != nil {
+		return x.CredentialsMoved
+	}
+	return 0
+}
+
+func (x *MergeNestedProjectResponse) GetCredentialsSkipped() int32 {
+	if x != nil {
+		return x.CredentialsSkipped
+	}
+	return 0
+}
+
+func (x *MergeNestedProjectResponse) GetYaml() string {
+	if x != nil {
+		return x.Yaml
+	}
+	return ""
+}
+
 var File_jackketch_v1_project_proto protoreflect.FileDescriptor
 
 const file_jackketch_v1_project_proto_rawDesc = "" +
 	"\n" +
 	"\x1ajackketch/v1/project.proto\x12\fjackketch.v1\x1a\x19jackketch/v1/common.proto\"$\n" +
 	"\x0eResolveRequest\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\"\xcc\x01\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"\xf7\x01\n" +
 	"\x0fResolveResponse\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12!\n" +
 	"\fproject_name\x18\x03 \x01(\tR\vprojectName\x12#\n" +
 	"\rnewly_created\x18\x04 \x01(\bR\fnewlyCreated\x12/\n" +
-	"\x13unresolved_locators\x18\x05 \x03(\tR\x12unresolvedLocators\"O\n" +
+	"\x13unresolved_locators\x18\x05 \x03(\tR\x12unresolvedLocators\x12)\n" +
+	"\x10attached_subpath\x18\x06 \x01(\tR\x0fattachedSubpath\"O\n" +
 	"\x13ListProjectsRequest\x128\n" +
 	"\n" +
 	"pagination\x18\x01 \x01(\v2\x18.jackketch.v1.PaginationR\n" +
@@ -1007,7 +1492,49 @@ const file_jackketch_v1_project_proto_rawDesc = "" +
 	"\tGCRequest\";\n" +
 	"\n" +
 	"GCResponse\x12-\n" +
-	"\x12removed_workspaces\x18\x01 \x03(\tR\x11removedWorkspaces2\xa4\x05\n" +
+	"\x12removed_workspaces\x18\x01 \x03(\tR\x11removedWorkspaces\"\x85\x01\n" +
+	"\n" +
+	"NestedSide\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12!\n" +
+	"\fproject_name\x18\x02 \x01(\tR\vprojectName\x12!\n" +
+	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\"\x88\x01\n" +
+	"\tNestedApp\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aworkdir\x18\x02 \x01(\tR\aworkdir\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"parent_app\x18\x04 \x01(\tR\tparentApp\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\"\xb8\x01\n" +
+	"\rNestedProject\x12.\n" +
+	"\x05child\x18\x01 \x01(\v2\x18.jackketch.v1.NestedSideR\x05child\x120\n" +
+	"\x06parent\x18\x02 \x01(\v2\x18.jackketch.v1.NestedSideR\x06parent\x12+\n" +
+	"\x04apps\x18\x03 \x03(\v2\x17.jackketch.v1.NestedAppR\x04apps\x12\x18\n" +
+	"\arunning\x18\x04 \x01(\x05R\arunning\"\x1b\n" +
+	"\x19ListNestedProjectsRequest\"Q\n" +
+	"\x1aListNestedProjectsResponse\x123\n" +
+	"\x06nested\x18\x01 \x03(\v2\x1b.jackketch.v1.NestedProjectR\x06nested\"\x8a\x01\n" +
+	"\x19MergeNestedProjectRequest\x12(\n" +
+	"\x10child_project_id\x18\x01 \x01(\tR\x0echildProjectId\x12*\n" +
+	"\x11parent_project_id\x18\x02 \x01(\tR\x0fparentProjectId\x12\x17\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\x9c\x04\n" +
+	"\x1aMergeNestedProjectResponse\x12.\n" +
+	"\x05child\x18\x01 \x01(\v2\x18.jackketch.v1.NestedSideR\x05child\x120\n" +
+	"\x06parent\x18\x02 \x01(\v2\x18.jackketch.v1.NestedSideR\x06parent\x12+\n" +
+	"\x04apps\x18\x03 \x03(\v2\x17.jackketch.v1.NestedAppR\x04apps\x12O\n" +
+	"\arenamed\x18\x04 \x03(\v25.jackketch.v1.MergeNestedProjectResponse.RenamedEntryR\arenamed\x12 \n" +
+	"\vcredentials\x18\x05 \x01(\x05R\vcredentials\x12\x18\n" +
+	"\arunning\x18\x06 \x01(\x05R\arunning\x12\x18\n" +
+	"\aapplied\x18\a \x01(\bR\aapplied\x12\x1a\n" +
+	"\brevision\x18\b \x01(\x03R\brevision\x12+\n" +
+	"\x11credentials_moved\x18\t \x01(\x05R\x10credentialsMoved\x12/\n" +
+	"\x13credentials_skipped\x18\n" +
+	" \x01(\x05R\x12credentialsSkipped\x12\x12\n" +
+	"\x04yaml\x18\v \x01(\tR\x04yaml\x1a:\n" +
+	"\fRenamedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xf6\x06\n" +
 	"\x0eProjectService\x12F\n" +
 	"\aResolve\x12\x1c.jackketch.v1.ResolveRequest\x1a\x1d.jackketch.v1.ResolveResponse\x12U\n" +
 	"\fListProjects\x12!.jackketch.v1.ListProjectsRequest\x1a\".jackketch.v1.ListProjectsResponse\x12O\n" +
@@ -1017,7 +1544,9 @@ const file_jackketch_v1_project_proto_rawDesc = "" +
 	"\x0eListWorkspaces\x12#.jackketch.v1.ListWorkspacesRequest\x1a$.jackketch.v1.ListWorkspacesResponse\x12X\n" +
 	"\rLinkWorkspace\x12\".jackketch.v1.LinkWorkspaceRequest\x1a#.jackketch.v1.LinkWorkspaceResponse\x12X\n" +
 	"\rForgetProject\x12\".jackketch.v1.ForgetProjectRequest\x1a#.jackketch.v1.ForgetProjectResponse\x127\n" +
-	"\x02GC\x12\x17.jackketch.v1.GCRequest\x1a\x18.jackketch.v1.GCResponseB)Z'jack-ketch/gen/jackketch/v1;jackketchv1b\x06proto3"
+	"\x02GC\x12\x17.jackketch.v1.GCRequest\x1a\x18.jackketch.v1.GCResponse\x12g\n" +
+	"\x12ListNestedProjects\x12'.jackketch.v1.ListNestedProjectsRequest\x1a(.jackketch.v1.ListNestedProjectsResponse\x12g\n" +
+	"\x12MergeNestedProject\x12'.jackketch.v1.MergeNestedProjectRequest\x1a(.jackketch.v1.MergeNestedProjectResponseB)Z'jack-ketch/gen/jackketch/v1;jackketchv1b\x06proto3"
 
 var (
 	file_jackketch_v1_project_proto_rawDescOnce sync.Once
@@ -1031,60 +1560,80 @@ func file_jackketch_v1_project_proto_rawDescGZIP() []byte {
 	return file_jackketch_v1_project_proto_rawDescData
 }
 
-var file_jackketch_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_jackketch_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_jackketch_v1_project_proto_goTypes = []any{
-	(*ResolveRequest)(nil),         // 0: jackketch.v1.ResolveRequest
-	(*ResolveResponse)(nil),        // 1: jackketch.v1.ResolveResponse
-	(*ListProjectsRequest)(nil),    // 2: jackketch.v1.ListProjectsRequest
-	(*ListProjectsResponse)(nil),   // 3: jackketch.v1.ListProjectsResponse
-	(*Project)(nil),                // 4: jackketch.v1.Project
-	(*GetProjectRequest)(nil),      // 5: jackketch.v1.GetProjectRequest
-	(*GetProjectResponse)(nil),     // 6: jackketch.v1.GetProjectResponse
-	(*UpdateProjectRequest)(nil),   // 7: jackketch.v1.UpdateProjectRequest
-	(*UpdateProjectResponse)(nil),  // 8: jackketch.v1.UpdateProjectResponse
-	(*ListWorkspacesRequest)(nil),  // 9: jackketch.v1.ListWorkspacesRequest
-	(*ListWorkspacesResponse)(nil), // 10: jackketch.v1.ListWorkspacesResponse
-	(*Workspace)(nil),              // 11: jackketch.v1.Workspace
-	(*LinkWorkspaceRequest)(nil),   // 12: jackketch.v1.LinkWorkspaceRequest
-	(*LinkWorkspaceResponse)(nil),  // 13: jackketch.v1.LinkWorkspaceResponse
-	(*ForgetProjectRequest)(nil),   // 14: jackketch.v1.ForgetProjectRequest
-	(*ForgetProjectResponse)(nil),  // 15: jackketch.v1.ForgetProjectResponse
-	(*GCRequest)(nil),              // 16: jackketch.v1.GCRequest
-	(*GCResponse)(nil),             // 17: jackketch.v1.GCResponse
-	(*Pagination)(nil),             // 18: jackketch.v1.Pagination
-	(*Cursor)(nil),                 // 19: jackketch.v1.Cursor
+	(*ResolveRequest)(nil),             // 0: jackketch.v1.ResolveRequest
+	(*ResolveResponse)(nil),            // 1: jackketch.v1.ResolveResponse
+	(*ListProjectsRequest)(nil),        // 2: jackketch.v1.ListProjectsRequest
+	(*ListProjectsResponse)(nil),       // 3: jackketch.v1.ListProjectsResponse
+	(*Project)(nil),                    // 4: jackketch.v1.Project
+	(*GetProjectRequest)(nil),          // 5: jackketch.v1.GetProjectRequest
+	(*GetProjectResponse)(nil),         // 6: jackketch.v1.GetProjectResponse
+	(*UpdateProjectRequest)(nil),       // 7: jackketch.v1.UpdateProjectRequest
+	(*UpdateProjectResponse)(nil),      // 8: jackketch.v1.UpdateProjectResponse
+	(*ListWorkspacesRequest)(nil),      // 9: jackketch.v1.ListWorkspacesRequest
+	(*ListWorkspacesResponse)(nil),     // 10: jackketch.v1.ListWorkspacesResponse
+	(*Workspace)(nil),                  // 11: jackketch.v1.Workspace
+	(*LinkWorkspaceRequest)(nil),       // 12: jackketch.v1.LinkWorkspaceRequest
+	(*LinkWorkspaceResponse)(nil),      // 13: jackketch.v1.LinkWorkspaceResponse
+	(*ForgetProjectRequest)(nil),       // 14: jackketch.v1.ForgetProjectRequest
+	(*ForgetProjectResponse)(nil),      // 15: jackketch.v1.ForgetProjectResponse
+	(*GCRequest)(nil),                  // 16: jackketch.v1.GCRequest
+	(*GCResponse)(nil),                 // 17: jackketch.v1.GCResponse
+	(*NestedSide)(nil),                 // 18: jackketch.v1.NestedSide
+	(*NestedApp)(nil),                  // 19: jackketch.v1.NestedApp
+	(*NestedProject)(nil),              // 20: jackketch.v1.NestedProject
+	(*ListNestedProjectsRequest)(nil),  // 21: jackketch.v1.ListNestedProjectsRequest
+	(*ListNestedProjectsResponse)(nil), // 22: jackketch.v1.ListNestedProjectsResponse
+	(*MergeNestedProjectRequest)(nil),  // 23: jackketch.v1.MergeNestedProjectRequest
+	(*MergeNestedProjectResponse)(nil), // 24: jackketch.v1.MergeNestedProjectResponse
+	nil,                                // 25: jackketch.v1.MergeNestedProjectResponse.RenamedEntry
+	(*Pagination)(nil),                 // 26: jackketch.v1.Pagination
+	(*Cursor)(nil),                     // 27: jackketch.v1.Cursor
 }
 var file_jackketch_v1_project_proto_depIdxs = []int32{
-	18, // 0: jackketch.v1.ListProjectsRequest.pagination:type_name -> jackketch.v1.Pagination
+	26, // 0: jackketch.v1.ListProjectsRequest.pagination:type_name -> jackketch.v1.Pagination
 	4,  // 1: jackketch.v1.ListProjectsResponse.projects:type_name -> jackketch.v1.Project
-	19, // 2: jackketch.v1.ListProjectsResponse.next_page_token:type_name -> jackketch.v1.Cursor
+	27, // 2: jackketch.v1.ListProjectsResponse.next_page_token:type_name -> jackketch.v1.Cursor
 	4,  // 3: jackketch.v1.GetProjectResponse.project:type_name -> jackketch.v1.Project
 	4,  // 4: jackketch.v1.UpdateProjectResponse.project:type_name -> jackketch.v1.Project
-	18, // 5: jackketch.v1.ListWorkspacesRequest.pagination:type_name -> jackketch.v1.Pagination
+	26, // 5: jackketch.v1.ListWorkspacesRequest.pagination:type_name -> jackketch.v1.Pagination
 	11, // 6: jackketch.v1.ListWorkspacesResponse.workspaces:type_name -> jackketch.v1.Workspace
-	19, // 7: jackketch.v1.ListWorkspacesResponse.next_page_token:type_name -> jackketch.v1.Cursor
+	27, // 7: jackketch.v1.ListWorkspacesResponse.next_page_token:type_name -> jackketch.v1.Cursor
 	11, // 8: jackketch.v1.LinkWorkspaceResponse.workspace:type_name -> jackketch.v1.Workspace
-	0,  // 9: jackketch.v1.ProjectService.Resolve:input_type -> jackketch.v1.ResolveRequest
-	2,  // 10: jackketch.v1.ProjectService.ListProjects:input_type -> jackketch.v1.ListProjectsRequest
-	5,  // 11: jackketch.v1.ProjectService.GetProject:input_type -> jackketch.v1.GetProjectRequest
-	7,  // 12: jackketch.v1.ProjectService.UpdateProject:input_type -> jackketch.v1.UpdateProjectRequest
-	9,  // 13: jackketch.v1.ProjectService.ListWorkspaces:input_type -> jackketch.v1.ListWorkspacesRequest
-	12, // 14: jackketch.v1.ProjectService.LinkWorkspace:input_type -> jackketch.v1.LinkWorkspaceRequest
-	14, // 15: jackketch.v1.ProjectService.ForgetProject:input_type -> jackketch.v1.ForgetProjectRequest
-	16, // 16: jackketch.v1.ProjectService.GC:input_type -> jackketch.v1.GCRequest
-	1,  // 17: jackketch.v1.ProjectService.Resolve:output_type -> jackketch.v1.ResolveResponse
-	3,  // 18: jackketch.v1.ProjectService.ListProjects:output_type -> jackketch.v1.ListProjectsResponse
-	6,  // 19: jackketch.v1.ProjectService.GetProject:output_type -> jackketch.v1.GetProjectResponse
-	8,  // 20: jackketch.v1.ProjectService.UpdateProject:output_type -> jackketch.v1.UpdateProjectResponse
-	10, // 21: jackketch.v1.ProjectService.ListWorkspaces:output_type -> jackketch.v1.ListWorkspacesResponse
-	13, // 22: jackketch.v1.ProjectService.LinkWorkspace:output_type -> jackketch.v1.LinkWorkspaceResponse
-	15, // 23: jackketch.v1.ProjectService.ForgetProject:output_type -> jackketch.v1.ForgetProjectResponse
-	17, // 24: jackketch.v1.ProjectService.GC:output_type -> jackketch.v1.GCResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	18, // 9: jackketch.v1.NestedProject.child:type_name -> jackketch.v1.NestedSide
+	18, // 10: jackketch.v1.NestedProject.parent:type_name -> jackketch.v1.NestedSide
+	19, // 11: jackketch.v1.NestedProject.apps:type_name -> jackketch.v1.NestedApp
+	20, // 12: jackketch.v1.ListNestedProjectsResponse.nested:type_name -> jackketch.v1.NestedProject
+	18, // 13: jackketch.v1.MergeNestedProjectResponse.child:type_name -> jackketch.v1.NestedSide
+	18, // 14: jackketch.v1.MergeNestedProjectResponse.parent:type_name -> jackketch.v1.NestedSide
+	19, // 15: jackketch.v1.MergeNestedProjectResponse.apps:type_name -> jackketch.v1.NestedApp
+	25, // 16: jackketch.v1.MergeNestedProjectResponse.renamed:type_name -> jackketch.v1.MergeNestedProjectResponse.RenamedEntry
+	0,  // 17: jackketch.v1.ProjectService.Resolve:input_type -> jackketch.v1.ResolveRequest
+	2,  // 18: jackketch.v1.ProjectService.ListProjects:input_type -> jackketch.v1.ListProjectsRequest
+	5,  // 19: jackketch.v1.ProjectService.GetProject:input_type -> jackketch.v1.GetProjectRequest
+	7,  // 20: jackketch.v1.ProjectService.UpdateProject:input_type -> jackketch.v1.UpdateProjectRequest
+	9,  // 21: jackketch.v1.ProjectService.ListWorkspaces:input_type -> jackketch.v1.ListWorkspacesRequest
+	12, // 22: jackketch.v1.ProjectService.LinkWorkspace:input_type -> jackketch.v1.LinkWorkspaceRequest
+	14, // 23: jackketch.v1.ProjectService.ForgetProject:input_type -> jackketch.v1.ForgetProjectRequest
+	16, // 24: jackketch.v1.ProjectService.GC:input_type -> jackketch.v1.GCRequest
+	21, // 25: jackketch.v1.ProjectService.ListNestedProjects:input_type -> jackketch.v1.ListNestedProjectsRequest
+	23, // 26: jackketch.v1.ProjectService.MergeNestedProject:input_type -> jackketch.v1.MergeNestedProjectRequest
+	1,  // 27: jackketch.v1.ProjectService.Resolve:output_type -> jackketch.v1.ResolveResponse
+	3,  // 28: jackketch.v1.ProjectService.ListProjects:output_type -> jackketch.v1.ListProjectsResponse
+	6,  // 29: jackketch.v1.ProjectService.GetProject:output_type -> jackketch.v1.GetProjectResponse
+	8,  // 30: jackketch.v1.ProjectService.UpdateProject:output_type -> jackketch.v1.UpdateProjectResponse
+	10, // 31: jackketch.v1.ProjectService.ListWorkspaces:output_type -> jackketch.v1.ListWorkspacesResponse
+	13, // 32: jackketch.v1.ProjectService.LinkWorkspace:output_type -> jackketch.v1.LinkWorkspaceResponse
+	15, // 33: jackketch.v1.ProjectService.ForgetProject:output_type -> jackketch.v1.ForgetProjectResponse
+	17, // 34: jackketch.v1.ProjectService.GC:output_type -> jackketch.v1.GCResponse
+	22, // 35: jackketch.v1.ProjectService.ListNestedProjects:output_type -> jackketch.v1.ListNestedProjectsResponse
+	24, // 36: jackketch.v1.ProjectService.MergeNestedProject:output_type -> jackketch.v1.MergeNestedProjectResponse
+	27, // [27:37] is the sub-list for method output_type
+	17, // [17:27] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_jackketch_v1_project_proto_init() }
@@ -1099,7 +1648,7 @@ func file_jackketch_v1_project_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_jackketch_v1_project_proto_rawDesc), len(file_jackketch_v1_project_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

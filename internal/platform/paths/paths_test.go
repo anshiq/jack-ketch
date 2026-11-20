@@ -55,7 +55,6 @@ func TestPaths_Methods(t *testing.T) {
 		{"LockPath", "/run/jack-ketch/jackketchd.lock", p.LockPath()},
 		{"LogPath", "/var/lib/jack-ketch-state/jackketchd.log", p.LogPath()},
 		{"WorkspaceDir", "/var/lib/jack-ketch/logs/ws_456", p.WorkspaceDir("ws_456")},
-		{"ShimDir", "/run/jack-ketch/shims/inst_789", p.ShimDir("inst_789")},
 		{"TrashDir", "/var/lib/jack-ketch/trash", p.TrashDir()},
 		{"BackupsDir", "/var/lib/jack-ketch/backups", p.BackupsDir()},
 	}

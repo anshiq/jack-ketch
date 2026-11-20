@@ -4,6 +4,8 @@ import {
   toChange,
   toEvent,
   toHarnessInfo,
+  toMergeReport,
+  toNestedProject,
   toProcess,
   toResource,
   toRevision,
@@ -19,6 +21,8 @@ import type {
   HarnessInfo,
   IntegrationChange,
   IntegrationSnippet,
+  MergeReport,
+  NestedProject,
   PlanResult,
   Process,
   ResourceSample,
@@ -31,17 +35,97 @@ import type {
 
 export type { StreamMessage, StreamState };
 
+export interface RunningProcessRef {
+  processId: string;
+  app?: string;
+  command: string;
+  status: string;
+  workspaceId: string;
+  workspacePath: string;
+}
+
+export interface PortManagedRef {
+  processId: string;
+  app?: string;
+  mode?: string;
+  status: string;
+  workspaceId: string;
+  workspacePath: string;
+}
+
+export interface PortDeclared {
+  workspaceId: string;
+  workspacePath: string;
+  app: string;
+  name: string;
+  port: number;
+  default?: number;
+}
+
+export interface PortEntry {
+  port: number;
+  address?: string;
+  pid?: number;
+  command?: string;
+  listening: boolean;
+  managed?: PortManagedRef;
+  declared?: PortDeclared[];
+  conflict?: string;
+  self?: boolean;
+}
+
+export interface PortsView {
+  supported: boolean;
+  ports: PortEntry[];
+}
+
+export interface ErrorSeries {
+  processId: string;
+  app?: string;
+  command: string;
+  status: string;
+  workspaceId: string;
+  counts: number[];
+  total: number;
+}
+
+export interface ErrorRate {
+  from: number;
+  to: number;
+  bucketMs: number;
+  series: ErrorSeries[];
+}
+
+export const TimelineService = {
+  errorRate: (workspaceId: string, windowMs: number, buckets: number) =>
+    call<{ workspaceId: string; windowMs: number; buckets: number }, ErrorRate>('LogService', 'ErrorRate', { workspaceId, windowMs, buckets })
+};
+
+export interface UpdateStatus {
+  pending: boolean;
+  runningVersion: string;
+  installedVersion?: string;
+  executable?: string;
+  runningProcesses: number;
+  processes?: RunningProcessRef[];
+  notice?: string;
+}
+
 type CB = (s: StreamState) => void;
 
 export const SystemService = {
-  version: () => call<Record<string, never>, { daemonVersion: string; apiVersion: string; minClientVersion: string }>('SystemService', 'GetVersion', {}),
+  version: () => call<Record<string, never>, { daemonVersion: string; apiVersion: string; minClientVersion: string; update?: UpdateStatus }>('SystemService', 'GetVersion', {}),
+  updateStatus: () => call<Record<string, never>, UpdateStatus>('SystemService', 'GetUpdateStatus', {}),
+  ports: () => call<Record<string, never>, PortsView>('SystemService', 'ListPorts', {}),
+  killPortHolder: (port: number, pid: number, force = false) =>
+    call<{ port: number; pid: number; force: boolean }, { signalled: boolean }>('SystemService', 'KillPortHolder', { port, pid, force }),
   health: () => call<Record<string, never>, { healthy: boolean; status: string; uptimeMs: number; uptimeSeconds: number; version: string; socketPath: string; dataDir: string; tcpAddr: string }>('SystemService', 'Health', {}),
   stats: () => call<Record<string, never>, { projects: number; processes: number; sessions: number; processesRunning: number; processesFailed: number; logDiskBytes: number; indexLagSeconds: number; uptimeSeconds: number }>('SystemService', 'GetStats', {}),
   getSettings: () => call<Record<string, never>, { settings: Record<string, unknown>; schema: Record<string, { type: string; enum?: string[]; description: string }> }>('SystemService', 'GetSettings', {}),
   updateSettings: (req: Record<string, unknown>) => call<Record<string, unknown>, { settings: Record<string, unknown> }>('SystemService', 'UpdateSettings', req),
   listDirectory: (req: { dir: string; prefix?: string; baseDir?: string; dirsOnly?: boolean; limit?: number }) =>
     call<typeof req, DirectoryListing>('SystemService', 'ListDirectory', req),
-  shutdown: (keepProcesses = true) => call<{ keepProcesses: boolean }, { draining: boolean }>('SystemService', 'Shutdown', { keepProcesses })
+  shutdown: () => call<Record<string, never>, { draining: boolean }>('SystemService', 'Shutdown', {})
 };
 
 export const ProjectService = {
@@ -59,6 +143,12 @@ export const ProjectService = {
   linkWorkspace: (projectId: string, path: string) => call<{ projectId: string; path: string }, unknown>('ProjectService', 'LinkWorkspace', { projectId, path }),
   forget: (projectId: string) => call<{ projectId: string }, unknown>('ProjectService', 'ForgetProject', { projectId }),
   gc: () => call<Record<string, never>, { removedWorkspaces: string[] }>('ProjectService', 'GC', {}),
+  nested: async (): Promise<NestedProject[]> => {
+    const r = await call<Record<string, never>, { nested: Record<string, unknown>[] }>('ProjectService', 'ListNestedProjects', {});
+    return (r.nested ?? []).map(toNestedProject);
+  },
+  mergeNested: async (childProjectId: string, parentProjectId: string, dryRun: boolean): Promise<MergeReport> =>
+    toMergeReport(await call<Record<string, unknown>, Record<string, unknown>>('ProjectService', 'MergeNestedProject', { childProjectId, parentProjectId, dryRun }))
 };
 
 export const ProcessService = {

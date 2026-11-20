@@ -23,11 +23,10 @@
             src = ../..;
             # Real hash (no vendor/ dir): refresh after go.mod/go.sum changes with
             #   nix build ./packaging/nix#jack-ketch  # read expected hash from error
-            vendorHash = "sha256-KHIzOJhiJUSIiY1dKftznueIruWmReW2FrFxY3mizs8=";
+            vendorHash = "sha256-SnoCfAQY9b+sxrlWX/rScbPSUeM3zVTbpUQuC6IWQF4=";
             subPackages = [
               "cmd/jack-ketch"
               "cmd/jackketchd"
-              "cmd/jack-ketch-shim"
             ];
             ldflags = [
               "-s"
@@ -70,7 +69,7 @@
                 };
                 Service = {
                   Type = "notify";
-                  KillMode = "process";
+                  KillMode = "mixed";
                   Delegate = true;
                   Restart = "on-failure";
                   ExecStart = "${cfg.package}/bin/jackketchd --foreground";

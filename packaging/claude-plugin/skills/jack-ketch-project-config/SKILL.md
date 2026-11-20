@@ -2,7 +2,7 @@
 name: jack-ketch-project-config
 description: Project config reference declaring how runnable apps are started, supervised, and env-configured (apps, modes such as dev/prod/headless/test, ordered env_sources of env files and inline vars, saved runtime checks, runtime env layers, health checks, restart, security).
 metadata:
-  version: "5"
+  version: "6"
 ---
 
 # project config reference
@@ -76,6 +76,17 @@ apps:
     #   - file: .env.local
     #     optional: true
     #   - vars: {LOG_LEVEL: info}
+
+    # Apps that must run first; start_stack starts them in order.
+    # depends_on: [db]
+
+    # What happens to running processes when this app's config changes:
+    # manual (default) marks them stale until restart_process; restart
+    # restarts them automatically.
+    # reload: manual
+
+    # Restart this app's processes when files change (see "Watch").
+    # watch: [src]
 
     # Named ways to run this app (see "Modes").
     # default_mode: dev
@@ -185,6 +196,30 @@ checks:
   - name: db-port
     tcp: localhost:5432
 ```
+
+## Watch and reload
+
+`watch` restarts an app's processes when files change; leave it off for dev servers that already hot-reload.
+
+```yaml
+apps:
+  api:
+    command: [go, run, ./cmd/api]
+    watch: [cmd, internal, go.mod]          # a path, a list, or a mapping
+  worker:
+    command: [python3, -u, worker.py]
+    watch:
+      paths: [src]
+      ignore: ["*_test.py", "src/generated/**"]   # base-name globs, or relative paths when they contain /
+      debounce: 500ms                       # default 300ms, 50ms..1m
+```
+
+- Paths are relative to the app's `workdir`; directories are watched recursively, including ones created later. Absolute paths are rejected.
+- After `debounce` of quiet, running processes of the app restart, and so do crashed or exited ones (a fix brings a crashed app back). Processes stopped with `stop_process` stay stopped.
+- `.git`, `node_modules`, `vendor`, `dist`, `build`, `target`, `bin`, `obj`, `out`, `tmp`, `__pycache__`, `.venv`, framework caches and editor temp files (`*.swp`, `*~`, `*.log`, `*.tmp`, ...) are always ignored.
+- Each automatic restart emits a `process.auto_restarted` event and an audit entry.
+
+`reload` decides what a config change does to running processes. `manual` (default) marks them stale; `restart_process` picks up the new config. `reload: restart` restarts them automatically when a restart-relevant field (command, workdir, env, env_sources, modes, limits, type, ports) changes.
 
 ## Monorepo
 

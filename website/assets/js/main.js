@@ -54,6 +54,53 @@
     if (b) b.addEventListener("click", function () { copy(box.getAttribute("data-copy"), b); });
   });
 
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) {
+    document.querySelectorAll(".mesh-graph svg, .flow-svg svg, .diagram svg").forEach(function (s) { if (s.pauseAnimations) s.pauseAnimations(); });
+  }
+
+  document.querySelectorAll("[data-feed]").forEach(function (feed) {
+    var svc = [
+      ["ui", ['GET / <span class="ok">200</span> · 12ms', 'POST /login → <span class="ok">302</span>', 'hydrated cart island · 41ms']],
+      ["api", ['GET /health <span class="ok">200</span>', 'auth.verify → <span class="ok">ok</span> · 3ms', 'db pool 4/10 · 22ms']],
+      ["ai", ['embed(batch=8) · 38ms', 'cache hit · 0.4ms', 'stream 42 tok/s']],
+      ["auth", ['session issued · uid 8f2c', 'refresh ok · ttl 14d', '<span class="warn">429</span> ip 10.0.0.7']],
+      ["mail", ['queued welcome#4812', 'smtp <span class="ok">250</span> · 118ms', 'retry #1 · backoff 2s']]
+    ];
+    var agent = [
+      'get_logs(api) → last 80 lines',
+      'probe GET /health → <span class="ok">200</span>',
+      'search_logs "timeout" → 2 hits · 5 processes',
+      'wait_for_log(mail, "smtp 250") <span class="ok">✓</span>'
+    ];
+    var MAX = 7;
+    function add(name, html, isAgent) {
+      var p = document.createElement("p");
+      p.className = "fl" + (isAgent ? " ag" : "");
+      p.innerHTML = '<b class="' + name + '">' + name + '</b>' + html;
+      feed.appendChild(p);
+      while (feed.children.length > MAX) feed.removeChild(feed.firstChild);
+    }
+    svc.forEach(function (s, i) { add(s[0], s[1][i % s[1].length], false); });
+    if (reduceMotion) return;
+    var last = -1;
+    function pick() {
+      var s;
+      do { s = Math.floor(Math.random() * svc.length); } while (s === last);
+      last = s;
+      return [svc[s][0], svc[s][1][Math.floor(Math.random() * svc[s][1].length)]];
+    }
+    var n = 0, a = 0;
+    (function tick() {
+      if (!document.hidden) {
+        if (n % 6 === 5) { add("agent", agent[a++ % agent.length], true); }
+        else { var it = pick(); add(it[0], it[1], false); }
+        n++;
+      }
+      setTimeout(tick, 430 + Math.random() * 320);
+    })();
+  });
+
   document.querySelectorAll(".prose .highlight, .prose > pre").forEach(function (block) {
     var pre = block.tagName === "PRE" ? block : block.querySelector("pre");
     if (!pre) return;

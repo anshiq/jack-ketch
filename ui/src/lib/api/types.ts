@@ -505,3 +505,40 @@ export interface KeystoreStatus {
   keychainError: string;
   keyPath: string;
 }
+
+export interface NestedSide {
+  projectId: string;
+  projectName: string;
+  workspaceId: string;
+  path: string;
+}
+
+export type NestedAppStatus = 'duplicate' | 'conflict' | 'unique' | 'added';
+
+export interface NestedApp {
+  name: string;
+  workdir: string;
+  status: NestedAppStatus;
+  parentApp: string;
+  detail: string;
+}
+
+export interface NestedProject {
+  child: NestedSide;
+  parent: NestedSide;
+  apps: NestedApp[];
+  running: number;
+}
+
+export interface MergeReport {
+  child: NestedSide;
+  parent: NestedSide;
+  apps: NestedApp[];
+  renamed: Record<string, string>;
+  credentials: number;
+  running: number;
+  applied: boolean;
+  revision: number;
+  credentialsMoved: number;
+  credentialsSkipped: number;
+}

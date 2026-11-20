@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="anshiq/jack-ketch"
-BINARIES=(jack-ketch jackketchd jack-ketch-shim)
+BINARIES=(jack-ketch jackketchd)
 VERSION="${VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
@@ -107,9 +107,22 @@ else
   exit 1
 fi
 
+daemon_running=false
+if command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -x jackketchd >/dev/null 2>&1; then
+  daemon_running=true
+fi
+
 for bin in "${BINARIES[@]}"; do
   "${run[@]}" "${tmp}/${bin}" "${INSTALL_DIR}/${bin}"
 done
+
+if [ -e "${INSTALL_DIR}/jack-ketch-shim" ]; then
+  if [ -w "$INSTALL_DIR" ]; then
+    rm -f "${INSTALL_DIR}/jack-ketch-shim"
+  else
+    sudo rm -f "${INSTALL_DIR}/jack-ketch-shim"
+  fi
+fi
 
 echo "Installed jack-ketch ${VERSION} to ${INSTALL_DIR}"
 case ":${PATH}:" in
@@ -120,3 +133,11 @@ case ":${PATH}:" in
     ;;
 esac
 "${INSTALL_DIR}/jack-ketch" --version
+
+if [ "$daemon_running" = true ]; then
+  echo
+  echo "warning: jackketchd is still running the previous version."
+  echo "  The update takes effect when the daemon restarts, and restarting it stops"
+  echo "  every managed process (dev servers, watchers, workers) it is running."
+  echo "  Run this when you are ready:  jack-ketch daemon restart"
+fi

@@ -38,7 +38,7 @@ type Server struct {
 	tcpAddr      string
 	tcpSrv       *http.Server
 	tokenPath    string
-	onShutdown   func(keepProcesses bool)
+	onShutdown   func()
 	rtMu         sync.Mutex
 	rtConns      map[string]*rtConn
 	rtTopics     map[string]topicFunc
@@ -51,9 +51,7 @@ func New(engine *core.Engine, socketPath, version string) (*Server, error) {
 	return NewWithOptions(engine, socketPath, version, nil)
 }
 
-// NewWithOptions creates a server with a shutdown hook (wired by jackketchd
-// main so Shutdown{keep_processes} drains correctly).
-func NewWithOptions(engine *core.Engine, socketPath, version string, onShutdown func(bool)) (*Server, error) {
+func NewWithOptions(engine *core.Engine, socketPath, version string, onShutdown func()) (*Server, error) {
 	var (
 		l         net.Listener
 		activated bool
@@ -81,6 +79,8 @@ func NewWithOptions(engine *core.Engine, socketPath, version string, onShutdown 
 	s.routeAssist(mux)
 	s.routeCredential(mux)
 	s.routeStack(mux)
+	s.routeBrowser(mux)
+	s.routeTimeline(mux)
 	s.routeLog(mux)
 	s.routeEvent(mux)
 	s.routeSession(mux)
@@ -159,13 +159,6 @@ func PeerCredAuth(next http.Handler) http.Handler {
 // SessionAttr extracts the session from the connection and
 // adds it to the context.
 func SessionAttr(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-	})
-}
-
-// AuditInterceptor records all RPC calls to the audit table.
-func AuditInterceptor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 	})

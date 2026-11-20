@@ -4,6 +4,7 @@
   import Sidebar from './Sidebar.svelte';
   import StatusBar from './StatusBar.svelte';
   import OfflineBanner from './OfflineBanner.svelte';
+  import UpdateBanner from './UpdateBanner.svelte';
   import TopProgress from '../lib/ui/TopProgress.svelte';
 
   let { children }: { children?: Snippet } = $props();
@@ -12,6 +13,7 @@
 <div class="shell">
   <TopBar />
   <OfflineBanner />
+  <UpdateBanner />
   <TopProgress />
   <div class="body">
     <Sidebar />

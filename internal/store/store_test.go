@@ -122,3 +122,100 @@ func TestResolveMovedAndGit(t *testing.T) {
 		t.Fatalf("fingerprint match = %v, %v", len(matched), err)
 	}
 }
+
+func TestForgottenProjectWorkspacesDoNotResolve(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	p, _ := db.CreateProject("gone")
+	if _, err := db.CreateWorkspaceFull(p.ID, "/work/gone", 5, 6, "/git/gone", false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if ws, err := db.ResolveWorkspace("/work/gone"); err != nil || ws == nil {
+		t.Fatalf("live project must resolve: %v", err)
+	}
+	if err := db.ForgetProject(p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if ws, _ := db.ResolveWorkspace("/work/gone"); ws != nil {
+		t.Errorf("forgotten project's path still resolves to %s", ws.ID)
+	}
+	if ws, _ := db.FindWorkspaceByDevIno(5, 6); ws != nil {
+		t.Errorf("forgotten project's inode still resolves to %s", ws.ID)
+	}
+	if sibs, _ := db.FindWorkspacesByGitCommon("/git/gone"); len(sibs) != 0 {
+		t.Errorf("forgotten project's git common dir still resolves: %d", len(sibs))
+	}
+}
+
+func TestMoveCredentials(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	from, _ := db.CreateProject("from")
+	to, _ := db.CreateProject("to")
+	put := func(pid, id, name string, def bool, apps string) {
+		t.Helper()
+		if err := db.PutCredential(&CredentialRow{ID: id, ProjectID: pid, Name: name, IsDefault: def, AppsJSON: apps, FieldsJSON: "[]", RecipeJSON: "{}", JarJSON: "[]"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put(to.ID, "c_to", "shared", true, "[]")
+	put(from.ID, "c1", "shared", false, "[]")
+	put(from.ID, "c2", "admin", true, `["old"]`)
+	moved, skipped, err := db.MoveCredentials(from.ID, to.ID, map[string]string{"old": "new"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved != 1 || skipped != 1 {
+		t.Fatalf("moved=%d skipped=%d", moved, skipped)
+	}
+	got, err := db.GetCredential(to.ID, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IsDefault {
+		t.Error("moved profile must not steal the parent's default")
+	}
+	if got.AppsJSON != `["new"]` {
+		t.Errorf("apps = %s", got.AppsJSON)
+	}
+}
+
+func TestWorkspacePathIsReusableAfterForgetOrMissing(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	old, _ := db.CreateProject("old")
+	oldWS, err := db.CreateWorkspace(old.ID, "/work/reuse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ForgetProject(old.ID); err != nil {
+		t.Fatal(err)
+	}
+	next, _ := db.CreateProject("next")
+	nextWS, err := db.CreateWorkspace(next.ID, "/work/reuse")
+	if err != nil {
+		t.Fatalf("forgotten project must not block reuse of its folder: %v", err)
+	}
+	if got, _ := db.ResolveWorkspace("/work/reuse"); got == nil || got.ID != nextWS.ID {
+		t.Fatalf("path resolves to %v, want %s", got, nextWS.ID)
+	}
+	if kept, err := db.GetWorkspace(oldWS.ID); err != nil || kept == nil {
+		t.Fatalf("history row must be kept: %v", err)
+	}
+	if err := db.MarkWorkspaceMissing(nextWS.ID); err != nil {
+		t.Fatal(err)
+	}
+	third, _ := db.CreateProject("third")
+	if _, err := db.CreateWorkspace(third.ID, "/work/reuse"); err != nil {
+		t.Fatalf("missing workspace must not block reuse of its folder: %v", err)
+	}
+}

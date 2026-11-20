@@ -10,6 +10,8 @@ import Bell from '@lucide/svelte/icons/bell';
 import FileCog from '@lucide/svelte/icons/file-cog';
 import Ban from '@lucide/svelte/icons/ban';
 import Activity from '@lucide/svelte/icons/activity';
+import RefreshCcwDot from '@lucide/svelte/icons/refresh-ccw-dot';
+import Unplug from '@lucide/svelte/icons/unplug';
 import type { DaemonEvent, Process } from './api/types';
 import { processes } from './state/processes.svelte';
 import { scopeState } from './state/scope.svelte';
@@ -34,7 +36,9 @@ const KINDS: Record<string, EventKind> = {
   'process.healthy': { family: 'process', tone: 'ok', icon: HeartPulse, label: 'Healthy' },
   'process.unhealthy': { family: 'process', tone: 'warn', icon: HeartCrack, label: 'Unhealthy' },
   'process.removed': { family: 'process', tone: 'neutral', icon: Ban, label: 'Removed' },
-  'logs.alert': { family: 'logs', tone: 'warn', icon: Bell, label: 'Alert' }
+  'process.auto_restarted': { family: 'process', tone: 'info', icon: RefreshCcwDot, label: 'Auto-restarted' },
+  'logs.alert': { family: 'logs', tone: 'warn', icon: Bell, label: 'Alert' },
+  'port.holder_signalled': { family: 'other', tone: 'warn', icon: Unplug, label: 'Port freed' }
 };
 
 export const FAMILY_LABEL: Record<Family, string> = {
@@ -132,6 +136,16 @@ export function eventSentence(e: DaemonEvent): string {
       return `${who} became unhealthy`;
     case 'process.removed':
       return `${who} was removed`;
+    case 'process.auto_restarted': {
+      const reason = e.payload['reason'];
+      const n = typeof e.payload['changedCount'] === 'number' ? (e.payload['changedCount'] as number) : 0;
+      const err = typeof e.payload['error'] === 'string' ? ` (failed: ${e.payload['error']})` : '';
+      if (reason === 'watch') return `${who} restarted after ${n === 1 ? '1 file' : `${n} files`} changed${err}`;
+      if (reason === 'config') return `${who} restarted because its config changed${err}`;
+      return `${who} restarted automatically${err}`;
+    }
+    case 'port.holder_signalled':
+      return `Freed port ${String(e.payload['port'] ?? '')} by stopping pid ${String(e.payload['pid'] ?? '')}`;
     case 'logs.alert': {
       const m = e.payload['message'];
       return typeof m === 'string' && m ? `${who ? `${who}: ` : ''}${m}` : `Log alert${who ? ` on ${who}` : ''}`;

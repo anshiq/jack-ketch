@@ -36,6 +36,7 @@ message StartRequest {
   string lifetime = 8; // persistent | session
   string restart_policy = 9;
   string session_id = 10;
+  bool force = 11;
 }
 message StartResponse {
   string process_id = 1;

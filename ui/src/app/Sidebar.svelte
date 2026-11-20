@@ -3,7 +3,8 @@
   import Terminal from '@lucide/svelte/icons/terminal';
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Boxes from '@lucide/svelte/icons/boxes';
-  import FileCog from '@lucide/svelte/icons/file-cog';
+  import Network from '@lucide/svelte/icons/network';
+  import ChartGantt from '@lucide/svelte/icons/chart-gantt';
   import KeyRound from '@lucide/svelte/icons/key-round';
   import Activity from '@lucide/svelte/icons/activity';
   import FolderKanban from '@lucide/svelte/icons/folder-kanban';
@@ -32,13 +33,14 @@
         { path: '/processes', label: 'Processes', key: 'g p', icon: Terminal },
         { path: '/logs', label: 'Logs', key: 'g l', icon: ScrollText },
         { path: '/apps', label: 'Apps', key: 'g a', icon: Boxes },
-        { path: '/config', label: 'Config', key: 'g c', icon: FileCog },
+        { path: '/ports', label: 'Ports', key: 'g n', icon: Network },
         { path: '/credentials', label: 'Credentials', key: 'g r', icon: KeyRound }
       ]
     },
     {
       title: 'Activity',
       items: [
+        { path: '/timeline', label: 'Timeline', key: 'g m', icon: ChartGantt },
         { path: '/events', label: 'Events', key: 'g e', icon: Activity },
         { path: '/sessions', label: 'Sessions', key: 'g s', icon: Users },
         { path: '/audit', label: 'Audit', key: 'g u', icon: ShieldCheck }

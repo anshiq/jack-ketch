@@ -116,7 +116,8 @@ type ProcessSummary struct {
 
 // ListResult is the response of list_processes.
 type ListResult struct {
-	Processes []ProcessSummary `json:"processes"`
+	Processes    []ProcessSummary `json:"processes"`
+	UpdateNotice string           `json:"update_notice,omitempty"`
 }
 
 // GetLogsRequest is the input to get_logs.
@@ -129,14 +130,18 @@ type GetLogsRequest struct {
 	// `"level":"..."` prefixes: debug|info|warn|error. Empty = no filter.
 	Level   string `json:"level,omitempty"`
 	Pattern string `json:"pattern,omitempty"`
+	Since   string `json:"since,omitempty"`
+	Compact bool   `json:"compact,omitempty"`
 }
 
-// LogEntry is one log line returned to callers.
 type LogEntry struct {
 	ID        uint64 `json:"id,omitempty"`
 	Timestamp string `json:"timestamp"`
 	Stream    string `json:"stream"`
 	Line      string `json:"line"`
+	Count     int    `json:"count,omitempty"`
+	LastID    uint64 `json:"last_id,omitempty"`
+	Folded    int    `json:"folded,omitempty"`
 }
 
 // GetLogsResult is the response of get_logs.
@@ -148,6 +153,8 @@ type GetLogsResult struct {
 	ReturnedLines  int        `json:"returned_lines"`
 	AvailableLines int        `json:"available_lines"`
 	Source         string     `json:"source,omitempty"` // "memory" (default) or "memory+db" when back-filled from the archive
+	Cursor         string     `json:"cursor,omitempty"`
+	Compacted      int        `json:"compacted_lines,omitempty"`
 }
 
 // ClearLogsResult is the response of clear_logs.
@@ -178,16 +185,21 @@ type RemoveProcessResult struct {
 // set: Contains (substring), Pattern (regex), or Ready (use the detected
 // profile's readiness patterns).
 type WaitForLogRequest struct {
-	ProcessID string `json:"process_id"`
-	Contains  string `json:"contains,omitempty"`
-	Pattern   string `json:"pattern,omitempty"`
-	Ready     bool   `json:"ready,omitempty"`
-	TimeoutMS int    `json:"timeout_ms,omitempty"`
+	ProcessID    string `json:"process_id"`
+	Contains     string `json:"contains,omitempty"`
+	Pattern      string `json:"pattern,omitempty"`
+	Ready        bool   `json:"ready,omitempty"`
+	TimeoutMS    int    `json:"timeout_ms,omitempty"`
+	Since        string `json:"since,omitempty"`
+	FailContains string `json:"fail_contains,omitempty"`
+	FailPattern  string `json:"fail_pattern,omitempty"`
 }
 
-// WaitForLogResult is the response of wait_for_log.
 type WaitForLogResult struct {
 	Matched        bool            `json:"matched"`
+	Failed         bool            `json:"failed,omitempty"`
+	Cursor         string          `json:"cursor,omitempty"`
+	StartCursor    string          `json:"start_cursor,omitempty"`
 	Timeout        bool            `json:"timeout,omitempty"`
 	Exited         bool            `json:"exited,omitempty"`
 	Entry          *LogEntry       `json:"entry,omitempty"`
@@ -208,6 +220,7 @@ type WaitForExitParams struct {
 // WaitForExitResult is the response of wait_for_exit.
 type WaitForExitResult struct {
 	Exited         bool            `json:"exited"`
+	Tests          *TestSummary    `json:"tests,omitempty"`
 	Timeout        bool            `json:"timeout,omitempty"`
 	ExitCode       *int            `json:"exit_code,omitempty"`
 	WaitedMS       int             `json:"waited_ms,omitempty"`
@@ -281,4 +294,52 @@ type OpenShellRequest struct {
 	App       string `json:"app,omitempty"`
 	PID       int    `json:"pid,omitempty"`   // OS process id: start the shell inside the workdir+environment of ANY process (read from /proc/<pid>/cwd and /proc/<pid>/environ). Mutually exclusive with process_id and app. Linux only.
 	Shell     string `json:"shell,omitempty"` // absolute path or name; default $SHELL, then /bin/sh
+}
+
+type ErrorLocation struct {
+	File      string `json:"file"`
+	Line      int    `json:"line,omitempty"`
+	Column    int    `json:"column,omitempty"`
+	InProject bool   `json:"in_project"`
+}
+
+type ErrorGroup struct {
+	Fingerprint string          `json:"fingerprint"`
+	Kind        string          `json:"kind"`
+	Message     string          `json:"message"`
+	Count       int             `json:"count"`
+	FirstSeen   string          `json:"first_seen,omitempty"`
+	LastSeen    string          `json:"last_seen,omitempty"`
+	FirstID     uint64          `json:"first_id"`
+	Stream      string          `json:"stream,omitempty"`
+	Locations   []ErrorLocation `json:"locations,omitempty"`
+	Sample      []string        `json:"sample,omitempty"`
+	New         bool            `json:"new,omitempty"`
+}
+
+type GetErrorsRequest struct {
+	ProcessID string `json:"process_id"`
+	Since     string `json:"since,omitempty"`
+	Baseline  string `json:"baseline,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
+}
+
+type GetErrorsResult struct {
+	ProcessID   string       `json:"process_id"`
+	InstanceID  string       `json:"instance_id,omitempty"`
+	Groups      []ErrorGroup `json:"groups"`
+	TotalErrors int          `json:"total_errors"`
+	NewGroups   int          `json:"new_groups,omitempty"`
+	ScannedFrom string       `json:"scanned_from,omitempty"`
+	Cursor      string       `json:"cursor"`
+	Truncated   bool         `json:"truncated,omitempty"`
+}
+
+type TestSummary struct {
+	Framework string   `json:"framework"`
+	Passed    int      `json:"passed"`
+	Failed    int      `json:"failed"`
+	Skipped   int      `json:"skipped,omitempty"`
+	Total     int      `json:"total"`
+	Failures  []string `json:"failures,omitempty"`
 }

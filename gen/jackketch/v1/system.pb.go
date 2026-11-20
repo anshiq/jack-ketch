@@ -64,7 +64,6 @@ type GetVersionResponse struct {
 	DaemonVersion    string                 `protobuf:"bytes,1,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
 	ApiVersion       string                 `protobuf:"bytes,2,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
 	MinClientVersion string                 `protobuf:"bytes,3,opt,name=min_client_version,json=minClientVersion,proto3" json:"min_client_version,omitempty"`
-	ShimProtocol     int32                  `protobuf:"varint,4,opt,name=shim_protocol,json=shimProtocol,proto3" json:"shim_protocol,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -118,13 +117,6 @@ func (x *GetVersionResponse) GetMinClientVersion() string {
 		return x.MinClientVersion
 	}
 	return ""
-}
-
-func (x *GetVersionResponse) GetShimProtocol() int32 {
-	if x != nil {
-		return x.ShimProtocol
-	}
-	return 0
 }
 
 type HealthRequest struct {
@@ -693,7 +685,6 @@ func (x *ListDirectoryResponse) GetError() string {
 
 type ShutdownRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeepProcesses bool                   `protobuf:"varint,1,opt,name=keep_processes,json=keepProcesses,proto3" json:"keep_processes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -726,13 +717,6 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
 	return file_jackketch_v1_system_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *ShutdownRequest) GetKeepProcesses() bool {
-	if x != nil {
-		return x.KeepProcesses
-	}
-	return false
 }
 
 type ShutdownResponse struct {
@@ -776,13 +760,12 @@ var File_jackketch_v1_system_proto protoreflect.FileDescriptor
 const file_jackketch_v1_system_proto_rawDesc = "" +
 	"\n" +
 	"\x19jackketch/v1/system.proto\x12\fjackketch.v1\x1a\x19jackketch/v1/common.proto\"\x13\n" +
-	"\x11GetVersionRequest\"\xaf\x01\n" +
+	"\x11GetVersionRequest\"\x9f\x01\n" +
 	"\x12GetVersionResponse\x12%\n" +
 	"\x0edaemon_version\x18\x01 \x01(\tR\rdaemonVersion\x12\x1f\n" +
 	"\vapi_version\x18\x02 \x01(\tR\n" +
 	"apiVersion\x12,\n" +
-	"\x12min_client_version\x18\x03 \x01(\tR\x10minClientVersion\x12#\n" +
-	"\rshim_protocol\x18\x04 \x01(\x05R\fshimProtocol\"\x0f\n" +
+	"\x12min_client_version\x18\x03 \x01(\tR\x10minClientVersionJ\x04\b\x04\x10\x05R\rshim_protocol\"\x0f\n" +
 	"\rHealthRequest\"i\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\ahealthy\x18\x01 \x01(\bR\ahealthy\x12\x16\n" +
@@ -814,9 +797,8 @@ const file_jackketch_v1_system_proto_rawDesc = "" +
 	"\x03dir\x18\x01 \x01(\tR\x03dir\x126\n" +
 	"\aentries\x18\x02 \x03(\v2\x1c.jackketch.v1.DirectoryEntryR\aentries\x12\x1c\n" +
 	"\ttruncated\x18\x03 \x01(\bR\ttruncated\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\"8\n" +
-	"\x0fShutdownRequest\x12%\n" +
-	"\x0ekeep_processes\x18\x01 \x01(\bR\rkeepProcesses\"\x12\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"'\n" +
+	"\x0fShutdownRequestJ\x04\b\x01\x10\x02R\x0ekeep_processes\"\x12\n" +
 	"\x10ShutdownResponse2\xc6\x04\n" +
 	"\rSystemService\x12O\n" +
 	"\n" +

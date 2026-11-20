@@ -18,6 +18,12 @@ func (b *Bridge) Diagnose(id string) (*api.Diagnosis, error) {
 	return b.client.ProcessService().Diagnose(ctx, id)
 }
 
+func (b *Bridge) Errors(req api.GetErrorsRequest) (*api.GetErrorsResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return b.client.ProcessService().Errors(ctx, req)
+}
+
 func (b *Bridge) Outcome(ctx context.Context, id string) (*api.RunOutcome, error) {
 	return b.client.ProcessService().Outcome(ctx, id)
 }
@@ -128,4 +134,32 @@ func (b *Bridge) StopCredentialProxy(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return b.client.CredentialService().StopProxy(ctx, b.ws(), id)
+}
+
+func (b *Bridge) StartStack(ctx context.Context, apps []string, modes map[string]string, timeoutMS int) (*client.StackResult, error) {
+	per := timeoutMS
+	if per <= 0 {
+		per = 60000
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(per)*time.Millisecond*time.Duration(max(len(apps), 1)+4)+30*time.Second)
+	defer cancel()
+	return b.client.ProcessService().StartStack(ctx, client.StackRequest{WorkspaceID: b.ws(), Apps: apps, Modes: modes, TimeoutMs: per})
+}
+
+func (b *Bridge) StartBrowserProxy(ctx context.Context, req client.BrowserProxyRequest) (*client.BrowserProxy, error) {
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return b.client.ProcessService().StartBrowserProxy(ctx, req)
+}
+
+func (b *Bridge) ListBrowserProxies(ctx context.Context) ([]client.BrowserProxy, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return b.client.ProcessService().ListBrowserProxies(ctx, b.ws())
+}
+
+func (b *Bridge) StopBrowserProxy(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return b.client.ProcessService().StopBrowserProxy(ctx, b.ws(), id)
 }

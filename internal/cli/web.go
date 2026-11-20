@@ -87,6 +87,9 @@ func runWebOpen(displayAddr, tcpAddr string, open, printURL bool) error {
 		fmt.Println(url)
 		fmt.Println("Remote: ssh -L 7350:127.0.0.1:7350 <host>, then open the URL above.")
 	}
+	if !daemonDown {
+		printUpdateNotice()
+	}
 	if open {
 		openBrowser(url)
 	}
@@ -123,7 +126,12 @@ func ensureWebTCP(p *paths.Paths, want string) (string, error) {
 		if err == nil && addr != "" {
 			return addr, nil
 		}
-		fmt.Fprintln(os.Stderr, "note: this daemon cannot enable the web listener live; restarting it")
+		fmt.Fprintln(os.Stderr, "note: this daemon cannot enable the web listener live; it has to restart")
+		if ok, err := confirmStopsProcesses("Restarting the daemon", false); err != nil {
+			return "", err
+		} else if !ok {
+			return "", fmt.Errorf("web UI not started: the daemon was not restarted")
+		}
 		if err := d.Restart(); err != nil {
 			return "", err
 		}

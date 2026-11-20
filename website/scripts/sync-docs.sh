@@ -37,5 +37,3 @@ for f in "$src"/adr/*.md; do
   } > "$adr/$base.md"
   n=$((n + 10))
 done
-
-sed -i 's/^Accepted$/Superseded. The desktop GUI was removed; the web UI is the only interface./' "$adr/005-wails-gui.md"

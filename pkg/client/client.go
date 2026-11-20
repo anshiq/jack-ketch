@@ -30,8 +30,6 @@ const (
 	DefaultAPIVersion = "v1"
 	// MinClientVersion is the minimum client version accepted.
 	MinClientVersion = "v1"
-	// ShimProtocolVersion is the current shim protocol version.
-	ShimProtocolVersion = 1
 	// ClientHeader identifies the caller per §5.2.
 	ClientHeader = "X-Jack-Ketch-Client"
 	// SessionHeader identifies the daemon session this client attached to.
@@ -52,37 +50,6 @@ type Client struct {
 	headers    map[string]string
 	onDialErr  func() error
 	recovering atomic.Bool
-}
-
-// NewTCP creates a client for the authenticated loopback TCP listener
-// (web UI, remote tooling over SSH-forwarded ports).
-func NewTCP(addr, token, agent string) *Client {
-	if agent == "" {
-		agent = "web/unknown"
-	}
-	c := &Client{
-		httpClient: &http.Client{
-			Transport: &tcpTransport{addr: addr, token: token},
-		},
-		agent:   agent,
-		version: DefaultAPIVersion,
-	}
-	c.socket = "tcp://" + addr
-	return c
-}
-
-// tcpTransport rewrites jackketchd URLs to the TCP listener with a bearer token.
-type tcpTransport struct {
-	addr  string
-	token string
-}
-
-func (t *tcpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = req.Clone(req.Context())
-	req.URL.Scheme = "http"
-	req.URL.Host = t.addr
-	req.Header.Set("Authorization", "Bearer "+t.token)
-	return http.DefaultTransport.RoundTrip(req)
 }
 
 // New creates a client for a running daemon socket.
@@ -118,28 +85,6 @@ func EnsureDaemonAs(socketPath, agent string) (*Client, error) {
 		return nil, fmt.Errorf("jackketchd not reachable at %s: %w (run `jack-ketch daemon start` or `jackketchd --foreground`)", socketPath, err)
 	}
 	return c, nil
-}
-
-// EnsureDaemonOrSpawn tries to dial; on refusal it attempts a spawn via
-// the daemon package callback to avoid an import cycle. Pass nil to
-// disable spawning.
-func EnsureDaemonOrSpawn(socketPath string, spawn func() error) (*Client, error) {
-	if c, err := EnsureDaemon(socketPath); err == nil {
-		return c, nil
-	} else if spawn == nil {
-		return nil, err
-	}
-	if err := spawn(); err != nil {
-		return nil, err
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if c, err := EnsureDaemon(socketPath); err == nil {
-			return c, nil
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	return nil, fmt.Errorf("jackketchd did not become ready at %s", socketPath)
 }
 
 func (c *Client) ping() error {
@@ -308,10 +253,29 @@ func (c *Client) SessionService() *SessionServiceClient {
 
 // VersionResponse is the response from GetVersion.
 type VersionResponse struct {
-	DaemonVersion    string `json:"daemonVersion"`
-	APIVersion       string `json:"apiVersion"`
-	MinClientVersion string `json:"minClientVersion"`
-	ShimProtocol     int32  `json:"shimProtocol"`
+	DaemonVersion    string        `json:"daemonVersion"`
+	APIVersion       string        `json:"apiVersion"`
+	MinClientVersion string        `json:"minClientVersion"`
+	Update           *UpdateStatus `json:"update,omitempty"`
+}
+
+type RunningProcess struct {
+	ProcessID     string `json:"processId"`
+	App           string `json:"app,omitempty"`
+	Command       string `json:"command"`
+	Status        string `json:"status"`
+	WorkspaceID   string `json:"workspaceId"`
+	WorkspacePath string `json:"workspacePath"`
+}
+
+type UpdateStatus struct {
+	Pending          bool             `json:"pending"`
+	RunningVersion   string           `json:"runningVersion"`
+	InstalledVersion string           `json:"installedVersion,omitempty"`
+	Executable       string           `json:"executable,omitempty"`
+	RunningProcesses int              `json:"runningProcesses"`
+	Processes        []RunningProcess `json:"processes,omitempty"`
+	Notice           string           `json:"notice,omitempty"`
 }
 
 // SystemServiceClient is a typed client for SystemService.
@@ -321,6 +285,14 @@ type SystemServiceClient struct {
 
 func (c *SystemServiceClient) GetVersion(ctx context.Context) (*VersionResponse, error) {
 	return c.client.GetVersion(ctx)
+}
+
+func (c *SystemServiceClient) UpdateStatus(ctx context.Context) (*UpdateStatus, error) {
+	var out UpdateStatus
+	if err := c.client.call(ctx, "SystemService", "GetUpdateStatus", map[string]any{}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (c *SystemServiceClient) Health(ctx context.Context) (*HealthResponse, error) {
@@ -339,9 +311,8 @@ func (c *SystemServiceClient) GetStats(ctx context.Context) (*StatsResponse, err
 	return &out, nil
 }
 
-func (c *SystemServiceClient) Shutdown(ctx context.Context, keepProcesses bool) error {
-	return c.client.call(ctx, "SystemService", "Shutdown",
-		map[string]any{"keepProcesses": keepProcesses}, nil)
+func (c *SystemServiceClient) Shutdown(ctx context.Context) error {
+	return c.client.call(ctx, "SystemService", "Shutdown", map[string]any{}, nil)
 }
 
 // RuntimeStats returns runtime health counters for a workspace.
@@ -416,6 +387,7 @@ type ResolveResponse struct {
 	ProjectName        string   `json:"projectName"`
 	NewlyCreated       bool     `json:"newlyCreated"`
 	UnresolvedLocators []string `json:"unresolvedLocators"`
+	AttachedSubpath    string   `json:"attachedSubpath"`
 }
 
 // ProjectInfo is a project summary.

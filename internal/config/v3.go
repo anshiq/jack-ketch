@@ -61,6 +61,7 @@ type V3App struct {
 	DependsOn []string `yaml:"depends_on"`
 	// Ports declares ports for templating + conflict detection (Phase 9).
 	Ports map[string]PortDecl `yaml:"ports"`
+	Watch *WatchConfig        `yaml:"watch,omitempty"`
 }
 
 // PortDecl declares one named port with a preferred default.
@@ -182,6 +183,9 @@ func Validate(data []byte) []*ValidationError {
 		if !ValidAppName(name) {
 			errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name,
 				Message: "app names use letters, digits, '.', '_' or '-' and start with a letter or digit"})
+		}
+		for _, msg := range app.Watch.validate() {
+			errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name + ".watch", Message: msg})
 		}
 		for _, msg := range app.validateExtensions() {
 			errs = append(errs, &ValidationError{Line: loc.line, Column: loc.col, Path: "apps." + name, Message: msg})
@@ -416,6 +420,7 @@ func diffApp(a, b V3App) []string {
 	add("lifetime", a.Lifetime == b.Lifetime)
 	add("reload", a.Reload == b.Reload)
 	add("pty", a.Pty == b.Pty)
+	add("watch", sameYAML(a.Watch, b.Watch))
 	add("description", a.Description == b.Description)
 	add("default_mode", a.DefaultMode == b.DefaultMode)
 	add("env_sources", sameYAML(a.EnvSources, b.EnvSources))
@@ -665,6 +670,9 @@ func mergeApp(dst *V3App, src V3App, base, workspacePath string) {
 	}
 	if src.Ports != nil {
 		dst.Ports = src.Ports
+	}
+	if src.Watch != nil {
+		dst.Watch = src.Watch
 	}
 	if src.Description != "" {
 		dst.Description = src.Description

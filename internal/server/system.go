@@ -1,5 +1,3 @@
-// SystemService: GetVersion, Health, GetStats, GetSettings,
-// UpdateSettings, Shutdown{keep_processes}.
 package server
 
 import (
@@ -20,8 +18,29 @@ func (s *Server) routeSystem(mux *http.ServeMux) {
 	mux.HandleFunc(p+"GetVersion", s.wrap(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return map[string]any{
 			"daemonVersion": s.version, "apiVersion": "v1",
-			"minClientVersion": "v1", "shimProtocol": 1,
+			"minClientVersion": "v1", "update": s.engine.UpdateStatus(),
 		}, nil
+	}))
+	mux.HandleFunc(p+"GetUpdateStatus", s.wrap(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.engine.UpdateStatus(), nil
+	}))
+	mux.HandleFunc(p+"ListPorts", s.wrap(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.engine.Ports(), nil
+	}))
+	mux.HandleFunc(p+"KillPortHolder", s.wrap(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var req struct {
+			Port  int  `json:"port"`
+			PID   int  `json:"pid"`
+			Force bool `json:"force"`
+		}
+		if err := decode(r, &req); err != nil {
+			return nil, fmt.Errorf("invalid_argument: %v", err)
+		}
+		noteArgs(r, map[string]any{"port": req.Port, "pid": req.PID, "force": req.Force})
+		if err := s.engine.KillPortHolder(req.Port, req.PID, req.Force); err != nil {
+			return nil, err
+		}
+		return map[string]any{"signalled": true}, nil
 	}))
 	mux.HandleFunc(p+"Health", s.wrap(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return map[string]any{
@@ -250,16 +269,8 @@ func (s *Server) sysEnableTCP(w http.ResponseWriter, r *http.Request) (any, erro
 }
 
 func (s *Server) sysShutdown(w http.ResponseWriter, r *http.Request) (any, error) {
-	var req struct {
-		KeepProcesses *bool `json:"keepProcesses"`
-	}
-	_ = decode(r, &req)
-	keep := true
-	if req.KeepProcesses != nil {
-		keep = *req.KeepProcesses
-	}
 	if s.onShutdown != nil {
-		go s.onShutdown(keep)
+		go s.onShutdown()
 	}
-	return map[string]any{"draining": true, "keepProcesses": keep}, nil
+	return map[string]any{"draining": true}, nil
 }

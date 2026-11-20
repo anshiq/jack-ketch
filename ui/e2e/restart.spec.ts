@@ -62,7 +62,8 @@ test('daemon restart keeps drafts and buffers and emits new events once', async 
   await page.getByRole('link', { name: 'Logs', exact: true }).click();
   await expect(page.getByText(before, { exact: true })).toBeVisible({ timeout: 15000 });
 
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   const editor = page.locator('.monaco-editor').first();
   await expect(editor).toBeVisible({ timeout: 15000 });
   await editor.click();
@@ -113,7 +114,8 @@ test('daemon restart keeps drafts and buffers and emits new events once', async 
 
   await page.getByRole('link', { name: 'Logs', exact: true }).click();
   await expect(page.getByText(before, { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   await expect(page.locator('.view-lines').first()).toContainText('restartdraft');
 
   const second = await startProcess(page, info, after);

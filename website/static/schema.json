@@ -119,7 +119,23 @@
           },
           "lifetime": { "type": "string", "enum": ["persistent", "session", ""], "default": "persistent", "description": "Persistent survives session close; session stops after lease grace." },
           "autostart": { "type": "boolean", "default": false, "description": "Start automatically when the workspace loads." },
-          "reload": { "type": "string", "enum": ["manual", "restart", ""], "default": "manual", "description": "Manual marks stale on config change; restart restarts automatically." },
+          "reload": { "type": "string", "enum": ["manual", "restart", ""], "default": "manual", "description": "What happens to running processes when this app's config changes: manual marks them stale until you restart; restart restarts them automatically." },
+          "watch": {
+            "description": "Restart this app's processes when files change. A path, a list of paths, or a mapping. Paths are relative to the app workdir; .git, node_modules, build output and editor temp files are ignored.",
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "paths": { "type": "array", "items": { "type": "string" }, "description": "Files or directories to watch (directories recursively)." },
+                  "ignore": { "type": "array", "items": { "type": "string" }, "description": "Extra glob patterns to ignore, matched against the base name or, when they contain a slash, the path relative to the workdir." },
+                  "debounce": { "type": "string", "default": "300ms", "description": "Quiet period after the last change before restarting (50ms to 1m)." }
+                }
+              }
+            ]
+          },
           "pty": { "type": "boolean", "default": false, "description": "Allocate a PTY for colors and interactive CLIs." },
           "depends_on": { "type": "array", "items": { "type": "string" }, "description": "Other apps that must start first; used by StartStack order." },
           "ports": {

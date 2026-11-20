@@ -9,6 +9,9 @@
     - name: start_process
       kind: write
       desc: "Start an app or raw command under supervision. Returns a process_id immediately; timeout_ms waits for readiness."
+    - name: start_stack
+      kind: write
+      desc: "Start several apps in depends_on order, adding their dependencies, waiting for each to be ready and reusing ones already running."
     - name: stop_process
       kind: write
       desc: "SIGTERM to the whole process group, then SIGKILL after the grace period."
@@ -37,10 +40,10 @@
   tools:
     - name: wait_for_log
       kind: read
-      desc: "Block until a line matches, the readiness line appears, or the process exits. Capped per client; repeat when clamped."
+      desc: "Block until a line matches, the readiness line appears, a fail_contains/fail_pattern line appears, or the process exits. since=\"now\" ignores lines printed before the call; results carry a cursor. Capped per client; repeat with since=cursor when clamped."
     - name: wait_for_exit
       kind: read
-      desc: "Block until a process exits and return its exit code."
+      desc: "Block until a process exits and return its exit code, plus passed, failed and skipped counts and failing test names for test runs."
     - name: subscribe_events
       kind: read
       desc: "Pull subscription to lifecycle events such as process.started, process.crashed, process.unhealthy."
@@ -54,7 +57,7 @@
   tools:
     - name: get_logs
       kind: read
-      desc: "Bounded stdout/stderr tail with stream, substring, regex and level filters."
+      desc: "Bounded stdout/stderr tail with stream, substring, regex and level filters. since=cursor reads only new lines; compact=true folds repeats and dependency stack frames."
     - name: search_logs
       kind: read
       desc: "Full-text and regex search across every process in the project, history and live."
@@ -63,6 +66,15 @@
       desc: "Clear a process's captured log buffers."
 - group: "Diagnose & verify"
   tools:
+    - name: verify_change
+      kind: write
+      desc: "After an edit: restart (or wait for a hot reload), wait until live, run saved checks and report only the errors the change introduced, with a pass or fail verdict."
+    - name: get_errors
+      kind: read
+      desc: "Errors a process printed, grouped: compile errors, panics, exceptions, test failures, browser and lint errors, each with count and file, line and column. baseline marks which are new."
+    - name: browser_console
+      kind: write
+      desc: "Local proxy in front of a dev server that reports browser console errors, uncaught exceptions and failed requests into the process's logs. HMR and WebSockets keep working."
     - name: diagnose_process
       kind: read
       desc: "Why a process failed: category, evidence, who must act (you, the agent, or the agent after approval) and exact fix commands."

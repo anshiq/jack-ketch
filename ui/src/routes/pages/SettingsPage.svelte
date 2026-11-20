@@ -33,7 +33,6 @@
   import SegmentedControl from '../../lib/ui/SegmentedControl.svelte';
   import KeyValueList from '../../lib/ui/KeyValueList.svelte';
   import ConfirmDialog from '../../lib/ui/ConfirmDialog.svelte';
-  import Checkbox from '../../lib/ui/Checkbox.svelte';
   import Skeleton from '../../lib/ui/Skeleton.svelte';
 
   interface FieldSchema {
@@ -51,7 +50,6 @@
   const saving = $derived(saveSettings.pending);
   let saveError = $state('');
   let shutdownOpen = $state(false);
-  let keepProcesses = $state(true);
   let shuttingDown = $state(false);
   const now = $derived(clock.now);
 
@@ -196,8 +194,8 @@
   async function shutdown() {
     shuttingDown = true;
     try {
-      await SystemService.shutdown(keepProcesses);
-      toasts.ok(keepProcesses ? 'Daemon is shutting down. Processes keep running.' : 'Daemon is shutting down and stopping all processes.');
+      await SystemService.shutdown();
+      toasts.ok('Daemon is shutting down and stopping all processes.');
     } catch (err) {
       toastError(err);
     } finally {
@@ -501,9 +499,9 @@
       <div class="danger-zone">
         <div class="label">
           <span class="name">Shut down daemon</span>
-          <span class="desc">Stops the daemon. Running processes can be left running and reattached the next time it starts.</span>
+          <span class="desc">Stops the daemon and every managed process it runs.</span>
         </div>
-        <Button variant="danger" onclick={() => ((keepProcesses = true), (shutdownOpen = true))}><Power size={14} />Shutdown daemon</Button>
+        <Button variant="danger" onclick={() => (void connection.refreshUpdate(), (shutdownOpen = true))}><Power size={14} />Shutdown daemon</Button>
       </div>
     </section>
 
@@ -522,14 +520,14 @@
 <ConfirmDialog
   bind:open={shutdownOpen}
   title="Shut down the daemon?"
-  message="The dashboard will lose its connection until you run “jack-ketch daemon start” again."
+  message={(connection.update?.runningProcesses ?? 0) > 0
+    ? `This stops all ${connection.update?.runningProcesses} running managed processes. The dashboard loses its connection until you run “jack-ketch daemon start” again.`
+    : 'The dashboard will lose its connection until you run “jack-ketch daemon start” again.'}
   danger
   confirmLabel="Shut down"
   loading={shuttingDown}
   onConfirm={() => void shutdown()}
->
-  <Checkbox bind:checked={keepProcesses}>Keep managed processes running (they reattach on next start)</Checkbox>
-</ConfirmDialog>
+/>
 
 <style>
   .stack {

@@ -26,7 +26,7 @@ func TestCallAppliesDefaultDeadline(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "s.sock")
 	serveSocket(t, sock, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(50 * time.Millisecond)
-		w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1","shimProtocol":1}`))
+		w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1"}`))
 	}))
 	c := New(sock, "test/1")
 	if _, err := c.GetVersion(context.Background()); err != nil {
@@ -60,7 +60,7 @@ func TestHeadersSent(t *testing.T) {
 		case got <- r.Header.Get(SessionHeader):
 		default:
 		}
-		w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1","shimProtocol":1}`))
+		w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1"}`))
 	}))
 	c := New(sock, "test/1")
 	c.SetHeader(SessionHeader, "sess-42")
@@ -88,7 +88,7 @@ func TestDialRecoveryRetriesOnce(t *testing.T) {
 			return err
 		}
 		srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1","shimProtocol":1}`))
+			w.Write([]byte(`{"daemonVersion":"x","apiVersion":"v1","minClientVersion":"v1"}`))
 		})}
 		go srv.Serve(ln)
 		t.Cleanup(func() { srv.Close() })

@@ -55,6 +55,7 @@ var readOnlyTools = map[string]bool{
 	"get_events": true, "unsubscribe_events": true, "runtime_stats": true, "get_audit_log": true,
 	"get_project_info": true, "validate_config": true, "plan_config": true, "search_logs": true,
 	"list_sessions": true, "set_workspace": true, "list_projects": true, "diagnose_process": true, "list_credentials": true,
+	"get_errors": true,
 }
 
 func assertNoTypeArray(t *testing.T, tool string, v any) {
@@ -83,8 +84,8 @@ func TestToolSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 37 {
-		t.Fatalf("expected 37 tools, got %d", len(res.Tools))
+	if len(res.Tools) != 41 {
+		t.Fatalf("expected 41 tools, got %d", len(res.Tools))
 	}
 	for _, tool := range res.Tools {
 		if tool.Title == "" {
@@ -166,12 +167,12 @@ func TestCoreToolset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 18 {
+	if len(res.Tools) != 21 {
 		names := make([]string, 0, len(res.Tools))
 		for _, tool := range res.Tools {
 			names = append(names, tool.Name)
 		}
-		t.Fatalf("expected 18 core tools, got %d: %v", len(res.Tools), names)
+		t.Fatalf("expected 21 core tools, got %d: %v", len(res.Tools), names)
 	}
 }
 

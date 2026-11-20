@@ -72,7 +72,8 @@ test('config edit, plan and apply round-trips through the daemon', async ({ page
   await page.locator('input[aria-label="Workspace path"]').fill(info.workspace);
   await page.getByRole('button', { name: 'Open', exact: true }).click();
 
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   const editor = page.locator('.monaco-editor').first();
   await expect(editor).toBeVisible({ timeout: 10000 });
   await editor.click();

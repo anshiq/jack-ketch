@@ -1,4 +1,5 @@
 import { SystemService, setNetworkObserver } from '../api';
+import type { UpdateStatus } from '../api/services';
 import { cache } from '../data/query.svelte';
 
 export type ConnectionState = 'online' | 'degraded' | 'offline';
@@ -13,6 +14,7 @@ class Connection {
   tcpAddr = $state('');
   streams = $state<Record<string, string>>({});
   incompatible = $state(false);
+  update = $state<UpdateStatus | null>(null);
   lastCheck = $state(0);
   lastUpdateAt = $state(Date.now());
   private failures = 0;
@@ -55,6 +57,7 @@ class Connection {
       const v = await SystemService.version();
       this.version = v.daemonVersion;
       this.apiVersion = v.apiVersion;
+      if (v.update) this.update = v.update;
       this.lastCheck = Date.now();
       this.failures = 0;
       this.setState('online');
@@ -70,6 +73,15 @@ class Connection {
       return false;
     } finally {
       this.probing = false;
+    }
+  }
+
+  async refreshUpdate() {
+    if (this.state === 'offline') return;
+    try {
+      this.update = await SystemService.updateStatus();
+    } catch {
+      return;
     }
   }
 
@@ -96,11 +108,13 @@ class Connection {
     this.timer = setInterval(() => {
       if (this.state !== 'online') void this.check();
     }, 5000);
+    const updateTimer = setInterval(() => void this.refreshUpdate(), 60000);
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => void this.check());
     }
     return () => {
       clearTimeout(initial);
+      clearInterval(updateTimer);
       setNetworkObserver(null);
       if (this.timer) clearInterval(this.timer);
       this.timer = null;

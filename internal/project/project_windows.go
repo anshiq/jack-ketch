@@ -64,6 +64,7 @@ type Resolution struct {
 	ProjectName        string
 	NewlyCreated       bool
 	UnresolvedLocators []string
+	AttachedSubpath    string
 }
 
 // Resolver resolves working directories to projects and workspaces.
@@ -234,6 +235,10 @@ func (r *Resolver) Resolve(root string) (*Resolution, error) {
 		}
 	}
 
+	if att := r.attachToAncestor(canonical); att != nil {
+		return att, nil
+	}
+
 	// 3. Git: sibling worktree, re-clone, or second clone.
 	if ex != nil {
 		if gitDir := findGitDir(canonical); gitDir != "" {
@@ -308,11 +313,7 @@ func (r *Resolver) Resolve(root string) (*Resolution, error) {
 	}
 
 	// 4. New project + workspace.
-	project, err := r.store.CreateProject(filepath.Base(canonical))
-	if err != nil {
-		return nil, err
-	}
-	workspace, err := r.store.CreateWorkspace(project.ID, canonical)
+	project, workspace, err := r.createProjectWithWorkspace(filepath.Base(canonical), canonical)
 	if err != nil {
 		return nil, err
 	}
@@ -377,10 +378,6 @@ func (r *Resolver) allWorkspacesMissing(projectID ID) bool {
 		}
 	}
 	return true
-}
-
-func allMissing(ex storeExtras, projectID ID) bool {
-	return false
 }
 
 // allMissingList is the real check used by Resolve: every workspace path

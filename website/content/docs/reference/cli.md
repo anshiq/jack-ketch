@@ -22,7 +22,7 @@ Bare `jack-ketch` prints the command help. `jack-ketch web` opens the web UI.
 | `jack-ketch shell <app\|proc>` | Interactive shell inside a process's environment |
 | `jack-ketch repl` | Interactive process manager |
 | `jack-ketch config` | `show`, `export` and `edit` the project YAML |
-| `jack-ketch project` | `ls`, `show`, `resolve`, `rename`, `link`, `unlink`, `forget`, `gc` |
+| `jack-ketch project` | `ls`, `show`, `resolve`, `rename`, `link`, `unlink`, `forget`, `gc`, `nested`, `merge` |
 | `jack-ketch sessions` | List connected agent sessions |
 | `jack-ketch migrate` | Import legacy v2 state. See [Migrating to v3](../migrate-v3/) |
 | `jack-ketch version` | Print the version |
@@ -59,13 +59,15 @@ jack-ketch integrate hooks install claude-code
 
 ```sh
 jack-ketch daemon start       # start in the background
-jack-ketch daemon status
+jack-ketch daemon status      # also says when an installed update is waiting for a restart
 jack-ketch daemon logs        # tail the daemon log
-jack-ketch daemon restart
-jack-ketch daemon stop        # graceful shutdown of its processes
+jack-ketch daemon restart     # stops every managed process; asks first
+jack-ketch daemon stop        # stops every managed process, then the daemon; asks first
 jack-ketch daemon install     # autostart: systemd user socket, LaunchAgent or logon task
 jack-ketch daemon uninstall
 ```
+
+Managed processes are children of the daemon, so `stop` and `restart` stop all of them. When any are running, both commands list them and ask for confirmation. `-y`/`--yes` skips the question; without a terminal (scripts, agents) `--yes` is required. Finishing an update means restarting the daemon, so after installing a new version the daemon keeps running the old one until you choose to restart.
 
 ## `doctor`
 

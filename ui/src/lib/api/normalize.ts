@@ -7,6 +7,11 @@ import type {
   InstructionInfo,
   IntegrationSnippet,
   LogLine,
+  MergeReport,
+  NestedApp,
+  NestedAppStatus,
+  NestedProject,
+  NestedSide,
   Process,
   ResourceSample,
   Revision,
@@ -305,5 +310,52 @@ export function toResource(raw: Record<string, unknown>): ResourceSample {
     children: typeof raw['children'] === 'number' ? (raw['children'] as number) : 0,
     ports: numArr(raw['ports']),
     at: typeof raw['at'] === 'number' ? (raw['at'] as number) : Date.now()
+  };
+}
+
+function rec(v: unknown): Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+function toNestedSide(raw: unknown): NestedSide {
+  const r = rec(raw);
+  return { projectId: str(r['projectId']), projectName: str(r['projectName']), workspaceId: str(r['workspaceId']), path: str(r['path']) };
+}
+
+function toNestedApp(raw: unknown): NestedApp {
+  const r = rec(raw);
+  return {
+    name: str(r['name']),
+    workdir: str(r['workdir']),
+    status: str(r['status'], 'unique') as NestedAppStatus,
+    parentApp: str(r['parentApp']),
+    detail: str(r['detail'])
+  };
+}
+
+export function toNestedProject(raw: Record<string, unknown>): NestedProject {
+  return {
+    child: toNestedSide(raw['child']),
+    parent: toNestedSide(raw['parent']),
+    apps: Array.isArray(raw['apps']) ? raw['apps'].map(toNestedApp) : [],
+    running: typeof raw['running'] === 'number' ? raw['running'] : 0
+  };
+}
+
+export function toMergeReport(raw: Record<string, unknown>): MergeReport {
+  const renamed: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rec(raw['renamed']))) if (typeof v === 'string') renamed[k] = v;
+  const n = (k: string) => (typeof raw[k] === 'number' ? (raw[k] as number) : 0);
+  return {
+    child: toNestedSide(raw['child']),
+    parent: toNestedSide(raw['parent']),
+    apps: Array.isArray(raw['apps']) ? raw['apps'].map(toNestedApp) : [],
+    renamed,
+    credentials: n('credentials'),
+    running: n('running'),
+    applied: raw['applied'] === true,
+    revision: n('revision'),
+    credentialsMoved: n('credentialsMoved'),
+    credentialsSkipped: n('credentialsSkipped')
   };
 }

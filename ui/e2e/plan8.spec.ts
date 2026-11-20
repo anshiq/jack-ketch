@@ -46,7 +46,8 @@ test('revisiting Logs and Config keeps the buffer and draft', async ({ page }) =
   await page.getByRole('link', { name: 'Logs', exact: true }).click();
   await expect(page.getByText(marker, { exact: true })).toBeVisible({ timeout: 15000 });
 
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   const editor = page.locator('.monaco-editor').first();
   await expect(editor).toBeVisible({ timeout: 15000 });
   await editor.click();
@@ -56,7 +57,8 @@ test('revisiting Logs and Config keeps the buffer and draft', async ({ page }) =
   await page.getByRole('link', { name: 'Logs', exact: true }).click();
   await expect(page.getByText(marker, { exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Config', exact: true }).click();
+  await page.getByRole('link', { name: 'Apps', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit config' }).click();
   await expect(page.locator('.view-lines').first()).toContainText('draftapp', { timeout: 10000 });
 
   await api(page, info, 'ProcessService/Remove', { processId: id, force: true });

@@ -22,15 +22,15 @@ const Instructions = `jack-ketch runs and supervises this project's development 
 Workflow:
 1. Call list_processes first. Processes outlive your session, so re-attach to a running instance instead of starting a duplicate on the same port.
 2. Call list_apps. Each app can have several modes (dev, prod, headless, test, staging...) with their own command and env. Prefer start_process(app=..., mode=...) over rebuilding a command line; fall back to start_process(command=..., args=[...]). Keep the returned process_id; every other tool uses it.
-3. Confirm readiness with wait_for_log(process_id, ready=true) or start_process(..., timeout_ms=60000). Waits are capped per call for your client: when a result has clamped=true and still_running=true, call the wait tool again.
-4. Diagnose with process_status, get_logs(process_id, stream="stderr", lines=100) narrowed with contains, pattern or level, and search_logs across the project. Never poll get_logs in a loop.
-5. After code or config changes use restart_process (same process_id). Stop with stop_process; remove_process frees buffers. Exited processes are kept for a few minutes.
+3. Confirm readiness with wait_for_log(process_id, ready=true) or start_process(..., timeout_ms=60000). When an app needs others (database, API, worker) declared in depends_on, start_stack(apps=[...]) starts them in order and reuses running ones. Waits are capped per call for your client: when a result has clamped=true and still_running=true, call the wait tool again with since=<cursor from the result>.
+4. Diagnose with get_errors(process_id) first: errors grouped by kind with file, line and count. Then process_status, get_logs(process_id, stream="stderr", lines=100) narrowed with contains, pattern or level, and search_logs across the project. get_logs, wait_for_log and get_errors return a cursor; pass it back as since to read only what is new. Never poll get_logs in a loop.
+5. After a code change call verify_change(process_id): it restarts the process (or, with restart=false and wait_contains, waits for a hot-reloading dev server to rebuild), waits until it is live, runs the saved checks and reports only the errors your change introduced, with a pass or fail verdict. When waiting on a hot reload yourself use wait_for_log(..., since="now", fail_pattern=...) so an old line cannot match. Test runs: wait_for_exit returns tests with pass/fail counts and failing names. Stop with stop_process; remove_process frees buffers. Exited processes are kept for a few minutes.
 
 Saving runs: when a result carries save_suggestion, the run worked and is not saved yet. Ask the user its ask question and show its yaml; never save without a yes. Yes: save_run_config(process_id, app, mode) with any names or scope the user picks. No: save_run_config(process_id, action="dismiss"). Env is saved as ordered env_sources (env files and inline vars; later entries win).
 
 Failures: when a result carries diagnosis (or after diagnose_process), follow its guidance. actor=user: do not guess values or edit secrets; give the user the steps and missing_env (key, file to add it to, hint, example) and wait for them. actor=agent_with_approval: ask permission first, showing the exact fixes commands (installs, containers, migrations); run approved installs in your own shell, then restart_process and wait again. actor=agent: fix it yourself. Once it runs, offer to save the working setup (save_suggestion).
 
-Runtime verification: after implementing a fix or feature and its tests pass, ask the user whether they want to see it working at runtime. If yes, start or restart the affected app, wait until ready, then exercise the changed behaviour: probe for HTTP endpoints (returns the response plus the logs the request produced; non-GET or remote targets need the user's OK), start_process one-shots for CLIs and scripts, wait_for_log for workers and jobs. Show the user the evidence. Offer to save useful probes as checks (save_run_config checks=[probe result check]) so run_checks can re-verify in one call.
+Runtime verification: after implementing a fix or feature and its tests pass, ask the user whether they want to see it working at runtime. If yes, verify_change (or start the affected app and wait until ready), then exercise the changed behaviour: probe for HTTP endpoints (returns the response plus the logs the request produced; non-GET or remote targets need the user's OK), start_process one-shots for CLIs and scripts, wait_for_log for workers and jobs. Show the user the evidence. Offer to save useful probes as checks (save_run_config checks=[probe result check]) so run_checks and verify_change re-verify in one call. For web frontends, browser_console(process_id) returns a proxy URL; pages loaded through it report browser console errors, uncaught exceptions and failed requests into the process logs, where get_errors and verify_change see them.
 
 Credentials: the user can store test credentials (JWT, cookies, API keys, tenant ids) per project in the web UI. They are never shown to you. list_credentials shows the profiles; probe attaches the default profile automatically (or credential=<name>, or ${cred:<field>} placeholders) so you can call authenticated endpoints as a real user and see the logs the request produced. credential_proxy opens a short-lived local proxy for curl, Playwright or e2e runs. If a result carries credential_hint (rejected or expired credential), do not guess values or look for secrets in env files; tell the user to update the profile on the Credentials page. When credentials would help and none exist, ask the user to add a profile there.
 
@@ -40,7 +40,9 @@ Projects: tools act on this session's project. If no project is bound (for examp
 
 Config: apps live in the jack-ketch database, not in repository files. Read get_project_info, then validate_config, plan_config and apply_config(base_revision=...). Never approve a pending config proposal without the user.
 
-Events are pulled, never pushed: subscribe_events, then get_events. Supervised apps restart on their own according to their restart policy.
+Events are pulled, never pushed: subscribe_events, then get_events. Supervised apps restart on their own according to their restart policy, and apps with watch: in their config restart when watched files change.
+
+Updates: if a result carries update_notice, a new jack-ketch version is installed. Tell the user before anything restarts the daemon: restarting stops every managed process. Never restart the daemon yourself without their go-ahead.
 
 Do not run one-off shell commands through jack-ketch (ls, cat, grep, find, git, docker, kubectl, package managers); use your own tools for those.`
 
@@ -91,6 +93,7 @@ func NewServerWith(o Options) *mcp.Server {
 	registerTools(server, h)
 	registerV3Tools(server, h)
 	registerAssistTools(server, h)
+	registerVerifyTools(server, h)
 	registerCredentialTools(server, h)
 	registerPrompts(server, h)
 	registerResources(server, h)

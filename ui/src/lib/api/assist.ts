@@ -290,3 +290,118 @@ export const AssistService = {
     return { added: strs(r['added']), hint: s(r['hint']) };
   }
 };
+
+export interface ErrorLocation {
+  file: string;
+  line: number;
+  column: number;
+  inProject: boolean;
+}
+
+export interface ErrorGroup {
+  fingerprint: string;
+  kind: string;
+  message: string;
+  count: number;
+  firstSeen: number;
+  lastSeen: number;
+  firstId: number;
+  stream: string;
+  locations: ErrorLocation[];
+  sample: string[];
+  isNew: boolean;
+}
+
+export interface ErrorsResult {
+  processId: string;
+  instanceId: string;
+  groups: ErrorGroup[];
+  totalErrors: number;
+  newGroups: number;
+  cursor: string;
+  truncated: boolean;
+}
+
+function ts(v: unknown): number {
+  const t = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(t) ? t : 0;
+}
+
+export function toErrorGroup(raw: unknown): ErrorGroup {
+  const o = rec(raw);
+  return {
+    fingerprint: s(o['fingerprint']),
+    kind: s(o['kind'], 'log_error'),
+    message: s(o['message']),
+    count: n(o['count'], 1),
+    firstSeen: ts(o['first_seen']),
+    lastSeen: ts(o['last_seen']),
+    firstId: n(o['first_id']),
+    stream: s(o['stream']),
+    locations: list(o['locations']).map((l) => {
+      const x = rec(l);
+      return { file: s(x['file']), line: n(x['line']), column: n(x['column']), inProject: x['in_project'] === true };
+    }),
+    sample: strs(o['sample']),
+    isNew: o['new'] === true
+  };
+}
+
+export function toErrorsResult(raw: unknown): ErrorsResult {
+  const o = rec(raw);
+  return {
+    processId: s(o['process_id']),
+    instanceId: s(o['instance_id']),
+    groups: list(o['groups']).map(toErrorGroup),
+    totalErrors: n(o['total_errors']),
+    newGroups: n(o['new_groups']),
+    cursor: s(o['cursor']),
+    truncated: o['truncated'] === true
+  };
+}
+
+export interface BrowserProxy {
+  id: string;
+  processId: string;
+  workspaceId: string;
+  upstream: string;
+  url: string;
+  warnings: boolean;
+  createdAt: number;
+  expiresAt: number;
+  requests: number;
+  reports: number;
+  pagesInstrumented: number;
+}
+
+function toBrowserProxy(raw: unknown): BrowserProxy {
+  const o = rec(raw);
+  return {
+    id: s(o['id']),
+    processId: s(o['processId']),
+    workspaceId: s(o['workspaceId']),
+    upstream: s(o['upstream']),
+    url: s(o['url']),
+    warnings: o['warnings'] === true,
+    createdAt: n(o['createdAt']) * 1000,
+    expiresAt: n(o['expiresAt']) * 1000,
+    requests: n(o['requests']),
+    reports: n(o['reports']),
+    pagesInstrumented: n(o['pagesInstrumented'])
+  };
+}
+
+export const ErrorsService = {
+  get: async (processId: string, since = 'instance', limit = 50): Promise<ErrorsResult> =>
+    toErrorsResult(await call<Rec, Rec>('ProcessService', 'GetErrors', { process_id: processId, since, limit }))
+};
+
+export const BrowserProxyService = {
+  start: async (processId: string, opts: { warnings?: boolean; ttlMinutes?: number; port?: number } = {}): Promise<BrowserProxy> =>
+    toBrowserProxy(await call<Rec, Rec>('ProcessService', 'StartBrowserProxy', { processId, ...opts })),
+  list: async (workspaceId = ''): Promise<BrowserProxy[]> => {
+    const r = await call<Rec, { proxies?: unknown[] }>('ProcessService', 'ListBrowserProxies', { workspaceId });
+    return (r.proxies ?? []).map(toBrowserProxy);
+  },
+  stop: (workspaceId: string, id: string) => call<Rec, unknown>('ProcessService', 'StopBrowserProxy', { workspaceId, id })
+};

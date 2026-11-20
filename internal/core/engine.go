@@ -15,11 +15,14 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"jack-ketch/internal/credentials"
+	"jack-ketch/internal/devproxy"
+	"jack-ketch/internal/process"
 	"jack-ketch/internal/project"
 	iruntime "jack-ketch/internal/runtime"
 	"jack-ketch/internal/session"
@@ -33,6 +36,7 @@ type Engine struct {
 	dataDir  string
 	logger   *slog.Logger
 	version  string
+	exe      exeWatch
 	projects *project.Registry
 	runtimes sync.Map // workspaceID -> *ProjectRuntime
 	sessions *session.Registry
@@ -47,6 +51,7 @@ type Engine struct {
 	runtimeLoad *runtimeLoadBus
 	creds       *credentials.Service
 	proxies     *credentials.ProxyManager
+	browser     *devproxy.Manager
 
 	// levelVar is the daemon log level knob (settings: log_level).
 	levelVar *slog.LevelVar
@@ -128,6 +133,7 @@ func NewWithOptions(db *store.DB, opt Options) *Engine {
 	e := &Engine{
 		creds:       creds,
 		proxies:     credentials.NewProxyManager(creds),
+		browser:     devproxy.NewManager(),
 		store:       db,
 		dataDir:     opt.DataDir,
 		logger:      opt.Logger,
@@ -140,6 +146,7 @@ func NewWithOptions(db *store.DB, opt Options) *Engine {
 		cancel:      cancel,
 	}
 	e.lastBusy.Store(time.Now().UnixNano())
+	e.initExeWatch()
 	go e.reapLoop()
 	return e
 }
@@ -147,6 +154,8 @@ func NewWithOptions(db *store.DB, opt Options) *Engine {
 func (e *Engine) Credentials() *credentials.Service { return e.creds }
 
 func (e *Engine) Proxies() *credentials.ProxyManager { return e.proxies }
+
+func (e *Engine) BrowserProxies() *devproxy.Manager { return e.browser }
 
 // Store returns the state database (daemon is the only writer).
 func (e *Engine) Store() *store.DB { return e.store }
@@ -197,14 +206,6 @@ func (e *Engine) markDegraded(workspaceID, reason, stack string) {
 	}
 }
 
-// IsDegraded reports whether a workspace runtime is degraded.
-func (e *Engine) IsDegraded(workspaceID string) (bool, string) {
-	if v, ok := e.degraded.Load(workspaceID); ok {
-		return true, v.(*degradedInfo).reason
-	}
-	return false, ""
-}
-
 // GetOrCreateRuntime returns or creates a ProjectRuntime for the
 // given workspace. Lazy-initialized; double-checked under lock.
 func (e *Engine) GetOrCreateRuntime(workspaceID string) (*ProjectRuntime, error) {
@@ -237,6 +238,7 @@ func (e *Engine) GetOrCreateRuntime(workspaceID string) (*ProjectRuntime, error)
 		stale:        map[string]bool{},
 		allocPort:    e.AllocatePort,
 		portOwner:    e.PortOwner,
+		dupOwner:     e.runningDuplicate,
 		store:        e.store,
 		credentials:  e.creds,
 		notifyLoaded: e.runtimeLoad.publish,
@@ -423,6 +425,7 @@ func (e *Engine) IdleLongerThan(d time.Duration) bool {
 func (e *Engine) Close() error {
 	e.cancel()
 	e.proxies.StopAll()
+	e.browser.StopAll()
 	e.runtimes.Range(func(key, val any) bool {
 		val.(*ProjectRuntime).shutdown()
 		e.runtimes.Delete(key)
@@ -680,4 +683,39 @@ func cvtWorkspace(w *store.Workspace) *project.Workspace {
 		LastSeenAt:   w.LastSeenAt,
 		MissingSince: w.MissingSince,
 	}
+}
+
+func (e *Engine) runningDuplicate(wsID, command string, args []string, workdir string) string {
+	want := filepath.Clean(workdir)
+	owner := ""
+	e.RangeRuntimes(func(pr *ProjectRuntime) bool {
+		if pr.WorkspaceID() == wsID {
+			return true
+		}
+		pr.mu.RLock()
+		rt := pr.rt
+		pr.mu.RUnlock()
+		if rt == nil {
+			return true
+		}
+		for _, proc := range rt.Manager().List() {
+			info := proc.Info()
+			switch info.Status {
+			case process.StatusRunning, process.StatusStarting:
+			default:
+				continue
+			}
+			if info.Command != command || filepath.Clean(info.WorkDir) != want || strings.Join(info.Args, "\x00") != strings.Join(args, "\x00") {
+				continue
+			}
+			name := pr.ProjectID()
+			if p, err := e.store.GetProject(pr.ProjectID()); err == nil && p != nil {
+				name = p.Name
+			}
+			owner = fmt.Sprintf("project %s (%s)", name, pr.WorkspacePath())
+			return false
+		}
+		return true
+	})
+	return owner
 }

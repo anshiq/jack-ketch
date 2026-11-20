@@ -79,6 +79,7 @@ type Query struct {
 	Lines    int          // max entries to return (tail), 0 -> all
 	Contains string       // substring filter; "" disables
 	BeforeID uint64       // return only entries with ID < BeforeID; 0 disables
+	FromID   uint64
 }
 
 // Result is the outcome of a Query.
@@ -109,6 +110,9 @@ func (p *ProcessLogs) Query(q Query) Result {
 	filtered := make([]Entry, 0, len(all))
 	for _, e := range all {
 		if q.BeforeID > 0 && e.ID >= q.BeforeID {
+			continue
+		}
+		if q.FromID > 0 && e.ID < q.FromID {
 			continue
 		}
 		switch q.Stream {
@@ -229,12 +233,6 @@ func (p *ProcessLogs) Len() int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.stdout.size + p.stderr.size
-}
-
-// allLocked returns every retained entry merged into chronological (ID) order.
-// Caller must hold the read lock.
-func (p *ProcessLogs) allLocked() []Entry {
-	return mergeLocked(p.stdout.entries(), p.stderr.entries())
 }
 
 // mergeLocked merges two ID-ordered entry slices into one ID-ordered slice in

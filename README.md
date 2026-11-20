@@ -13,8 +13,9 @@ command.
   global event bus, all backed by a single-writer SQLite `state.db`.
 - **jack-ketch** — the CLI / MCP bridge agents talk to. Bare `jack-ketch`
   prints the command help, `jack-ketch web` opens the web UI.
-- **jack-ketch-shim** — a tiny (<= 4 MB RSS), dependency-free process shim
-  that stays put under a running process across a jackketchd upgrade.
+
+Managed processes are children of `jackketchd`: they outlive agent sessions,
+but stopping, restarting or updating the daemon stops them all.
 
 See [docs/architecture.md](docs/architecture.md) for the full component
 diagram, [docs/api.md](docs/api.md) for the daemon API, and
@@ -35,10 +36,20 @@ irm https://raw.githubusercontent.com/anshiq/jack-ketch/master/scripts/install.p
 ```
 
 The installers resolve the latest release, verify its SHA-256 checksum and
-place `jack-ketch`, `jackketchd` and `jack-ketch-shim` in `~/.local/bin`
+place `jack-ketch` and `jackketchd` in `~/.local/bin`
 (`%LOCALAPPDATA%\jack-ketch\bin` on Windows). Pin a release or choose another
 directory with `-v/--version` and `-d/--dir` (or `VERSION` and `INSTALL_DIR`).
 You can also install the Nix flake under `packaging/nix/`.
+
+Updating while the daemon runs is safe: the new version takes effect when the
+daemon restarts, and restarting stops every managed process. The installer
+warns when the daemon is running, and the daemon notices its binary was
+replaced: the web UI shows a banner, `jack-ketch web` and
+`jack-ketch daemon status` print a notice, and agents see `update_notice` in
+`list_processes` and `get_project_info`, each saying how many processes a
+restart will stop. `jack-ketch daemon restart` (and `daemon stop`) list them
+and ask first; `--yes` skips the question and is required when not run from a
+terminal.
 
 Then connect your agents and start the web UI:
 
@@ -137,6 +148,38 @@ current client.
   values. `credential_proxy` opens a short-lived local proxy for curl,
   Playwright or e2e runs. Values are encrypted at rest (file key or OS
   keychain) and scrubbed from every result and log.
+- **Verify a change in one call.** `verify_change` restarts the process (or,
+  with `restart=false`, waits for a hot-reloading dev server to rebuild),
+  waits until it is live while watching `fail_pattern`, runs the saved checks,
+  and reports only the errors the change introduced, with `verdict` pass or
+  fail.
+- **Errors, not log pages.** `get_errors` groups what a process printed into
+  compile errors, panics, exceptions, test failures, browser errors, lint
+  errors and error log lines, each with a count and the file, line and column
+  (project files first). Pass `baseline=<cursor>` to mark which groups are new.
+- **Read only what is new.** `get_logs`, `wait_for_log` and `get_errors`
+  return a `cursor`; pass it back as `since` to skip what you already read.
+  `wait_for_log(since="now")` ignores lines printed before the call, so an old
+  "compiled" line cannot match after an edit, and `fail_contains` /
+  `fail_pattern` end the wait early with `failed=true`. `get_logs(compact=true)`
+  folds repeated lines and dependency stack frames.
+- **Test runs as results.** `wait_for_exit` on a go test, pytest, jest,
+  vitest, cargo, dotnet, rspec, mocha or phpunit run returns `tests` with
+  passed, failed, skipped, total and the failing test names.
+- **Whole stacks.** `start_stack(apps=["web"])` starts `web` and everything
+  it `depends_on`, in order, waiting for each to be ready and reusing apps that
+  are already running.
+- **Frontend errors.** `browser_console(process_id)` opens a local proxy in
+  front of a dev server. Pages loaded through it report `console.error`,
+  uncaught exceptions, unhandled rejections and failed requests into the
+  process's logs as `[browser] error: ...` lines with source file and line, so
+  `get_errors` and `verify_change` see them. Hot-module reload and WebSockets
+  keep working.
+- **Restart on change.** An app's `watch:` (a path, a list, or
+  `{paths, ignore, debounce}`) restarts its running or crashed processes when
+  watched files change, ignoring `.git`, `node_modules`, build output and
+  editor temp files. `reload: restart` restarts running processes when the
+  app's config changes; the default `manual` marks them stale.
 - **Git hygiene.** jack-ketch lists the files it uses that git would track:
   its `.jack-ketch/` dir, env files that saved apps load, and integration
   files. It offers to add them to `.gitignore` (`update_gitignore`).
@@ -162,7 +205,6 @@ workspace paths jack-ketch knows about.
 ```sh
 go build ./cmd/jack-ketch
 go build ./cmd/jackketchd
-go build ./cmd/jack-ketch-shim
 ```
 
 Requires Go (see `go.mod` for the minimum version).

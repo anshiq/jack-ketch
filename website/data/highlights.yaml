@@ -1,0 +1,343 @@
+"docs":
+  label: "Why jack-ketch"
+  lead: "Your agent gets the runtime: it starts, watches and understands your processes instead of freezing on a foreground command."
+  points:
+    - t: "Nothing blocks the session"
+      d: "An agent starts a dev server, walks away, and later asks whether it is up, what it logged and why it failed."
+    - t: "Processes outlive sessions"
+      d: "One daemon per OS user owns them, so a new session re-attaches with `list_processes` instead of starting a duplicate."
+    - t: "Local-first and locked down"
+      d: "A `0600` socket with a uid check, the TCP listener off by default, and credentials the agent never sees."
+    - t: "Works with {agents} MCP clients"
+      d: "`jack-ketch integrate install --detected` shows a diff, asks, then writes the entry for each client it finds."
+
+"docs/getting-started":
+  label: "In this section"
+  points:
+    - t: "Three steps to a running agent"
+      d: "Install, connect your agents, then ask one of them to run your app."
+    - t: "Installers verify the download"
+      d: "Every installer resolves the latest release and checks its SHA-256 checksum before placing the binaries."
+    - t: "Connecting is reversible"
+      d: "Each write shows a diff first, backs up the old file to `<file>.jack-ketch.bak` and is atomic."
+    - t: "Nothing is saved without a yes"
+      d: "A working hand-built run becomes a saved mode only after you agree to the `save_suggestion`."
+
+"docs/getting-started/installation":
+  points:
+    - t: "Two binaries, one directory"
+      d: "`jack-ketch` (CLI and MCP bridge) and `jackketchd` (the daemon) must sit side by side."
+    - t: "Checksum-verified installs"
+      d: "The scripts resolve the latest release, verify its SHA-256 and place the binaries for you."
+    - t: "Updating never surprises you"
+      d: "The running daemon keeps the old version until you run `jack-ketch daemon restart`, which lists the processes it will stop and asks first."
+    - t: "Never run it as root"
+      d: "cgroup delegation comes from the user systemd instance, not from privilege. Use `daemon install` to start it at login."
+
+"docs/getting-started/quick-start":
+  points:
+    - t: "Five minutes, five steps"
+      d: "Connect agents, install skills, open the web UI, ask your agent to run the app, and save what worked."
+    - t: "Proof the agent can start it"
+      d: "`integrate verify <agent>` spawns the written entry and initializes the MCP server, so you know it really works."
+    - t: "Skills teach the right habits"
+      d: "Re-attach before starting, wait instead of polling, and save a run only after you agree."
+    - t: "Common stacks need no YAML"
+      d: "Next.js, Spring Boot, Django, Node, Python and Go are detected on first sight, each with readiness patterns."
+
+"docs/getting-started/how-it-works":
+  points:
+    - t: "Two small components"
+      d: "`jackketchd` is the always-on daemon, one per OS user. `jack-ketch serve` is a thin bridge that connects lazily on the first tool call."
+    - t: "Processes belong to the daemon"
+      d: "They outlive agent sessions, but stop when the daemon stops. That is why an agent starts with `list_processes`."
+    - t: "Projects survive moves and re-clones"
+      d: "Identity is resolved by path, then device and inode, then git remote, then fingerprints. Worktrees just work."
+    - t: "Nothing lands in your repository"
+      d: "State and config live in `state.db`, with a revision history, so there is no `.jack-ketch/` folder to commit."
+
+"docs/guides":
+  label: "In this section"
+  points:
+    - t: "Pull, don't push"
+      d: "Logs are never streamed into the conversation. The agent asks for exactly what it needs."
+    - t: "Waits are capped per client"
+      d: "So a long wait never turns into a client-side timeout, and `clamped=true` tells the agent to call again."
+    - t: "Failures name who acts"
+      d: "You, the agent, or the agent after your approval. Secrets stay yours to supply."
+    - t: "Verify against the running app"
+      d: "`probe` and saved checks prove behavior with the logs each request produced, beyond passing tests."
+
+"docs/guides/running-processes":
+  points:
+    - t: "Re-attach before starting"
+      d: "`list_processes` shows what earlier sessions started, which avoids the most common mistake: a duplicate on the same port."
+    - t: "Start and wait in one call"
+      d: "`start_process` with `timeout_ms` blocks until the app is ready and returns the diagnosis if it fails."
+    - t: "One call to verify a change"
+      d: "`verify_change` restarts, waits for readiness, runs saved checks and reports only new errors with a pass or fail verdict."
+    - t: "Whole stacks in one go"
+      d: "`start_stack` starts an app with its `depends_on` chain in order, awaits each one and reuses what already runs."
+
+"docs/guides/waits-and-timeouts":
+  points:
+    - t: "Every wait is capped per client"
+      d: "600 s for Claude Code, Codex, Gemini CLI, Goose and Cline, 290 s for Roo Code and 50 s for every other client."
+    - t: "`clamped=true` is not a failure"
+      d: "The process is fine; the call hit its cap. Call again with `since=cursor` and no line is skipped."
+    - t: "Rebuilds need `since=\"now\"`"
+      d: "After an edit on a hot-reloading server, an old line would match at once. Add `fail_pattern` so a failed rebuild ends the wait."
+    - t: "Connect through `integrate install`"
+      d: "The entry then passes `--harness <id>`, which is what fixes `Tool call timed out after ~60 s`."
+
+"docs/guides/diagnosing-failures":
+  points:
+    - t: "Every failure names who acts"
+      d: "A diagnosis carries a `category`, log `evidence`, `steps`, concrete `fixes` and an `actor`: the user, the agent, or the agent with approval."
+    - t: "Secrets stay yours"
+      d: "The agent never invents values. It shows a `missing_env` list: each key, the file to add it to, a hint and an example."
+    - t: "Installs and migrations need a yes"
+      d: "The agent shows the exact commands first. Code errors and port conflicts it fixes itself."
+    - t: "Success is classified too"
+      d: "A working run carries a `save_suggestion`. Saving never touches repository files."
+
+"docs/guides/modes-and-env":
+  points:
+    - t: "One app, several modes"
+      d: "Shared settings live on the app and each mode overrides only what differs: `dev`, `prod`, `test` or your own."
+    - t: "Later `env_sources` win"
+      d: "Five layers from base env to the request's own `env`, so you can always tell which value wins."
+    - t: "See where every key came from"
+      d: "`get_process_env` shows the source of each key, such as `file:.env` or `mode:prod/vars`, with secrets masked."
+    - t: "Monorepos stay separate"
+      d: "Each service gets its own workdir and `.env`. A missing `workdir` fails the start before anything runs."
+
+"docs/guides/runtime-verification":
+  lead: "Passing tests is not the same as the running app working."
+  points:
+    - t: "Responses come with their logs"
+      d: "`probe` returns the reply together with the exact log lines the process printed while handling the request."
+    - t: "Saved checks are regression tests"
+      d: "A probe worth repeating becomes a check, and `run_checks` re-runs them all in one call."
+    - t: "Safe by default"
+      d: "`GET`, `HEAD` and `OPTIONS` to localhost run at once. Data-changing or non-local requests need your approval."
+    - t: "Trouble is noticed without polling"
+      d: "Health checks flag a process `unhealthy` after `failure_threshold` failures and restart it per policy. A manual stop never restarts."
+
+"docs/guides/credentials":
+  points:
+    - t: "The agent never sees a secret"
+      d: "It refers to a profile by name. The daemon attaches it and scrubs the values from everything it returns."
+    - t: "Encrypted at rest"
+      d: "AES-256-GCM, with the key in a `0600` file or the OS keychain. A missing key is an error, never a silent new key."
+    - t: "Web-only changes"
+      d: "Saving, deleting and revealing are refused on the agent socket and accepted only in the web UI."
+    - t: "Risky calls need approval"
+      d: "Non-local targets, data-changing methods and `production` profiles. Credential proxies expire in 30 minutes by default."
+
+"docs/guides/project-config":
+  points:
+    - t: "Config lives in the daemon, not your repo"
+      d: "Edit it in the web UI or with `jack-ketch config edit`, or let an agent propose a change with `validate_config`, `plan_config` and `apply_config`."
+    - t: "A bad save never breaks you"
+      d: "The last good revision stays active, and `apply_config` takes a `base_revision` so conflicts answer `stale_revision`."
+    - t: "Auto-detected and kept in sync"
+      d: "An app you edited is never silently overwritten: a needed update becomes a proposal you approve, and agents never auto-approve one."
+    - t: "Built-in profiles"
+      d: "`nextjs`, `spring-boot`, `django`, `node`, `python` and `go` supply readiness patterns and, for most, a default command."
+
+"docs/guides/web-ui":
+  points:
+    - t: "Everything in one place"
+      d: "Processes, ports, logs, timeline, audit, config, credentials and integrations."
+    - t: "Errors grouped, ready to paste"
+      d: "The Errors tab groups build errors, exceptions and test failures with file and line, and **Copy for agent** hands the list over."
+    - t: "Find what happened"
+      d: "The timeline points out when a process started logging errors and what happened just before. The Ports page shows conflicts."
+    - t: "Loopback only"
+      d: "A bearer token, strict `Host` and `Origin` checks, and credential changes refused on the agent socket."
+
+"docs/reference":
+  label: "In this section"
+  points:
+    - t: "{tools} MCP tools"
+      d: "Grouped by what they do, each documented with its parameters and typical calls."
+    - t: "Every command and config field"
+      d: "The CLI, the v3 config and a JSON Schema for editors, so a typo is caught as you type."
+    - t: "A versioned API"
+      d: "`jackketch.v1` over Connect-style RPC, shared by the CLI, the MCP bridge and the web UI."
+    - t: "The why behind it"
+      d: "Architecture, the security model and decision records explain how jack-ketch is built and why."
+
+"docs/reference/mcp-tools":
+  points:
+    - t: "{tools} tools over MCP"
+      d: "Served by `jack-ketch serve` over stdio or `--http ADDR`. Read-only tools never change state."
+    - t: "A core toolset for tight limits"
+      d: "`--toolset core` exposes a reduced set for clients that cap how many tools they accept."
+    - t: "Every wait is capped per call"
+      d: "When a result has `clamped=true` and `still_running=true`, call it again."
+    - t: "Heed the notices"
+      d: "`update_notice` means restarting the daemon stops every process, so tell the user first. `nested` means two projects define the same apps."
+
+"docs/reference/cli":
+  points:
+    - t: "Two entry points"
+      d: "Bare `jack-ketch` prints the command help, and `jack-ketch web` opens the web UI."
+    - t: "Destructive commands ask first"
+      d: "`daemon stop` and `daemon restart` list what will stop. `--yes` is required without a terminal."
+    - t: "`doctor` for humans and tools"
+      d: "`--json` for tooling, `--fix` to repair permissions where it is safe."
+    - t: "`serve` is tunable"
+      d: "`--harness`, `--http`, `--toolset` and `--max-wait-ms`, plus `--check` to verify connectivity and print one JSON line."
+
+"docs/reference/config":
+  points:
+    - t: "Editor validation built in"
+      d: "A JSON Schema is served at `/schema.json` for any editor that supports `yaml-language-server`."
+    - t: "Sensible defaults"
+      d: "Login-shell env capture so nvm, pyenv and uv shims reach processes, a 5 s stop grace and 10,000 log lines per process."
+    - t: "Restart on change with `watch`"
+      d: "Debounced (300 ms by default), recursive, and it always ignores `.git`, `node_modules`, `dist` and caches."
+    - t: "Restricted mode"
+      d: "`security.mode: restricted` confines commands and working directories to the workspace."
+
+"docs/reference/api":
+  points:
+    - t: "One schema, every SDK"
+      d: "`buf generate` emits the Go and TypeScript bindings from `api/proto`. Generated code is committed and CI-gated."
+    - t: "Debug with plain curl"
+      d: "Every endpoint is `POST /api/jackketch.v1.<Service>/<Method>` with a JSON body, over the Unix socket."
+    - t: "Streams that resume"
+      d: "Newline-delimited JSON: a snapshot, then deltas with a `cursor`. Reconnect with `resume_cursor`, with a 15 s heartbeat."
+    - t: "Slow consumers never stall it"
+      d: "They get a `Gap{dropped}` marker instead of backpressure."
+
+"docs/reference/architecture":
+  points:
+    - t: "One daemon, many projects"
+      d: "A multi-tenant engine hosts every project, each isolated in its own `ProjectRuntime`."
+    - t: "Daemon-owned processes"
+      d: "They outlive sessions but stop with the daemon, which warns first through the CLI, the web UI banner and `update_notice`."
+    - t: "Single-writer SQLite"
+      d: "`state.db` runs in WAL mode, with a per-workspace FTS5 index for logs."
+    - t: "Published performance budgets"
+      d: "`jack-ketch serve` cold start under 150 ms, `StartProcess` under 30 ms p99, ingest at 100k lines per second or more."
+
+"docs/reference/security":
+  label: "The model at a glance"
+  lead: "A local, single-user threat model. The daemon enforces; agents are untrusted callers of the API."
+  points:
+    - t: "Locked-down transports"
+      d: "A `0700` socket directory, a `0600` socket and a peer-credential uid check that fails closed. TCP is off by default."
+    - t: "Every mutation is audited"
+      d: "Each mutating call and policy denial is kept for 90 days, attributed to a session and harness, with args redacted."
+    - t: "Clean spawn environment"
+      d: "Client variables such as `CLAUDECODE`, `CODEX_*` and `MCP_*` are dropped before a process starts."
+    - t: "Honest limits"
+      d: "It is not a boundary against code running as your user. Use test or staging accounts."
+
+"docs/reference/troubleshooting":
+  points:
+    - t: "Every `doctor` check has an action"
+      d: "`doctor --json` for tooling and `doctor --fix` to repair permissions where safe."
+    - t: "Stopped after an update?"
+      d: "Expected: processes are the daemon's children. `start_stack` brings a whole stack back."
+    - t: "Same app in two projects?"
+      d: "`jack-ketch project merge <child-id> --into <parent-id>` folds a nested project in, and `--dry-run` previews it."
+    - t: "Timeout after about 60 s?"
+      d: "The entry was written without `--harness`. Reconnect with `integrate install` to get the client's real limit."
+
+"docs/reference/migrate-v3":
+  points:
+    - t: "Automatic on first contact"
+      d: "Your directory resolves to a project, and a running v2 daemon hands over its processes."
+    - t: "Nothing is deleted without asking"
+      d: "The legacy `.jack-ketch/` directory is left in place, and `--cleanup` offers to remove it."
+    - t: "Existing MCP entries keep working"
+      d: "The same `jack-ketch serve` command now runs as a bridge to the daemon."
+    - t: "Easy to back out"
+      d: "`--dry-run` previews a migration, and `project forget` soft-deletes into a 30-day trash."
+
+"docs/reference/decisions":
+  label: "In this section"
+  points:
+    - t: "Context, decision, consequences"
+      d: "Each record states what forced the choice, what was chosen and what it costs."
+    - t: "Alternatives that lost"
+      d: "Most records list what was rejected and why, such as a REST API, GraphQL or per-project daemons."
+    - t: "Superseded is kept, not hidden"
+      d: "ADR-002 (the shim) is marked superseded so you can see what changed and why."
+    - t: "ADR-001 shapes the rest"
+      d: "The per-user daemon is the choice the rest of the architecture builds on."
+
+"docs/reference/decisions/001-per-user-daemon":
+  label: "The decision at a glance"
+  points:
+    - t: "One daemon per OS user"
+      d: "It hosts every project and listens on `$XDG_RUNTIME_DIR/jack-ketch/jackketchd.sock`."
+    - t: "Projects are isolated inside it"
+      d: "Each `ProjectRuntime` has its own manager, policy, audit, config watcher and log index handle."
+    - t: "A panic stays contained"
+      d: "A panic in one project's goroutine is recovered and scoped to that project."
+    - t: "What lost"
+      d: "Per-project daemons with a discovery service added complexity. A single runtime without isolation was too fragile."
+
+"docs/reference/decisions/002-shim":
+  label: "The decision at a glance"
+  points:
+    - t: "Superseded on 2026-11-13"
+      d: "The shim was never wired into process supervision and was removed with the `jack-ketch-shim` binary."
+    - t: "What holds today"
+      d: "Managed processes are children of `jackketchd`. Stopping, restarting or updating the daemon stops all of them."
+    - t: "Users are warned instead"
+      d: "A confirmation on `daemon stop` and `restart`, a web UI update banner and `update_notice` for agents."
+    - t: "What it proposed"
+      d: "A per-process supervisor so processes and logs survive a daemon restart with zero log loss."
+
+"docs/reference/decisions/003-project-identity":
+  label: "The decision at a glance"
+  points:
+    - t: "Two levels, stable ids"
+      d: "A Project (`proj_<ulid>`) owns config and history. A Workspace (`ws_<ulid>`) is one checkout on disk."
+    - t: "A locator chain"
+      d: "Match by canonical path, then device and inode, then git common dir with fingerprints, and only then create a new project."
+    - t: "Moves, renames and re-clones keep identity"
+      d: "A `git worktree add` becomes a separate workspace of the same project."
+    - t: "Fast, and nothing written to the repo"
+      d: "Under 5 ms warm and 50 ms cold. A UUID marker file was rejected because it writes into your repository."
+
+"docs/reference/decisions/004-connect-rpc":
+  label: "The decision at a glance"
+  points:
+    - t: "Protobuf schemas with Connect-RPC"
+      d: "Generated with Buf, one schema for the Go SDK, the TypeScript client and the docs."
+    - t: "Built for streaming and browsers"
+      d: "Server streams for live tail and watches, browser clients via `connect-web`, and a Unix socket over h2c."
+    - t: "Compatibility is gated in CI"
+      d: "`buf breaking` guards the wire format. v1 only takes additive changes, and breaking ones become v2."
+    - t: "What lost"
+      d: "Extending the JSON-over-UDS RPC, plain gRPC (needs a proxy), REST with OpenAPI and GraphQL."
+
+"docs/reference/decisions/006-db-config-and-auto-sync":
+  label: "The decision at a glance"
+  points:
+    - t: "Config is text in the database"
+      d: "YAML lives in `state.db` `project_configs` with history in `config_revisions`, and there is no `projects/` folder."
+    - t: "Generated on first sight"
+      d: "The `detect` package scans run-defining files and builds the apps for you."
+    - t: "Sync follows the files, not git HEAD"
+      d: "A SHA-256 `run_signature` over the run files is checked on project load and on every start."
+    - t: "Humans approve changes to their apps"
+      d: "An app you own that needs an update becomes a pending proposal you approve or dismiss."
+
+"docs/integrations":
+  points:
+    - t: "One command per agent"
+      d: "`integrate install <agent>` shows the diff, backs up the old file to `<file>.jack-ketch.bak` and writes atomically."
+    - t: "The same entry everywhere"
+      d: "Every client gets a `jack-ketch` server with `--harness <id>`, which raises the per-call wait cap for clients that support it."
+    - t: "Your instruction files stay yours"
+      d: "A user-scope install manages one block between `JACK-KETCH_START` and `JACK-KETCH_END` markers, and `remove` strips it again."
+    - t: "Read-only configs are respected"
+      d: "For Nix or home-manager, `integrate show <agent>` prints the entry to add to your declarative config."

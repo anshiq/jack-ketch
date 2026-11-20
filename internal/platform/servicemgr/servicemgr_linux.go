@@ -66,7 +66,7 @@ After=jackketchd.socket
 
 [Service]
 Type=notify
-KillMode=process
+KillMode=mixed
 Delegate=yes
 Restart=on-failure
 RestartSec=1s

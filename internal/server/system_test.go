@@ -11,7 +11,7 @@ import (
 	"jack-ketch/pkg/client"
 )
 
-func TestShutdownDefaultKeepsProcesses(t *testing.T) {
+func TestShutdownCallsHook(t *testing.T) {
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "state.db"))
 	if err != nil {
@@ -20,8 +20,8 @@ func TestShutdownDefaultKeepsProcesses(t *testing.T) {
 	defer db.Close()
 	eng := core.NewWithOptions(db, core.Options{DataDir: dir})
 	defer eng.Close()
-	ch := make(chan bool, 1)
-	srv, err := NewWithOptions(eng, filepath.Join(dir, "jackketchd.sock"), "test", func(keep bool) { ch <- keep })
+	ch := make(chan struct{}, 1)
+	srv, err := NewWithOptions(eng, filepath.Join(dir, "jackketchd.sock"), "test", func() { ch <- struct{}{} })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,10 +43,7 @@ func TestShutdownDefaultKeepsProcesses(t *testing.T) {
 		t.Fatalf("shutdown: %v", err)
 	}
 	select {
-	case keep := <-ch:
-		if !keep {
-			t.Fatal("default keepProcesses = false, want true")
-		}
+	case <-ch:
 	case <-time.After(2 * time.Second):
 		t.Fatal("onShutdown never called")
 	}

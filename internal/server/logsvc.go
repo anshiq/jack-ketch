@@ -17,7 +17,7 @@ import (
 
 	"jack-ketch/internal/config"
 	"jack-ketch/internal/core"
-	"jack-ketch/internal/logpipe"
+	"jack-ketch/internal/logindex"
 	"jack-ketch/internal/logs"
 	"jack-ketch/pkg/api"
 )
@@ -316,12 +316,12 @@ func parseEntryTime(v string) int64 {
 }
 
 // searchIndex queries the per-workspace FTS index (history + migrated logs).
-func (s *Server) searchIndex(workspaceID string, processes []string, query string, maxRows int) ([]logpipe.SearchHit, bool, error) {
+func (s *Server) searchIndex(workspaceID string, processes []string, query string, maxRows int) ([]logindex.SearchHit, bool, error) {
 	if maxRows <= 0 {
 		return nil, false, nil
 	}
 	idxPath := filepath.Join(s.engine.DataDir(), "logs", workspaceID, "index.db")
-	idx, err := logpipe.OpenWorkspaceIndex(idxPath)
+	idx, err := logindex.OpenWorkspaceIndex(idxPath)
 	if err != nil {
 		return nil, false, err
 	}

@@ -15,6 +15,8 @@ service ProjectService {
   rpc LinkWorkspace(LinkWorkspaceRequest) returns (LinkWorkspaceResponse);
   rpc ForgetProject(ForgetProjectRequest) returns (ForgetProjectResponse);
   rpc GC(GCRequest) returns (GCResponse);
+  rpc ListNestedProjects(ListNestedProjectsRequest) returns (ListNestedProjectsResponse);
+  rpc MergeNestedProject(MergeNestedProjectRequest) returns (MergeNestedProjectResponse);
 }
 
 message ResolveRequest {
@@ -26,6 +28,7 @@ message ResolveResponse {
   string project_name = 3;
   bool newly_created = 4;
   repeated string unresolved_locators = 5;
+  string attached_subpath = 6;
 }
 
 message ListProjectsRequest {
@@ -84,3 +87,49 @@ message GCResponse {
   repeated string removed_workspaces = 1;
 }
 
+
+message NestedSide {
+  string project_id = 1;
+  string project_name = 2;
+  string workspace_id = 3;
+  string path = 4;
+}
+
+message NestedApp {
+  string name = 1;
+  string workdir = 2;
+  string status = 3; // duplicate | conflict | unique | added
+  string parent_app = 4;
+  string detail = 5;
+}
+
+message NestedProject {
+  NestedSide child = 1;
+  NestedSide parent = 2;
+  repeated NestedApp apps = 3;
+  int32 running = 4;
+}
+
+message ListNestedProjectsRequest {}
+message ListNestedProjectsResponse {
+  repeated NestedProject nested = 1;
+}
+
+message MergeNestedProjectRequest {
+  string child_project_id = 1;
+  string parent_project_id = 2;
+  bool dry_run = 3;
+}
+message MergeNestedProjectResponse {
+  NestedSide child = 1;
+  NestedSide parent = 2;
+  repeated NestedApp apps = 3;
+  map<string, string> renamed = 4;
+  int32 credentials = 5;
+  int32 running = 6;
+  bool applied = 7;
+  int64 revision = 8;
+  int32 credentials_moved = 9;
+  int32 credentials_skipped = 10;
+  string yaml = 11;
+}

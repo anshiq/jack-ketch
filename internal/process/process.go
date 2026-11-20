@@ -168,9 +168,8 @@ type ManagedProcess struct {
 	wakeup   *broadcaster
 	logger   *slog.Logger
 
-	// supervision is the declarative policy set once at Start and immutable
-	// thereafter (a running process keeps its policy unless set_restart_policy
-	// is used).
+	// supervision is the declarative policy. Guarded by mu: it is replaced when
+	// a restart carries a fresh spec and set_restart_policy can change it.
 	supervision Supervision
 
 	// ready is true once the current instance reaches readiness.

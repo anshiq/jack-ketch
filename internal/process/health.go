@@ -111,7 +111,7 @@ func (m *Manager) healthLoop(proc *ManagedProcess, inst *instance) {
 	}
 	proc.ready.Store(true)
 
-	h := proc.supervision.Health
+	h := proc.supervisionSnapshot().Health
 	if h.HTTP == "" && h.TCP == "" {
 		return
 	}
@@ -169,7 +169,8 @@ func (m *Manager) healthLoop(proc *ManagedProcess, inst *instance) {
 // readiness pattern, or (with none armed) until it is running. It returns false
 // if the instance ends before becoming ready.
 func (m *Manager) waitReady(proc *ManagedProcess, inst *instance) bool {
-	if len(proc.supervision.ready) == 0 {
+	sup := proc.supervisionSnapshot()
+	if len(sup.ready) == 0 {
 		select {
 		case <-inst.done:
 			return false
@@ -184,7 +185,7 @@ func (m *Manager) waitReady(proc *ManagedProcess, inst *instance) bool {
 	scan := func() bool {
 		for _, e := range proc.Logs.From(lastID) {
 			lastID = e.ID + 1
-			if proc.supervision.matchReady(e.Line) {
+			if sup.matchReady(e.Line) {
 				return true
 			}
 		}
@@ -210,7 +211,7 @@ func (m *Manager) waitReady(proc *ManagedProcess, inst *instance) bool {
 // probe performs one HTTP or TCP health check and returns success plus the
 // measured latency.
 func (m *Manager) probe(proc *ManagedProcess, timeout time.Duration) (bool, time.Duration) {
-	h := proc.supervision.Health
+	h := proc.supervisionSnapshot().Health
 	start := time.Now()
 	if h.HTTP != "" {
 		client := &http.Client{Timeout: timeout}

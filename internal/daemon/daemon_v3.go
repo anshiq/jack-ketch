@@ -2,8 +2,7 @@
 
 // Package daemon implements the v3 daemon lifecycle:
 // per-user daemon management, systemd socket activation,
-// sd_notify, drain/keep-processes, idle exit, and shim
-// reconnection on boot.
+// sd_notify, drain and idle exit.
 //
 // The v3 daemon is per OS user (not per project) and hosts
 // all project runtimes. It owns the state database, the
@@ -14,7 +13,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,8 +25,6 @@ import (
 const (
 	// DefaultIdleExit is the default idle exit duration (never).
 	DefaultIdleExit = 0
-	// DefaultShimLinger is the default shim linger time.
-	DefaultShimLinger = 24 * time.Hour
 	// ReadyPollInterval is how often EnsureReady polls the socket.
 	ReadyPollInterval = 20 * time.Millisecond
 	// ReadyTimeout caps EnsureReady (client spawn path).
@@ -44,20 +40,6 @@ const (
 	StateReady
 	StateDraining
 )
-
-func (s DaemonState) String() string {
-	switch s {
-	case StateNone:
-		return "none"
-	case StateBooting:
-		return "booting"
-	case StateReady:
-		return "ready"
-	case StateDraining:
-		return "draining"
-	}
-	return "unknown"
-}
 
 // Daemon manages the daemon lifecycle.
 type Daemon struct {
@@ -276,32 +258,21 @@ func (d *Daemon) spawn() error {
 	return d.WaitReady(ReadyTimeout)
 }
 
-// Stop stops the daemon. keepProcesses=true (default for upgrade/restart):
-// stop accepting, flush index, detach shims; children keep running and the
-// next daemon re-attaches. false: gracefully stop every process first.
-func (d *Daemon) Stop(keepProcesses bool) error {
+func (d *Daemon) Stop() error {
 	d.state = StateDraining
-	_ = keepProcesses
-	// The live daemon is signalled; Run() handles the drain.
 	pid := d.ReadPid()
 	if pid <= 0 {
 		return fmt.Errorf("daemon not running")
 	}
-	sig := syscall.SIGTERM
-	if !keepProcesses {
-		sig = syscall.SIGQUIT // convention: QUIT = stop --all
-	}
-	return unix.Kill(pid, sig)
+	return unix.Kill(pid, syscall.SIGTERM)
 }
 
-// Restart restarts the daemon (stop keep + start). Used by upgrades:
-// shims are untouched; the new daemon reconnects (§2.3).
 func (d *Daemon) Restart() error {
 	pid := d.ReadPid()
-	if err := d.Stop(true); err != nil {
+	if err := d.Stop(); err != nil {
 		return err
 	}
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if !pidAliveV3(pid) && !d.IsRunning() {
 			break
@@ -309,55 +280,6 @@ func (d *Daemon) Restart() error {
 		time.Sleep(ReadyPollInterval)
 	}
 	return d.Start()
-}
-
-// ReconnectShims scans shim dirs + live instances for running processes.
-// For each: connect shim.sock, Hello, resume ingest from the index cursor.
-// Processes that exited while down: shim holds the exit → recorded.
-// A dead shim socket → mark orphaned (legacy pid-poll fallback).
-func (d *Daemon) ReconnectShims(runtimeDir string, live []LiveInstance) ReconnectReport {
-	var rep ReconnectReport
-	shimRoot := filepath.Join(runtimeDir, "shims")
-	entries, _ := os.ReadDir(shimRoot)
-	seen := map[string]bool{}
-	for _, e := range entries {
-		seen[e.Name()] = true
-		sock := filepath.Join(shimRoot, e.Name(), "shim.sock")
-		if _, err := os.Stat(sock); err != nil {
-			rep.Orphaned = append(rep.Orphaned, e.Name())
-			continue
-		}
-		rep.Reconnected = append(rep.Reconnected, e.Name())
-	}
-	for _, inst := range live {
-		if !seen[inst.InstanceID] {
-			rep.Orphaned = append(rep.Orphaned, inst.InstanceID)
-		}
-	}
-	return rep
-}
-
-// LiveInstance is the minimal reconnect input (avoids importing store).
-type LiveInstance struct {
-	InstanceID string
-	ShimDir    string
-}
-
-// ReconnectReport summarizes boot reconnection.
-type ReconnectReport struct {
-	Reconnected []string
-	Orphaned    []string
-}
-
-// Install writes systemd user units (socket + service) and enables linger
-// guidance. Never enables linger silently (§3.3.1).
-func (d *Daemon) Install() error {
-	return fmt.Errorf("not implemented: units ship in packaging/systemd; wire `daemon install` in Phase 8")
-}
-
-// Uninstall removes the systemd user service.
-func (d *Daemon) Uninstall() error {
-	return fmt.Errorf("not implemented")
 }
 
 // NotifyReady sends sd_notify READY=1 when running under systemd
@@ -376,15 +298,6 @@ func NotifyReady() {
 			conn.Close()
 		}
 	}
-}
-
-// WaitForSignal blocks until SIGTERM/SIGINT/SIGQUIT/SIGHUP. It returns the
-// signal so Run() can distinguish keep-processes (TERM/INT) from stop-all
-// (QUIT) and reload (HUP).
-func WaitForSignal() os.Signal {
-	ch := make(chan os.Signal, 4)
-	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGHUP)
-	return <-ch
 }
 
 // IsSystemdUser returns true if systemd --user is available.
